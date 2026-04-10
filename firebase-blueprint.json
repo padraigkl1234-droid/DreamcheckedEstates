@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "Assignment": {
+      "title": "Assignment",
+      "description": "A maintenance task or team assignment",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the assignment" },
+        "assignee": { "type": "string", "description": "The name of the team member assigned" },
+        "priority": { "type": "string", "enum": ["LOW", "MED", "HIGH", "CRIT"], "description": "Urgency level" },
+        "location": { "type": "string", "description": "Where the task is located" },
+        "description": { "type": "string", "description": "Detailed task description" },
+        "status": { "type": "string", "enum": ["Not Started", "In Progress", "Awaiting Parts", "On Hold", "Completed"], "description": "Current progress status" },
+        "createdAt": { "type": "number", "description": "Unix timestamp of creation" },
+        "isArchived": { "type": "boolean", "description": "Whether the task is moved to history" },
+        "attachments": { 
+          "type": "array", 
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "name": { "type": "string" },
+              "type": { "type": "string" }
+            }
+          },
+          "description": "List of attached files or photos"
+        },
+        "completionComment": { "type": "string", "description": "Optional comment provided upon completion" },
+        "createdBy": { "type": "string", "description": "UID of the user who created the assignment" }
+      },
+      "required": ["title", "assignee", "priority", "location", "status", "createdAt", "isArchived"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Application user profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] }
+      },
+      "required": ["uid", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/assignments/{assignmentId}": {
+      "schema": "Assignment",
+      "description": "Global collection of maintenance assignments"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and roles"
+    }
+  }
+}
