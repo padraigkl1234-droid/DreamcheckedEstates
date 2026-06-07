@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Defects{% endblock %}
+
+{% macro sort_link(field, label) %}
+{% set new_dir = 'asc' if (filters.sort == field and filters.direction == 'desc') else 'desc' %}
+<a href="{{ url_for('defect_list',
+            status=filters.status, priority=filters.priority,
+            category=filters.category, location=filters.location,
+            q=filters.q, sort=field, direction=new_dir) }}">
+    {{ label }}{% if filters.sort == field %}<span class="arrow">{{ '▾' if filters.direction == 'desc' else '▴' }}</span>{% endif %}
+</a>
+{% endmacro %}
+
+{% block content %}
+<div class="toolbar">
+    <h1 style="margin: 0;">Defects <span class="muted" style="font-size: 1rem; font-weight: 400;">({{ defects|length }} shown)</span></h1>
+    <div>
+        <a class="btn outline"
+           href="{{ url_for('export_csv', status=filters.status, priority=filters.priority, category=filters.category, location=filters.location, q=filters.q) }}">
+           Export filtered list to CSV</a>
+        <a class="btn gold" href="{{ url_for('new_defect') }}">+ Log Defect</a>
+    </div>
+</div>
+
+<form class="filters" method="get">
+    <div class="field">
+        <label for="q">Search</label>
+        <input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Title, description, assignee…">
+    </div>
+    <div class="field">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+            <option value="">All</option>
+            {% for s in STATUSES %}
+            <option value="{{ s }}" {{ 'selected' if filters.status == s }}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="field">
+        <label for="priority">Priority</label>
+        <select id="priority" name="priority">
+            <option value="">All</option>
+            {% for p in PRIORITIES %}
+            <option value="{{ p }}" {{ 'selected' if filters.priority == p }}>{{ p }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="field">
+        <label for="category">Category</label>
+        <select id="category" name="category">
+            <option value="">All</option>
+            {% for c in CATEGORIES %}
+            <option value="{{ c }}" {{ 'selected' if filters.category == c }}>{{ c }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="field">
+        <label for="location">Location</label>
+        <select id="location" name="location">
+            <option value="">All</option>
+            {% for l in LOCATIONS %}
+            <option value="{{ l }}" {{ 'selected' if filters.location == l }}>{{ l }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <input type="hidden" name="sort" value="{{ filters.sort }}">
+    <input type="hidden" name="direction" value="{{ filters.direction }}">
+    <div class="field">
+        <button type="submit" class="btn">Apply filters</button>
+    </div>
+    {% if filters.status or filters.priority or filters.category or filters.location or filters.q %}
+    <div class="field">
+        <a class="btn outline" href="{{ url_for('defect_list') }}">Clear</a>
+    </div>
+    {% endif %}
+</form>
+
+{% if defects %}
+<table>
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Location</th>
+            <th>Category</th>
+            <th>{{ sort_link('priority', 'Priority') }}</th>
+            <th>Status</th>
+            <th>Assigned to</th>
+            <th>{{ sort_link('date_raised', 'Raised') }}</th>
+            <th>{{ sort_link('date_resolved', 'Resolved') }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in defects %}
+        <tr>
+            <td><a href="{{ url_for('view_defect', defect_id=d.id) }}">{{ d.title }}</a></td>
+            <td>{{ d.location }}</td>
+            <td>{{ d.category }}</td>
+            <td><span class="badge priority-{{ d.priority }}">{{ d.priority }}</span></td>
+            <td><span class="badge status-{{ d.status|replace(' ', '-') }}">{{ d.status }}</span></td>
+            <td>{{ d.assigned_to or '—' }}</td>
+            <td>{{ d.date_raised }}</td>
+            <td>{{ d.date_resolved or '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty">No defects match these filters.</p>
+{% endif %}
+{% endblock %}

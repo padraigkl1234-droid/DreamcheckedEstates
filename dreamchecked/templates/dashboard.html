@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="grid cols-3" style="margin-bottom: 1.4rem;">
+    <div class="card stat">
+        <div class="number">{{ status_counts.get('Open', 0) }}</div>
+        <div class="label">Open</div>
+    </div>
+    <div class="card stat">
+        <div class="number">{{ status_counts.get('In Progress', 0) }}</div>
+        <div class="label">In Progress</div>
+    </div>
+    <div class="card stat">
+        <div class="number">{{ status_counts.get('Resolved', 0) }}</div>
+        <div class="label">Resolved</div>
+    </div>
+</div>
+
+<div class="grid cols-2" style="margin-bottom: 1.4rem;">
+    <div class="card">
+        <h2>By priority</h2>
+        <ul class="breakdown-list">
+            {% for p in PRIORITIES %}
+            <li><span>{{ p }}</span> <span class="count">{{ priority_counts.get(p, 0) }}</span></li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="card">
+        <h2>By category</h2>
+        <ul class="breakdown-list">
+            {% for c in CATEGORIES %}
+            <li><span>{{ c }}</span> <span class="count">{{ category_counts.get(c, 0) }}</span></li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Urgent &amp; high priority — still open ({{ urgent_open|length }})</h2>
+    {% if urgent_open %}
+    <ul class="urgent-list">
+        {% for d in urgent_open %}
+        <li>
+            <span>
+                <a href="{{ url_for('view_defect', defect_id=d.id) }}">{{ d.title }}</a>
+                <span class="badge priority-{{ d.priority }}">{{ d.priority }}</span>
+                <span class="badge status-{{ d.status|replace(' ', '-') }}">{{ d.status }}</span>
+            </span>
+            <span class="meta">{{ d.location }} · raised {{ d.date_raised }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">Nothing urgent or high priority outstanding. Good shape.</p>
+    {% endif %}
+</div>
+
+<p class="muted" style="margin-top: 1rem;">{{ total }} defect(s) logged in total.</p>
+{% endblock %}
