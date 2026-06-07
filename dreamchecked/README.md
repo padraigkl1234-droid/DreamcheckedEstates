@@ -42,6 +42,28 @@ You should see something like:
 Open that address — **http://127.0.0.1:5000** — in your web browser
 (Chrome, Firefox, Edge, Safari all work). That's the whole app.
 
+## Using it from your phone or tablet
+
+DreamChecked runs on your laptop, but you can open it from your phone's
+browser too, as long as both devices are on the **same Wi-Fi network**.
+`127.0.0.1` won't work from your phone — that address always means "this
+device", so your phone would be looking for the app on itself. Instead you
+need your laptop's network address:
+
+1. With the app running, find your laptop's local IP address:
+   - **Windows**: open Command Prompt and run `ipconfig` — look for
+     "IPv4 Address" (something like `192.168.1.42`)
+   - **Mac**: System Settings → Wi-Fi → Details (or run `ipconfig getifaddr en0`
+     in Terminal)
+   - **Linux**: run `hostname -I` in a terminal
+2. On your phone, open a browser and go to `http://<that-address>:5000`,
+   e.g. `http://192.168.1.42:5000`
+
+Keep in mind this makes DreamChecked reachable by any device on your home
+network while it's running — fine for personal/home use, but it's no longer
+strictly "this laptop only". If that's a concern, just use it from the
+laptop as normal and skip this section.
+
 The first time you start it, it will create `data/dreamchecked.db` and fill
 it with ten realistic sample defects so you can see how everything works.
 You can edit or delete those freely — they're just there to show the system

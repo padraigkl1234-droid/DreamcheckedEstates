@@ -280,4 +280,8 @@ def add_note(defect_id):
 
 if __name__ == "__main__":
     db.init_db()
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    # 0.0.0.0 makes the app reachable from other devices on your home network
+    # (e.g. your phone) at http://<your-laptop's-network-IP>:5000 — see README
+    # for how to find that address. It's still only visible on your own
+    # network, not the internet.
+    app.run(host="0.0.0.0", port=5000, debug=True)
