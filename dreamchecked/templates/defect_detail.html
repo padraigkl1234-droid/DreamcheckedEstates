@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ defect.title }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <h1 style="margin: 0;">{{ defect.title }}</h1>
+    <div>
+        <a class="btn gold" href="{{ url_for('edit_defect', defect_id=defect.id) }}">Edit / update</a>
+        <a class="btn outline" href="{{ url_for('defect_list') }}">Back to list</a>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 1.2rem;">
+    <dl class="detail-grid">
+        <dt>Status</dt>
+        <dd><span class="badge status-{{ defect.status|replace(' ', '-') }}">{{ defect.status }}</span></dd>
+
+        <dt>Priority</dt>
+        <dd><span class="badge priority-{{ defect.priority }}">{{ defect.priority }}</span></dd>
+
+        <dt>Location</dt>
+        <dd>{{ defect.location }}</dd>
+
+        <dt>Category</dt>
+        <dd>{{ defect.category }}</dd>
+
+        <dt>Assigned to</dt>
+        <dd>{{ defect.assigned_to or '—' }}</dd>
+
+        <dt>Date raised</dt>
+        <dd>{{ defect.date_raised }}</dd>
+
+        <dt>Date resolved</dt>
+        <dd>{{ defect.date_resolved or '—' }}</dd>
+    </dl>
+
+    <h2>Description</h2>
+    <p>{{ defect.description or 'No description provided.' }}</p>
+</div>
+
+<div class="card">
+    <h2>Notes &amp; updates</h2>
+
+    <form method="post" action="{{ url_for('add_note', defect_id=defect.id) }}" style="margin-bottom: 1rem;">
+        <div class="field-row">
+            <label for="note">Add a note</label>
+            <textarea id="note" name="note" rows="3" placeholder="Progress update, contractor visit, parts ordered…" required></textarea>
+        </div>
+        <button type="submit" class="btn">Add note</button>
+    </form>
+
+    {% if notes %}
+    <ul class="notes-list">
+        {% for n in notes %}
+        <li>
+            {{ n.note }}
+            <span class="when">{{ n.created_at }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">No notes yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}DreamChecked{% endblock %} · DreamChecked</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="top">
+        <div class="brand">Dream<span class="gold">Checked</span> <span class="muted" style="color:#aab4cc; font-weight:400; font-size:0.85rem;">— Dreamland Margate Estates</span></div>
+        <nav>
+            <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}">Dashboard</a>
+            <a href="{{ url_for('defect_list') }}" class="{{ 'active' if request.endpoint in ('defect_list', 'view_defect', 'edit_defect') }}">Defects</a>
+            <a href="{{ url_for('new_defect') }}" class="{{ 'active' if request.endpoint == 'new_defect' }}">+ Log Defect</a>
+        </nav>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

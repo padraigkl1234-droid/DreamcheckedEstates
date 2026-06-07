@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Defect' if mode == 'edit' else 'Log a Defect' }}{% endblock %}
+{% block content %}
+<h1>{{ 'Edit defect' if mode == 'edit' else 'Log a new defect' }}</h1>
+
+<form method="post" class="card" style="max-width: 720px;">
+    <div class="field-row">
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title" required
+               value="{{ defect.title if defect else '' }}">
+    </div>
+
+    <div class="field-row">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="4">{{ defect.description if defect else '' }}</textarea>
+    </div>
+
+    <div class="grid cols-2">
+        <div class="field-row">
+            <label for="location">Location / area</label>
+            <select id="location" name="location" required>
+                {% for l in LOCATIONS %}
+                <option value="{{ l }}" {{ 'selected' if defect and defect.location == l }}>{{ l }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field-row">
+            <label for="category">Category</label>
+            <select id="category" name="category" required>
+                {% for c in CATEGORIES %}
+                <option value="{{ c }}" {{ 'selected' if defect and defect.category == c }}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="grid cols-2">
+        <div class="field-row">
+            <label for="priority">Priority</label>
+            <select id="priority" name="priority" required>
+                {% for p in PRIORITIES %}
+                <option value="{{ p }}" {{ 'selected' if (defect and defect.priority == p) or (not defect and p == 'Medium') }}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field-row">
+            <label for="status">Status</label>
+            <select id="status" name="status" required>
+                {% for s in STATUSES %}
+                <option value="{{ s }}" {{ 'selected' if (defect and defect.status == s) or (not defect and s == 'Open') }}>{{ s }}</option>
+                {% endfor %}
+            </select>
+            <div class="hint">Resolved date is filled in automatically when you mark a defect Resolved.</div>
+        </div>
+    </div>
+
+    <div class="field-row">
+        <label for="assigned_to">Assigned to</label>
+        <input type="text" id="assigned_to" name="assigned_to" placeholder="Name, team or contractor"
+               value="{{ defect.assigned_to if defect else '' }}">
+    </div>
+
+    {% if defect %}
+    <div class="grid cols-2">
+        <div class="field-row">
+            <label>Date raised</label>
+            <input type="text" value="{{ defect.date_raised }}" disabled>
+        </div>
+        <div class="field-row">
+            <label for="date_resolved">Date resolved</label>
+            <input type="date" id="date_resolved" name="date_resolved" value="{{ defect.date_resolved or '' }}">
+            <div class="hint">Leave blank to have it set automatically when status is Resolved.</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="form-actions">
+        <button type="submit" class="btn gold">{{ 'Save changes' if mode == 'edit' else 'Log defect' }}</button>
+        {% if defect %}
+        <a class="btn outline" href="{{ url_for('view_defect', defect_id=defect.id) }}">Cancel</a>
+        {% else %}
+        <a class="btn outline" href="{{ url_for('defect_list') }}">Cancel</a>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
