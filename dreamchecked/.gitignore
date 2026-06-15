@@ -2,3 +2,11 @@ data/*.db
 __pycache__/
 *.pyc
 .venv/
+
+# Power Apps — keep source YAML, exclude packed binaries from output/
+# (commit .msapp files only when you have a stable, tested build)
+app/output/*.msapp
+
+# PnP / Power Platform CLI caches
+.pnpjs-cache/
+.pac/

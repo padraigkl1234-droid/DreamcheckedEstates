@@ -1,0 +1,13 @@
+App As app:
+  Properties:
+    # Runs once at startup — defines the full colour palette as global variables.
+    # Every screen references these instead of hard-coded hex values.
+    OnStart: |-
+      =Set(varNavy,    ColorValue("#0F1F3D"));
+      Set(varNavy2,   ColorValue("#16294F"));
+      Set(varGold,    ColorValue("#C9A84A"));
+      Set(varGoldSoft,ColorValue("#E3C976"));
+      Set(varGreen,   ColorValue("#3FAE6E"));
+      Set(varRed,     ColorValue("#D9534F"));
+      Set(varText,    ColorValue("#EEF2F8"));
+      Set(varMuted,   ColorValue("#9FB0C9"))
