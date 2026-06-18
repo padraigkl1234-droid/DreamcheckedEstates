@@ -107,12 +107,17 @@ export default {
           '0%': { transform: 'translateY(-100%)' },
           '100%': { transform: 'translateY(100%)' },
         },
+        scanlines: {
+          '0%': { backgroundPosition: '0 0' },
+          '100%': { backgroundPosition: '0 8px' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         marquee: 'marquee 28s linear infinite',
         'jarvis-scan': 'jarvis-scan 3s ease-in-out infinite',
+        scanlines: 'scanlines 9s linear infinite',
       },
     },
   },

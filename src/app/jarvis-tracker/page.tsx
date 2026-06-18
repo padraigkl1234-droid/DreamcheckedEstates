@@ -180,6 +180,25 @@ function MicroCorners() {
   );
 }
 
+function ConcentricPulse() {
+  return (
+    <>
+      <span
+        className="pointer-events-none absolute inset-0 rounded-full border border-cyan-400/40 animate-ping"
+        style={{ animationDuration: '2.6s' }}
+      />
+      <span
+        className="pointer-events-none absolute inset-0 rounded-full border border-cyan-400/25 animate-ping"
+        style={{ animationDuration: '2.6s', animationDelay: '0.9s' }}
+      />
+      <span
+        className="pointer-events-none absolute inset-0 rounded-full border border-cyan-400/15 animate-ping"
+        style={{ animationDuration: '2.6s', animationDelay: '1.8s' }}
+      />
+    </>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Circular progress chart — radial HUD dial with tick ring + radar sweep
 // ---------------------------------------------------------------------------
@@ -199,6 +218,19 @@ function CircularProgress({ percentage }: { percentage: number }) {
             <stop offset="100%" stopColor="#0066ff" />
           </linearGradient>
         </defs>
+
+        {/* faint outer dial ring, slowly rotating */}
+        <circle
+          cx="100"
+          cy="100"
+          r="97"
+          fill="none"
+          stroke="rgba(0,240,255,0.18)"
+          strokeWidth="1"
+          strokeDasharray="1 9"
+          className="animate-[spin_22s_linear_infinite]"
+          style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+        />
 
         {/* compass-style tick ring */}
         <g stroke="rgba(0,240,255,0.5)">
@@ -848,7 +880,7 @@ function JarvisChatbox({ completionPct, outstandingTasks }: { completionPct: num
             <div className="flex items-center gap-2">
               <div className="relative flex h-7 w-7 items-center justify-center rounded-full border border-cyan-400/50 bg-cyan-400/10">
                 <Bot className="h-4 w-4 text-cyan-300" />
-                <span className="absolute -inset-0.5 rounded-full border border-cyan-400/40 animate-pulse" />
+                <ConcentricPulse />
               </div>
               <div>
                 <p className="font-mono text-xs font-semibold tracking-widest text-cyan-300 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">J.A.R.V.I.S.</p>
@@ -900,7 +932,7 @@ function JarvisChatbox({ completionPct, outstandingTasks }: { completionPct: num
         onClick={() => setOpen((o) => !o)}
         className="relative flex h-14 w-14 items-center justify-center rounded-full border border-cyan-400/50 bg-[#020813]/90 shadow-[0_0_20px_rgba(0,102,255,0.4)] backdrop-blur-xl transition-transform hover:scale-105"
       >
-        <span className="absolute inset-0 rounded-full border border-cyan-400/30 animate-ping" />
+        <ConcentricPulse />
         {open ? <X className="h-5 w-5 text-cyan-300" /> : <Bot className="h-6 w-6 text-cyan-300" />}
       </button>
     </div>
@@ -937,6 +969,13 @@ export default function JarvisTrackerPage() {
     <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#020813] font-mono text-cyan-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-[#0066ff]/10 blur-3xl" />
+      <div
+        className="pointer-events-none absolute inset-0 z-40 animate-scanlines opacity-[0.07] mix-blend-screen"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(to bottom, rgba(0,240,255,0.6) 0px, rgba(0,240,255,0.6) 1px, transparent 1px, transparent 8px)',
+        }}
+      />
 
       {!booted && <BootSequence onComplete={() => setBooted(true)} />}
 
