@@ -120,31 +120,72 @@ function genId() {
 }
 
 // ---------------------------------------------------------------------------
-// Circular progress chart
+// HUD bracket corners (Iron Man style panel frame accents)
+// ---------------------------------------------------------------------------
+
+function HudCorners({ tone = 'cyan' }: { tone?: 'cyan' | 'amber' }) {
+  const c = tone === 'amber' ? 'border-amber-400/70' : 'border-cyan-400/70';
+  return (
+    <>
+      <span className={`pointer-events-none absolute -top-px -left-px h-3 w-3 border-l-2 border-t-2 ${c}`} />
+      <span className={`pointer-events-none absolute -top-px -right-px h-3 w-3 border-r-2 border-t-2 ${c}`} />
+      <span className={`pointer-events-none absolute -bottom-px -left-px h-3 w-3 border-l-2 border-b-2 ${c}`} />
+      <span className={`pointer-events-none absolute -bottom-px -right-px h-3 w-3 border-r-2 border-b-2 ${c}`} />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Circular progress chart — radial HUD dial with tick ring + radar sweep
 // ---------------------------------------------------------------------------
 
 function CircularProgress({ percentage }: { percentage: number }) {
-  const radius = 80;
+  const radius = 76;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percentage / 100) * circumference;
+  const ticks = Array.from({ length: 60 });
 
   return (
     <div className="relative flex h-56 w-56 items-center justify-center">
-      <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
+      <svg viewBox="0 0 200 200" className="absolute h-full w-full -rotate-90">
         <defs>
           <linearGradient id="jarvisProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#00f0ff" />
             <stop offset="100%" stopColor="#00d2ff" />
           </linearGradient>
         </defs>
-        <circle cx="100" cy="100" r={radius} fill="none" stroke="rgba(0,240,255,0.08)" strokeWidth="14" />
+
+        {/* compass-style tick ring */}
+        <g stroke="rgba(0,240,255,0.5)">
+          {ticks.map((_, i) => {
+            const angle = (i / ticks.length) * 360;
+            const major = i % 5 === 0;
+            return (
+              <line
+                key={i}
+                x1="100"
+                y1={major ? 6 : 11}
+                x2="100"
+                y2="16"
+                strokeWidth={major ? 2 : 1}
+                opacity={major ? 0.85 : 0.35}
+                transform={`rotate(${angle} 100 100)`}
+              />
+            );
+          })}
+        </g>
+
+        {/* base ring */}
+        <circle cx="100" cy="100" r={radius} fill="none" stroke="rgba(0,240,255,0.08)" strokeWidth="10" />
+
+        {/* progress ring */}
         <circle
           cx="100"
           cy="100"
           r={radius}
           fill="none"
           stroke="url(#jarvisProgressGradient)"
-          strokeWidth="14"
+          strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -153,7 +194,35 @@ function CircularProgress({ percentage }: { percentage: number }) {
             filter: 'drop-shadow(0 0 8px rgba(0,240,255,0.85))',
           }}
         />
+
+        {/* rotating radar sweep arc */}
+        <circle
+          cx="100"
+          cy="100"
+          r={radius - 18}
+          fill="none"
+          stroke="rgba(0,240,255,0.55)"
+          strokeWidth="1.5"
+          strokeDasharray="16 220"
+          strokeLinecap="round"
+          className="animate-[spin_4s_linear_infinite]"
+          style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+        />
+
+        {/* inner dashed bezel, counter-rotating */}
+        <circle
+          cx="100"
+          cy="100"
+          r={radius - 30}
+          fill="none"
+          stroke="rgba(0,240,255,0.25)"
+          strokeWidth="1"
+          strokeDasharray="2 5"
+          className="animate-[spin_9s_linear_infinite_reverse]"
+          style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+        />
       </svg>
+
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-5xl font-bold tracking-tight text-cyan-300 [text-shadow:0_0_15px_rgba(0,240,255,0.8)]">
           {percentage}%
@@ -198,14 +267,26 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,240,255,0.08),transparent_70%)]" />
 
       {stage === 'idle' && (
-        <button
-          onClick={() => setStage('booting')}
-          className="group relative flex h-40 w-40 items-center justify-center rounded-full border-2 border-cyan-400/60 bg-cyan-500/5 transition-transform duration-300 hover:scale-105"
-        >
-          <span className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping" />
-          <span className="absolute -inset-3 rounded-full border border-cyan-400/20 animate-pulse" />
-          <Power className="h-14 w-14 text-cyan-300 drop-shadow-[0_0_12px_rgba(0,240,255,0.9)] transition-colors group-hover:text-white" />
-        </button>
+        <div className="relative h-52 w-52">
+          <span className="absolute -top-1 -left-1 h-4 w-4 border-l-2 border-t-2 border-cyan-400/60" />
+          <span className="absolute -top-1 -right-1 h-4 w-4 border-r-2 border-t-2 border-cyan-400/60" />
+          <span className="absolute -bottom-1 -left-1 h-4 w-4 border-l-2 border-b-2 border-cyan-400/60" />
+          <span className="absolute -bottom-1 -right-1 h-4 w-4 border-r-2 border-b-2 border-cyan-400/60" />
+          <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_12s_linear_infinite]">
+            <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(0,240,255,0.25)" strokeWidth="1" strokeDasharray="3 7" />
+          </svg>
+          <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_16s_linear_infinite_reverse]">
+            <circle cx="100" cy="100" r="86" fill="none" stroke="rgba(0,240,255,0.18)" strokeWidth="1" strokeDasharray="1 9" />
+          </svg>
+          <button
+            onClick={() => setStage('booting')}
+            className="group absolute inset-6 flex items-center justify-center rounded-full border-2 border-cyan-400/60 bg-cyan-500/5 transition-transform duration-300 hover:scale-105"
+          >
+            <span className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping" />
+            <span className="absolute -inset-3 rounded-full border border-cyan-400/20 animate-pulse" />
+            <Power className="h-14 w-14 text-cyan-300 drop-shadow-[0_0_12px_rgba(0,240,255,0.9)] transition-colors group-hover:text-white" />
+          </button>
+        </div>
       )}
 
       {stage === 'idle' && (
@@ -377,9 +458,11 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
               </p>
             </div>
 
-            <LoadBar icon={Cpu} label="CPU Load" value={load.cpu} />
-            <LoadBar icon={Server} label="Server Load" value={load.mem} />
-            <LoadBar icon={Wifi} label="Network I/O" value={load.net} />
+            <div className="flex items-center justify-between gap-2">
+              <RadialGauge icon={Cpu} label="CPU" value={load.cpu} />
+              <RadialGauge icon={Server} label="Server" value={load.mem} />
+              <RadialGauge icon={Wifi} label="Network" value={load.net} />
+            </div>
 
             <div className="flex items-center justify-center gap-2 rounded-md border border-emerald-400/30 bg-emerald-400/10 py-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-300" />
@@ -407,29 +490,43 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
   );
 }
 
-function LoadBar({ icon: Icon, label, value }: { icon: typeof Cpu; label: string; value: number }) {
-  const color = value > 80 ? 'from-red-500 to-orange-400' : value > 55 ? 'from-amber-400 to-cyan-300' : 'from-[#00d2ff] to-[#00f0ff]';
+function RadialGauge({ icon: Icon, label, value }: { icon: typeof Cpu; label: string; value: number }) {
+  const radius = 24;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+  const color = value > 80 ? '#f87171' : value > 55 ? '#fbbf24' : '#00f0ff';
+
   return (
-    <div>
-      <div className="mb-1 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-cyan-500">
-          <Icon className="h-3 w-3" /> {label}
-        </span>
-        <span className="font-mono text-xs text-cyan-300">{value}%</span>
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative flex h-16 w-16 items-center justify-center">
+        <svg viewBox="0 0 60 60" className="absolute h-full w-full -rotate-90">
+          <circle cx="30" cy="30" r={radius} fill="none" stroke="rgba(0,240,255,0.1)" strokeWidth="4" />
+          <circle
+            cx="30"
+            cy="30"
+            r={radius}
+            fill="none"
+            stroke={color}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            style={{ transition: 'stroke-dashoffset 0.5s ease', filter: `drop-shadow(0 0 4px ${color})` }}
+          />
+        </svg>
+        <span className="font-mono text-[11px] font-bold text-cyan-200">{value}%</span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-cyan-950/60">
-        <div
-          className={`h-full rounded-full bg-gradient-to-r ${color} shadow-[0_0_8px_rgba(0,240,255,0.6)] transition-all duration-500`}
-          style={{ width: `${value}%` }}
-        />
-      </div>
+      <span className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-cyan-500">
+        <Icon className="h-3 w-3" /> {label}
+      </span>
     </div>
   );
 }
 
 function Panel({ title, icon: Icon, children }: { title: string; icon: typeof Gauge; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col rounded-lg border border-cyan-500/20 bg-gradient-to-b from-cyan-500/[0.04] to-transparent p-4 shadow-[0_0_20px_rgba(0,240,255,0.06)]">
+    <div className="relative flex flex-col border border-cyan-500/20 bg-gradient-to-b from-cyan-500/[0.04] to-transparent p-4 shadow-[0_0_20px_rgba(0,240,255,0.06)]">
+      <HudCorners />
       <div className="mb-4 flex items-center gap-2 border-b border-cyan-500/15 pb-3">
         <Icon className="h-4 w-4 text-cyan-400" />
         <h2 className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{title}</h2>
@@ -670,7 +767,8 @@ function JarvisChatbox({ completionPct, outstandingTasks }: { completionPct: num
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end">
       {open && (
-        <div className="mb-3 flex h-96 w-80 flex-col overflow-hidden rounded-lg border border-cyan-400/30 bg-black/90 shadow-[0_0_30px_rgba(0,240,255,0.25)] backdrop-blur-md">
+        <div className="relative mb-3 flex h-96 w-80 flex-col overflow-hidden border border-cyan-400/30 bg-black/90 shadow-[0_0_30px_rgba(0,240,255,0.25)] backdrop-blur-md">
+          <HudCorners />
           <div className="flex items-center justify-between border-b border-cyan-500/20 bg-cyan-500/5 px-3 py-2.5">
             <div className="flex items-center gap-2">
               <div className="relative flex h-7 w-7 items-center justify-center rounded-full border border-cyan-400/50 bg-cyan-400/10">
