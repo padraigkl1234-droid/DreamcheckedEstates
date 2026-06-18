@@ -151,7 +151,7 @@ function CircularProgress({ percentage }: { percentage: number }) {
         <defs>
           <linearGradient id="jarvisProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#00f0ff" />
-            <stop offset="100%" stopColor="#00d2ff" />
+            <stop offset="100%" stopColor="#0066ff" />
           </linearGradient>
         </defs>
 
@@ -263,8 +263,8 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
   const progress = ((stepIndex + 1) / BOOT_STEPS.length) * 100;
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,240,255,0.08),transparent_70%)]" />
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#020813]">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,102,255,0.1),transparent_70%)]" />
 
       {stage === 'idle' && (
         <div className="relative h-52 w-52">
@@ -315,7 +315,7 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
           </div>
           <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-cyan-950/60">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#00d2ff] to-[#00f0ff] shadow-[0_0_10px_rgba(0,240,255,0.8)] transition-all duration-300"
+              className="h-full rounded-full bg-gradient-to-r from-[#0066ff] to-[#00f0ff] shadow-[0_0_10px_rgba(0,240,255,0.8)] transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -331,11 +331,11 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
 
 function Sidebar({ activePage, onNavigate }: { activePage: PageKey; onNavigate: (p: PageKey) => void }) {
   return (
-    <aside className="flex w-16 flex-col border-r border-cyan-500/20 bg-black/60 backdrop-blur-md md:w-60">
-      <div className="flex h-16 items-center justify-center gap-2 border-b border-cyan-500/20 px-2 md:justify-start md:px-5">
+    <aside className="flex w-16 flex-col border-r border-cyan-400/30 bg-[#020813]/70 shadow-[0_0_25px_rgba(0,102,255,0.1)] backdrop-blur-xl md:w-60">
+      <div className="flex h-16 items-center justify-center gap-2 border-b border-cyan-400/30 px-2 md:justify-start md:px-5">
         <Bot className="h-7 w-7 text-cyan-300 drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]" />
         <div className="hidden md:block">
-          <p className="font-mono text-sm font-bold tracking-[0.15em] text-cyan-300">J.A.R.V.I.S.</p>
+          <p className="font-mono text-sm font-bold tracking-[0.15em] text-cyan-300 [text-shadow:0_0_10px_rgba(0,240,255,0.6)]">J.A.R.V.I.S.</p>
           <p className="font-mono text-[10px] tracking-[0.2em] text-cyan-600">ESTATES OS</p>
         </div>
       </div>
@@ -350,7 +350,7 @@ function Sidebar({ activePage, onNavigate }: { activePage: PageKey; onNavigate: 
               onClick={() => onNavigate(item.key)}
               className={`flex items-center justify-center gap-3 rounded-md border px-3 py-2.5 font-mono text-xs uppercase tracking-wider transition-all md:justify-start ${
                 active
-                  ? 'border-cyan-400/50 bg-cyan-400/10 text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.25)]'
+                  ? 'border-[#0066ff]/60 bg-[#0066ff]/10 text-cyan-200 shadow-[0_0_15px_rgba(0,102,255,0.4)]'
                   : 'border-transparent text-cyan-700 hover:border-cyan-500/20 hover:bg-cyan-500/5 hover:text-cyan-400'
               }`}
             >
@@ -361,7 +361,7 @@ function Sidebar({ activePage, onNavigate }: { activePage: PageKey; onNavigate: 
         })}
       </nav>
 
-      <div className="mt-auto border-t border-cyan-500/20 p-3">
+      <div className="mt-auto border-t border-cyan-400/30 p-3">
         <div className="flex items-center justify-center gap-2 md:justify-start">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -433,7 +433,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
             {recentTasks.map((task) => (
               <div
                 key={task.id}
-                className="flex items-center justify-between gap-2 rounded-md border border-cyan-500/15 bg-cyan-500/5 px-3 py-2.5"
+                className="flex items-center justify-between gap-2 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] px-3 py-2.5"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm text-cyan-100">{task.name}</p>
@@ -473,8 +473,8 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
       </div>
 
       <Panel title="BBC News Feed" icon={Newspaper}>
-        <div className="relative flex items-center overflow-hidden rounded-md border border-cyan-500/15 bg-black/40 py-3">
-          <span className="absolute left-0 z-10 flex h-full items-center bg-gradient-to-r from-black via-black to-transparent px-3">
+        <div className="relative flex items-center overflow-hidden rounded-md border border-cyan-400/25 bg-[#020813]/60 py-3 shadow-[0_0_12px_rgba(0,102,255,0.08)]">
+          <span className="absolute left-0 z-10 flex h-full items-center bg-gradient-to-r from-[#020813] via-[#020813] to-transparent px-3">
             <Radio className="h-4 w-4 text-red-400" />
           </span>
           <div className="flex w-max animate-marquee whitespace-nowrap pl-12">
@@ -494,7 +494,7 @@ function RadialGauge({ icon: Icon, label, value }: { icon: typeof Cpu; label: st
   const radius = 24;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (value / 100) * circumference;
-  const color = value > 80 ? '#f87171' : value > 55 ? '#fbbf24' : '#00f0ff';
+  const color = value > 80 ? '#f87171' : value > 55 ? '#fbbf24' : '#0066ff';
 
   return (
     <div className="flex flex-col items-center gap-1.5">
@@ -525,11 +525,13 @@ function RadialGauge({ icon: Icon, label, value }: { icon: typeof Cpu; label: st
 
 function Panel({ title, icon: Icon, children }: { title: string; icon: typeof Gauge; children: React.ReactNode }) {
   return (
-    <div className="relative flex flex-col border border-cyan-500/20 bg-gradient-to-b from-cyan-500/[0.04] to-transparent p-4 shadow-[0_0_20px_rgba(0,240,255,0.06)]">
+    <div className="relative flex flex-col border border-cyan-400/40 bg-[#020813]/50 p-4 shadow-[0_0_25px_rgba(0,102,255,0.12)] backdrop-blur-xl">
       <HudCorners />
-      <div className="mb-4 flex items-center gap-2 border-b border-cyan-500/15 pb-3">
-        <Icon className="h-4 w-4 text-cyan-400" />
-        <h2 className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{title}</h2>
+      <div className="mb-4 flex items-center gap-2 border-b border-cyan-400/25 pb-3">
+        <Icon className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_6px_rgba(0,240,255,0.7)]" />
+        <h2 className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">
+          {title}
+        </h2>
       </div>
       {children}
     </div>
@@ -574,12 +576,12 @@ function TaskManager({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Task name"
-            className="md:col-span-2 rounded-md border border-cyan-500/30 bg-black/40 px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+            className="md:col-span-2 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           />
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as Priority)}
-            className="rounded-md border border-cyan-500/30 bg-black/40 px-3 py-2 text-sm text-cyan-100 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           >
             <option>High</option>
             <option>Medium</option>
@@ -589,12 +591,12 @@ function TaskManager({
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="rounded-md border border-cyan-500/30 bg-black/40 px-3 py-2 text-sm text-cyan-100 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           />
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value as TaskStatus)}
-            className="rounded-md border border-cyan-500/30 bg-black/40 px-3 py-2 text-sm text-cyan-100 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           >
             <option>Not Started</option>
             <option>In Progress</option>
@@ -602,7 +604,7 @@ function TaskManager({
           </select>
           <button
             type="submit"
-            className="md:col-span-5 flex items-center justify-center gap-2 rounded-md border border-cyan-400/50 bg-cyan-400/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-colors hover:bg-cyan-400/20"
+            className="md:col-span-5 flex items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-colors hover:bg-[#0066ff]/20"
           >
             <Plus className="h-4 w-4" /> Add Task
           </button>
@@ -617,7 +619,7 @@ function TaskManager({
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="flex flex-col gap-3 rounded-md border border-cyan-500/15 bg-cyan-500/5 p-3 md:flex-row md:items-center md:justify-between"
+              className="flex flex-col gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] p-3 md:flex-row md:items-center md:justify-between"
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-cyan-100">{task.name}</p>
@@ -673,7 +675,7 @@ function ComplianceTracker({
         {compliances.map((item) => (
           <div
             key={item.id}
-            className="grid grid-cols-1 items-center gap-3 rounded-md border border-cyan-500/15 bg-cyan-500/5 p-3 md:grid-cols-[auto_1.4fr_0.8fr_1.6fr]"
+            className="grid grid-cols-1 items-center gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] p-3 md:grid-cols-[auto_1.4fr_0.8fr_1.6fr]"
           >
             <button
               onClick={() => onToggle(item.id)}
@@ -693,14 +695,14 @@ function ComplianceTracker({
               type="date"
               value={item.date}
               onChange={(e) => onChangeDate(item.id, e.target.value)}
-              className="rounded-md border border-cyan-500/30 bg-black/40 px-2 py-1.5 text-xs text-cyan-100 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+              className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-2 py-1.5 text-xs text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
             />
 
             <input
               value={item.comments}
               onChange={(e) => onChangeComments(item.id, e.target.value)}
               placeholder="Comments..."
-              className="rounded-md border border-cyan-500/30 bg-black/40 px-2 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+              className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-2 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
             />
           </div>
         ))}
@@ -767,16 +769,16 @@ function JarvisChatbox({ completionPct, outstandingTasks }: { completionPct: num
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end">
       {open && (
-        <div className="relative mb-3 flex h-96 w-80 flex-col overflow-hidden border border-cyan-400/30 bg-black/90 shadow-[0_0_30px_rgba(0,240,255,0.25)] backdrop-blur-md">
+        <div className="relative mb-3 flex h-96 w-80 flex-col overflow-hidden border border-cyan-400/40 bg-[#020813]/70 shadow-[0_0_30px_rgba(0,102,255,0.25)] backdrop-blur-xl">
           <HudCorners />
-          <div className="flex items-center justify-between border-b border-cyan-500/20 bg-cyan-500/5 px-3 py-2.5">
+          <div className="flex items-center justify-between border-b border-cyan-400/25 bg-cyan-500/5 px-3 py-2.5">
             <div className="flex items-center gap-2">
               <div className="relative flex h-7 w-7 items-center justify-center rounded-full border border-cyan-400/50 bg-cyan-400/10">
                 <Bot className="h-4 w-4 text-cyan-300" />
                 <span className="absolute -inset-0.5 rounded-full border border-cyan-400/40 animate-pulse" />
               </div>
               <div>
-                <p className="font-mono text-xs font-semibold tracking-widest text-cyan-300">J.A.R.V.I.S.</p>
+                <p className="font-mono text-xs font-semibold tracking-widest text-cyan-300 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">J.A.R.V.I.S.</p>
                 <p className="text-[9px] uppercase tracking-widest text-emerald-400">Online</p>
               </div>
             </div>
@@ -791,8 +793,8 @@ function JarvisChatbox({ completionPct, outstandingTasks }: { completionPct: num
                 key={m.id}
                 className={`max-w-[85%] rounded-md px-3 py-2 text-xs leading-relaxed ${
                   m.sender === 'jarvis'
-                    ? 'border border-cyan-500/30 bg-cyan-500/10 text-cyan-100'
-                    : 'ml-auto border border-cyan-300/20 bg-white/5 text-right text-cyan-50'
+                    ? 'border border-cyan-400/35 bg-cyan-500/10 text-cyan-100 shadow-[0_0_10px_rgba(0,240,255,0.12)]'
+                    : 'ml-auto border border-[#0066ff]/40 bg-[#0066ff]/10 text-right text-cyan-50 shadow-[0_0_10px_rgba(0,102,255,0.18)]'
                 }`}
               >
                 {m.text}
@@ -800,13 +802,13 @@ function JarvisChatbox({ completionPct, outstandingTasks }: { completionPct: num
             ))}
           </div>
 
-          <div className="flex items-center gap-2 border-t border-cyan-500/20 p-2.5">
+          <div className="flex items-center gap-2 border-t border-cyan-400/25 p-2.5">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Message J.A.R.V.I.S..."
-              className="flex-1 rounded-md border border-cyan-500/30 bg-black/40 px-3 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+              className="flex-1 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
             />
             <button
               onClick={handleSend}
@@ -820,7 +822,7 @@ function JarvisChatbox({ completionPct, outstandingTasks }: { completionPct: num
 
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-14 w-14 items-center justify-center rounded-full border border-cyan-400/50 bg-black/90 shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-transform hover:scale-105"
+        className="relative flex h-14 w-14 items-center justify-center rounded-full border border-cyan-400/50 bg-[#020813]/90 shadow-[0_0_20px_rgba(0,102,255,0.4)] backdrop-blur-xl transition-transform hover:scale-105"
       >
         <span className="absolute inset-0 rounded-full border border-cyan-400/30 animate-ping" />
         {open ? <X className="h-5 w-5 text-cyan-300" /> : <Bot className="h-6 w-6 text-cyan-300" />}
@@ -856,9 +858,9 @@ export default function JarvisTrackerPage() {
     setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, comments } : c)));
 
   return (
-    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-black font-mono text-cyan-100">
+    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#020813] font-mono text-cyan-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-cyan-400/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-[#0066ff]/10 blur-3xl" />
 
       {!booted && <BootSequence onComplete={() => setBooted(true)} />}
 
