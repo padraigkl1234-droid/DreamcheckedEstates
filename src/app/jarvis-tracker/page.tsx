@@ -199,22 +199,26 @@ function ConcentricPulse() {
   );
 }
 
-function SwirlBlades({
+function SpokeBurst({
   count,
   duration,
   reverse = false,
-  opacity = 0.7,
-  inner = 38,
-  outer = 8,
+  baseOpacity = 0.6,
+  minR = 5,
+  maxR = 42,
+  thickness = 1,
+  majorEvery = 3,
 }: {
   count: number;
   duration: string;
   reverse?: boolean;
-  opacity?: number;
-  inner?: number;
-  outer?: number;
+  baseOpacity?: number;
+  minR?: number;
+  maxR?: number;
+  thickness?: number;
+  majorEvery?: number;
 }) {
-  const blades = Array.from({ length: count });
+  const spokes = Array.from({ length: count });
   return (
     <svg
       viewBox="0 0 100 100"
@@ -225,16 +229,21 @@ function SwirlBlades({
         transformBox: 'fill-box',
       }}
     >
-      {blades.map((_, i) => {
-        const angle = (i / blades.length) * 360;
+      {spokes.map((_, i) => {
+        const angle = (i / spokes.length) * 360;
+        const major = i % majorEvery === 0;
+        const len = major ? maxR : maxR * 0.52;
         return (
-          <path
+          <line
             key={i}
-            d={`M50 50 Q${50 + (outer - 3)} ${50 - inner * 0.55} ${50 + outer} ${50 - inner} Q${50 + outer * 0.3} ${
-              50 - inner * 0.7
-            } 50 50 Z`}
-            fill="currentColor"
-            opacity={opacity}
+            x1="50"
+            y1={50 - minR}
+            x2="50"
+            y2={50 - len}
+            stroke="currentColor"
+            strokeWidth={major ? thickness * 1.8 : thickness}
+            strokeLinecap="round"
+            opacity={major ? baseOpacity : baseOpacity * 0.4}
             transform={`rotate(${angle} 50 50)`}
           />
         );
@@ -246,9 +255,9 @@ function SwirlBlades({
 function SwirlCore() {
   return (
     <div className="absolute inset-0 h-full w-full text-cyan-300">
-      <SwirlBlades count={18} duration="7s" opacity={0.18} inner={40} outer={3} />
-      <SwirlBlades count={12} duration="5s" reverse opacity={0.3} inner={32} outer={4} />
-      <SwirlBlades count={8} duration="3.5s" opacity={0.55} inner={22} outer={5} />
+      <SpokeBurst count={48} duration="16s" baseOpacity={0.25} minR={6} maxR={46} thickness={0.5} majorEvery={4} />
+      <SpokeBurst count={24} duration="9s" reverse baseOpacity={0.45} minR={5} maxR={38} thickness={0.9} majorEvery={3} />
+      <SpokeBurst count={16} duration="5s" baseOpacity={0.85} minR={4} maxR={28} thickness={1.4} majorEvery={2} />
     </div>
   );
 }
