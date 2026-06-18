@@ -13,6 +13,17 @@ export default {
         body: ['Poppins', 'sans-serif'],
         headline: ['Poppins', 'sans-serif'],
         code: ['monospace'],
+        mono: [
+          '"JetBrains Mono"',
+          'ui-monospace',
+          'SFMono-Regular',
+          '"SF Mono"',
+          '"Cascadia Mono"',
+          '"Roboto Mono"',
+          'Consolas',
+          '"Liberation Mono"',
+          'monospace',
+        ],
       },
       colors: {
         background: 'hsl(var(--background))',

@@ -136,6 +136,51 @@ function HudCorners({ tone = 'cyan' }: { tone?: 'cyan' | 'amber' }) {
 }
 
 // ---------------------------------------------------------------------------
+// Telemetry scaffolding — crosshairs, micro corner brackets, serial tags
+// ---------------------------------------------------------------------------
+
+function Crosshair({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 10 10" className={`h-2 w-2 shrink-0 ${className}`} fill="none">
+      <line x1="5" y1="0" x2="5" y2="3.2" stroke="currentColor" strokeWidth="1" />
+      <line x1="5" y1="6.8" x2="5" y2="10" stroke="currentColor" strokeWidth="1" />
+      <line x1="0" y1="5" x2="3.2" y2="5" stroke="currentColor" strokeWidth="1" />
+      <line x1="6.8" y1="5" x2="10" y2="5" stroke="currentColor" strokeWidth="1" />
+      <circle cx="5" cy="5" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+function SysRef({ code, className = '' }: { code: string; className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap font-mono text-[9px] tracking-widest text-cyan-600/70 ${className}`}>
+      <Crosshair className="text-cyan-500/50" />
+      SYS_REF: {code}
+    </span>
+  );
+}
+
+function Kicker({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-cyan-600 ${className}`}>
+      <Crosshair className="text-cyan-500/40" />
+      {children}
+    </span>
+  );
+}
+
+function MicroCorners() {
+  return (
+    <>
+      <span className="pointer-events-none absolute -top-px -left-px h-1.5 w-1.5 border-l border-t border-cyan-400/35" />
+      <span className="pointer-events-none absolute -top-px -right-px h-1.5 w-1.5 border-r border-t border-cyan-400/35" />
+      <span className="pointer-events-none absolute -bottom-px -left-px h-1.5 w-1.5 border-l border-b border-cyan-400/35" />
+      <span className="pointer-events-none absolute -bottom-px -right-px h-1.5 w-1.5 border-r border-b border-cyan-400/35" />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Circular progress chart — radial HUD dial with tick ring + radar sweep
 // ---------------------------------------------------------------------------
 
@@ -224,12 +269,13 @@ function CircularProgress({ percentage }: { percentage: number }) {
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-5xl font-bold tracking-tight text-cyan-300 [text-shadow:0_0_15px_rgba(0,240,255,0.8)]">
+        <span className="font-mono text-5xl font-bold tabular-nums tracking-tight text-cyan-300 [text-shadow:0_0_15px_rgba(0,240,255,0.8)]">
           {percentage}%
         </span>
         <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-500/70">
           Overall Complete
         </span>
+        <SysRef code="0013-OC" className="mt-1.5 text-cyan-600/50" />
       </div>
     </div>
   );
@@ -290,9 +336,12 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
       )}
 
       {stage === 'idle' && (
-        <p className="mt-8 font-mono text-sm uppercase tracking-[0.3em] text-cyan-400/80">
-          Tap to activate J.A.R.V.I.S. core
-        </p>
+        <>
+          <p className="mt-8 font-mono text-sm uppercase tracking-[0.3em] text-cyan-400/80">
+            Tap to activate J.A.R.V.I.S. core
+          </p>
+          <SysRef code="0000-BOOT" className="mt-3 text-cyan-600/50" />
+        </>
       )}
 
       {stage === 'booting' && (
@@ -319,6 +368,12 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
               style={{ width: `${progress}%` }}
             />
           </div>
+          <div className="mt-2 flex items-center justify-between">
+            <SysRef code="0000-BOOT" className="text-cyan-700/60" />
+            <span className="font-mono text-[10px] tabular-nums tracking-widest text-cyan-500/70">
+              {String(Math.round(progress)).padStart(3, '0')}%
+            </span>
+          </div>
         </div>
       )}
     </div>
@@ -337,6 +392,7 @@ function Sidebar({ activePage, onNavigate }: { activePage: PageKey; onNavigate: 
         <div className="hidden md:block">
           <p className="font-mono text-sm font-bold tracking-[0.15em] text-cyan-300 [text-shadow:0_0_10px_rgba(0,240,255,0.6)]">J.A.R.V.I.S.</p>
           <p className="font-mono text-[10px] tracking-[0.2em] text-cyan-600">ESTATES OS</p>
+          <SysRef code="0001-CORE" className="mt-0.5 text-cyan-700/60" />
         </div>
       </div>
 
@@ -409,23 +465,23 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <Panel title="Estates & Maintenance Overall" icon={Gauge}>
+        <Panel title="Estates & Maintenance Overall" icon={Gauge} refCode="0012-A">
           <div className="flex flex-1 items-center justify-center py-2">
             <CircularProgress percentage={completionPct} />
           </div>
           <div className="grid grid-cols-2 gap-3 border-t border-cyan-500/15 pt-4 text-center">
             <div>
-              <p className="text-xl font-bold text-emerald-300">{completedItems}</p>
-              <p className="text-[10px] uppercase tracking-widest text-cyan-600">Completed</p>
+              <p className="font-mono text-xl font-bold tabular-nums text-emerald-300">{completedItems}</p>
+              <Kicker className="justify-center">Completed</Kicker>
             </div>
             <div>
-              <p className="text-xl font-bold text-cyan-200">{totalItems - completedItems}</p>
-              <p className="text-[10px] uppercase tracking-widest text-cyan-600">Outstanding</p>
+              <p className="font-mono text-xl font-bold tabular-nums text-cyan-200">{totalItems - completedItems}</p>
+              <Kicker className="justify-center">Outstanding</Kicker>
             </div>
           </div>
         </Panel>
 
-        <Panel title="Recently Added Tasks" icon={ListChecks}>
+        <Panel title="Recently Added Tasks" icon={ListChecks} refCode="0027-T">
           <div className="flex flex-col gap-2">
             {recentTasks.length === 0 && (
               <p className="py-6 text-center font-mono text-xs text-cyan-700">No tasks logged yet.</p>
@@ -433,11 +489,12 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
             {recentTasks.map((task) => (
               <div
                 key={task.id}
-                className="flex items-center justify-between gap-2 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] px-3 py-2.5"
+                className="relative flex items-center justify-between gap-2 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] px-3 py-2.5"
               >
+                <MicroCorners />
                 <div className="min-w-0">
                   <p className="truncate text-sm text-cyan-100">{task.name}</p>
-                  <p className="text-[10px] uppercase tracking-widest text-cyan-600">Due {task.dueDate || '—'}</p>
+                  <Kicker>Due {task.dueDate || '—'}</Kicker>
                 </div>
                 <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLES[task.status]}`}>
                   {task.status}
@@ -447,10 +504,10 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
           </div>
         </Panel>
 
-        <Panel title="System Diagnostics" icon={Activity}>
+        <Panel title="System Diagnostics" icon={Activity} refCode="0048-A">
           <div className="flex flex-col gap-4">
             <div className="text-center">
-              <p className="font-mono text-3xl font-bold tracking-widest text-cyan-300 [text-shadow:0_0_12px_rgba(0,240,255,0.7)]">
+              <p className="font-mono text-3xl font-bold tabular-nums tracking-widest text-cyan-300 [text-shadow:0_0_12px_rgba(0,240,255,0.7)]">
                 {now.toLocaleTimeString('en-GB')}
               </p>
               <p className="text-[10px] uppercase tracking-widest text-cyan-600">
@@ -472,7 +529,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
         </Panel>
       </div>
 
-      <Panel title="BBC News Feed" icon={Newspaper}>
+      <Panel title="BBC News Feed" icon={Newspaper} refCode="0091-N">
         <div className="relative flex items-center overflow-hidden rounded-md border border-cyan-400/25 bg-[#020813]/60 py-3 shadow-[0_0_12px_rgba(0,102,255,0.08)]">
           <span className="absolute left-0 z-10 flex h-full items-center bg-gradient-to-r from-[#020813] via-[#020813] to-transparent px-3">
             <Radio className="h-4 w-4 text-red-400" />
@@ -499,6 +556,7 @@ function RadialGauge({ icon: Icon, label, value }: { icon: typeof Cpu; label: st
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative flex h-16 w-16 items-center justify-center">
+        <MicroCorners />
         <svg viewBox="0 0 60 60" className="absolute h-full w-full -rotate-90">
           <circle cx="30" cy="30" r={radius} fill="none" stroke="rgba(0,240,255,0.1)" strokeWidth="4" />
           <circle
@@ -514,7 +572,7 @@ function RadialGauge({ icon: Icon, label, value }: { icon: typeof Cpu; label: st
             style={{ transition: 'stroke-dashoffset 0.5s ease', filter: `drop-shadow(0 0 4px ${color})` }}
           />
         </svg>
-        <span className="font-mono text-[11px] font-bold text-cyan-200">{value}%</span>
+        <span className="font-mono text-[11px] font-bold tabular-nums text-cyan-200">{value}%</span>
       </div>
       <span className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-cyan-500">
         <Icon className="h-3 w-3" /> {label}
@@ -523,15 +581,28 @@ function RadialGauge({ icon: Icon, label, value }: { icon: typeof Cpu; label: st
   );
 }
 
-function Panel({ title, icon: Icon, children }: { title: string; icon: typeof Gauge; children: React.ReactNode }) {
+function Panel({
+  title,
+  icon: Icon,
+  refCode,
+  children,
+}: {
+  title: string;
+  icon: typeof Gauge;
+  refCode?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="relative flex flex-col border border-cyan-400/40 bg-[#020813]/50 p-4 shadow-[0_0_25px_rgba(0,102,255,0.12)] backdrop-blur-xl">
       <HudCorners />
-      <div className="mb-4 flex items-center gap-2 border-b border-cyan-400/25 pb-3">
-        <Icon className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_6px_rgba(0,240,255,0.7)]" />
-        <h2 className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">
-          {title}
-        </h2>
+      <div className="mb-4 flex items-center justify-between gap-2 border-b border-cyan-400/25 pb-3">
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_6px_rgba(0,240,255,0.7)]" />
+          <h2 className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">
+            {title}
+          </h2>
+        </div>
+        {refCode && <SysRef code={refCode} className="hidden sm:inline-flex" />}
       </div>
       {children}
     </div>
@@ -570,7 +641,7 @@ function TaskManager({
 
   return (
     <div className="space-y-5">
-      <Panel title="Deploy New Task" icon={Plus}>
+      <Panel title="Deploy New Task" icon={Plus} refCode="0103-T">
         <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 md:grid-cols-5">
           <input
             value={name}
@@ -611,7 +682,7 @@ function TaskManager({
         </form>
       </Panel>
 
-      <Panel title={`Active Tasks (${tasks.length})`} icon={ListChecks}>
+      <Panel title={`Active Tasks (${tasks.length})`} icon={ListChecks} refCode="0104-T">
         <div className="space-y-2">
           {tasks.length === 0 && (
             <p className="py-8 text-center font-mono text-xs text-cyan-700">No tasks in queue.</p>
@@ -619,11 +690,12 @@ function TaskManager({
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="flex flex-col gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] p-3 md:flex-row md:items-center md:justify-between"
+              className="relative flex flex-col gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] p-3 md:flex-row md:items-center md:justify-between"
             >
+              <MicroCorners />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-cyan-100">{task.name}</p>
-                <p className="text-[10px] uppercase tracking-widest text-cyan-600">Due {task.dueDate || '—'}</p>
+                <Kicker>Due {task.dueDate || '—'}</Kicker>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
@@ -670,13 +742,14 @@ function ComplianceTracker({
   onChangeComments: (id: string, comments: string) => void;
 }) {
   return (
-    <Panel title="Estate Compliance Tracker" icon={ShieldCheck}>
+    <Panel title="Estate Compliance Tracker" icon={ShieldCheck} refCode="0200-C">
       <div className="space-y-2">
         {compliances.map((item) => (
           <div
             key={item.id}
-            className="grid grid-cols-1 items-center gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] p-3 md:grid-cols-[auto_1.4fr_0.8fr_1.6fr]"
+            className="relative grid grid-cols-1 items-center gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] p-3 md:grid-cols-[auto_1.4fr_0.8fr_1.6fr]"
           >
+            <MicroCorners />
             <button
               onClick={() => onToggle(item.id)}
               className="flex items-center justify-center"
@@ -711,7 +784,7 @@ function ComplianceTracker({
       <div className="mt-4 flex items-center gap-2 rounded-md border border-amber-400/20 bg-amber-400/5 px-3 py-2">
         <AlertTriangle className="h-4 w-4 text-amber-400" />
         <p className="text-xs text-amber-300/90">
-          {compliances.filter((c) => !c.completed).length} compliance item(s) outstanding.
+          <span className="font-mono tabular-nums">{compliances.filter((c) => !c.completed).length}</span> compliance item(s) outstanding.
         </p>
       </div>
     </Panel>
@@ -782,9 +855,12 @@ function JarvisChatbox({ completionPct, outstandingTasks }: { completionPct: num
                 <p className="text-[9px] uppercase tracking-widest text-emerald-400">Online</p>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} className="text-cyan-500 hover:text-cyan-300">
-              <Minus className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <SysRef code="0500-AI" className="hidden text-cyan-700/60 sm:inline-flex" />
+              <button onClick={() => setOpen(false)} className="text-cyan-500 hover:text-cyan-300">
+                <Minus className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-3">
