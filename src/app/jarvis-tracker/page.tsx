@@ -199,6 +199,60 @@ function ConcentricPulse() {
   );
 }
 
+function SwirlBlades({
+  count,
+  duration,
+  reverse = false,
+  opacity = 0.7,
+  inner = 38,
+  outer = 8,
+}: {
+  count: number;
+  duration: string;
+  reverse?: boolean;
+  opacity?: number;
+  inner?: number;
+  outer?: number;
+}) {
+  const blades = Array.from({ length: count });
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      className="absolute h-full w-full"
+      style={{
+        animation: `spin ${duration} linear infinite${reverse ? ' reverse' : ''}`,
+        transformOrigin: 'center',
+        transformBox: 'fill-box',
+      }}
+    >
+      {blades.map((_, i) => {
+        const angle = (i / blades.length) * 360;
+        return (
+          <path
+            key={i}
+            d={`M50 50 Q${50 + (outer - 3)} ${50 - inner * 0.55} ${50 + outer} ${50 - inner} Q${50 + outer * 0.3} ${
+              50 - inner * 0.7
+            } 50 50 Z`}
+            fill="currentColor"
+            opacity={opacity}
+            transform={`rotate(${angle} 50 50)`}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function SwirlCore() {
+  return (
+    <div className="absolute inset-0 h-full w-full text-cyan-300">
+      <SwirlBlades count={18} duration="7s" opacity={0.18} inner={40} outer={3} />
+      <SwirlBlades count={12} duration="5s" reverse opacity={0.3} inner={32} outer={4} />
+      <SwirlBlades count={8} duration="3.5s" opacity={0.55} inner={22} outer={5} />
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Circular progress chart — radial HUD dial with tick ring + radar sweep
 // ---------------------------------------------------------------------------
@@ -358,22 +412,14 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
           </svg>
           <button
             onClick={() => setStage('booting')}
-            className="group absolute inset-6 flex items-center justify-center rounded-full border-2 border-cyan-400/60 bg-cyan-500/5 transition-transform duration-300 hover:scale-105"
+            className="group absolute inset-6 flex items-center justify-center overflow-hidden rounded-full border-2 border-cyan-400/60 bg-cyan-500/5 transition-transform duration-300 hover:scale-105"
           >
             <span className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping" />
             <span className="absolute -inset-3 rounded-full border border-cyan-400/20 animate-pulse" />
-            <Power className="h-14 w-14 text-cyan-300 drop-shadow-[0_0_12px_rgba(0,240,255,0.9)] transition-colors group-hover:text-white" />
+            <SwirlCore />
+            <Power className="absolute inset-0 m-auto h-10 w-10 text-cyan-300 drop-shadow-[0_0_12px_rgba(0,240,255,0.9)] transition-colors group-hover:text-white" />
           </button>
         </div>
-      )}
-
-      {stage === 'idle' && (
-        <>
-          <p className="mt-8 font-mono text-sm uppercase tracking-[0.3em] text-cyan-400/80">
-            Tap to activate J.A.R.V.I.S. core
-          </p>
-          <SysRef code="0000-BOOT" className="mt-3 text-cyan-600/50" />
-        </>
       )}
 
       {stage === 'booting' && (
