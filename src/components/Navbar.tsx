@@ -3,17 +3,18 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  Menu, 
-  CheckSquare, 
-  Wrench, 
-  ClipboardCheck, 
-  ShieldCheck, 
-  FileCheck, 
+import {
+  Menu,
+  CheckSquare,
+  Wrench,
+  ClipboardCheck,
+  ShieldCheck,
+  FileCheck,
   ClipboardList,
   Home,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  Bot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { name: 'Checklists', href: '/checklists', icon: ShieldCheck },
   { name: 'Compliances', href: '/compliances', icon: FileCheck },
   { name: 'Assignments', href: '/assignments', icon: ClipboardList },
+  { name: 'JARVIS', href: '/jarvis-tracker', icon: Bot },
 ];
 
 export function Navbar() {
