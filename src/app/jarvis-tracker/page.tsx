@@ -120,6 +120,84 @@ function genId() {
 }
 
 // ---------------------------------------------------------------------------
+// Synthesized interface sound effects (Web Audio API, no audio files)
+// ---------------------------------------------------------------------------
+
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  const AudioContextCtor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextCtor) return null;
+  if (!sharedAudioCtx) sharedAudioCtx = new AudioContextCtor();
+  if (sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+  return sharedAudioCtx;
+}
+
+function playPowerUpHum() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const duration = 1.6;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(300, now);
+  filter.frequency.exponentialRampToValueAtTime(5000, now + duration);
+
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(0.0001, now);
+  masterGain.gain.exponentialRampToValueAtTime(0.22, now + duration * 0.55);
+  masterGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  const fundamental = ctx.createOscillator();
+  fundamental.type = 'sawtooth';
+  fundamental.frequency.setValueAtTime(70, now);
+  fundamental.frequency.exponentialRampToValueAtTime(660, now + duration);
+
+  const overtone = ctx.createOscillator();
+  overtone.type = 'sine';
+  overtone.frequency.setValueAtTime(140, now);
+  overtone.frequency.exponentialRampToValueAtTime(990, now + duration);
+
+  fundamental.connect(filter);
+  overtone.connect(filter);
+  filter.connect(masterGain);
+  masterGain.connect(ctx.destination);
+
+  fundamental.start(now);
+  overtone.start(now);
+  fundamental.stop(now + duration);
+  overtone.stop(now + duration);
+}
+
+function playSuccessChime() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const notes: Array<{ freq: number; start: number; dur: number }> = [
+    { freq: 880, start: 0, dur: 0.08 },
+    { freq: 1320, start: 0.09, dur: 0.12 },
+  ];
+
+  notes.forEach(({ freq, start, dur }) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now + start);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now + start);
+    gain.gain.exponentialRampToValueAtTime(0.22, now + start + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now + start);
+    osc.stop(now + start + dur + 0.02);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // HUD bracket corners (Iron Man style panel frame accents)
 // ---------------------------------------------------------------------------
 
@@ -420,7 +498,10 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
             <circle cx="100" cy="100" r="86" fill="none" stroke="rgba(0,240,255,0.18)" strokeWidth="1" strokeDasharray="1 9" />
           </svg>
           <button
-            onClick={() => setStage('booting')}
+            onClick={() => {
+              playPowerUpHum();
+              setStage('booting');
+            }}
             className="group absolute inset-6 flex items-center justify-center overflow-hidden rounded-full border-2 border-cyan-400/60 bg-cyan-500/5 transition-transform duration-300 hover:scale-105"
           >
             <span className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping" />
@@ -720,6 +801,7 @@ function TaskManager({
     e.preventDefault();
     if (!name.trim()) return;
     onAdd({ id: genId(), name: name.trim(), priority, dueDate, status });
+    playSuccessChime();
     setName('');
     setPriority('Medium');
     setDueDate('');
@@ -838,7 +920,10 @@ function ComplianceTracker({
           >
             <MicroCorners />
             <button
-              onClick={() => onToggle(item.id)}
+              onClick={() => {
+                if (!item.completed) playSuccessChime();
+                onToggle(item.id);
+              }}
               className="flex items-center justify-center"
               title={item.completed ? 'Mark incomplete' : 'Mark complete'}
             >
