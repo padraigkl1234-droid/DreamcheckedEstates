@@ -50,6 +50,7 @@ interface ComplianceItem {
   name: string;
   completed: boolean;
   date: string;
+  nextDueDate: string;
   comments: string;
 }
 
@@ -78,12 +79,12 @@ const SEED_TASKS: Task[] = [
 ];
 
 const SEED_COMPLIANCES: ComplianceItem[] = [
-  { id: 'c1', name: 'Fire Risk Assessment (FRA)', completed: true, date: '2026-04-12', comments: 'Annual review complete, no actions outstanding.' },
-  { id: 'c2', name: 'Legionella Risk Assessment', completed: false, date: '', comments: '' },
-  { id: 'c3', name: 'Gas Safety Certification (CP12)', completed: true, date: '2026-02-03', comments: 'Engineer signed off, certificate filed.' },
-  { id: 'c4', name: 'Fixed Wire Testing (EICR)', completed: false, date: '', comments: 'Booked in for next quarter.' },
-  { id: 'c5', name: 'Emergency Lighting Testing', completed: true, date: '2026-05-30', comments: 'Monthly function test passed.' },
-  { id: 'c6', name: 'Lift Inspections (LOLER)', completed: false, date: '', comments: '' },
+  { id: 'c1', name: 'Fire Risk Assessment (FRA)', completed: true, date: '2026-04-12', nextDueDate: '2027-04-12', comments: 'Annual review complete, no actions outstanding.' },
+  { id: 'c2', name: 'Legionella Risk Assessment', completed: false, date: '', nextDueDate: '2026-07-01', comments: '' },
+  { id: 'c3', name: 'Gas Safety Certification (CP12)', completed: true, date: '2026-02-03', nextDueDate: '2027-02-03', comments: 'Engineer signed off, certificate filed.' },
+  { id: 'c4', name: 'Fixed Wire Testing (EICR)', completed: false, date: '', nextDueDate: '2026-09-15', comments: 'Booked in for next quarter.' },
+  { id: 'c5', name: 'Emergency Lighting Testing', completed: true, date: '2026-05-30', nextDueDate: '2026-06-30', comments: 'Monthly function test passed.' },
+  { id: 'c6', name: 'Lift Inspections (LOLER)', completed: false, date: '', nextDueDate: '2026-08-01', comments: '' },
 ];
 
 const BOOT_STEPS = [
@@ -1028,65 +1029,156 @@ function TaskManager({
 
 function ComplianceTracker({
   compliances,
+  onAdd,
   onToggle,
   onChangeDate,
+  onChangeNextDueDate,
   onChangeComments,
+  onDelete,
 }: {
   compliances: ComplianceItem[];
+  onAdd: (item: ComplianceItem) => void;
   onToggle: (id: string) => void;
   onChangeDate: (id: string, date: string) => void;
+  onChangeNextDueDate: (id: string, date: string) => void;
   onChangeComments: (id: string, comments: string) => void;
+  onDelete: (id: string) => void;
 }) {
+  const [name, setName] = useState('');
+  const [date, setDate] = useState('');
+  const [nextDueDate, setNextDueDate] = useState('');
+  const [comments, setComments] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onAdd({ id: genId(), name: name.trim(), completed: false, date, nextDueDate, comments });
+    playSuccessChime();
+    setName('');
+    setDate('');
+    setNextDueDate('');
+    setComments('');
+  };
+
   return (
-    <Panel title="Estate Compliance Tracker" icon={ShieldCheck} refCode="0200-C">
-      <div className="space-y-2">
-        {compliances.map((item) => (
-          <div
-            key={item.id}
-            className="relative grid grid-cols-1 items-center gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] p-3 md:grid-cols-[auto_1.4fr_0.8fr_1.6fr]"
-          >
-            <MicroCorners />
-            <button
-              onClick={() => {
-                if (!item.completed) playSuccessChime();
-                onToggle(item.id);
-              }}
-              className="flex items-center justify-center"
-              title={item.completed ? 'Mark incomplete' : 'Mark complete'}
-            >
-              {item.completed ? (
-                <CheckCircle2 className="h-6 w-6 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.7)]" />
-              ) : (
-                <Circle className="h-6 w-6 text-cyan-700" />
-              )}
-            </button>
-
-            <p className={`text-sm ${item.completed ? 'text-emerald-200' : 'text-cyan-100'}`}>{item.name}</p>
-
+    <div className="space-y-5">
+      <Panel title="Add Compliance Item" icon={Plus} refCode="0201-C">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 md:grid-cols-5">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Compliance item name"
+            className="md:col-span-2 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+          />
+          <div className="flex flex-col gap-1">
+            <label className="text-[9px] uppercase tracking-widest text-cyan-600">Last Completed</label>
             <input
               type="date"
-              value={item.date}
-              onChange={(e) => onChangeDate(item.id, e.target.value)}
-              className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-2 py-1.5 text-xs text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
-            />
-
-            <input
-              value={item.comments}
-              onChange={(e) => onChangeComments(item.id, e.target.value)}
-              placeholder="Comments..."
-              className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-2 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
             />
           </div>
-        ))}
-      </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[9px] uppercase tracking-widest text-cyan-600">Next Due Date</label>
+            <input
+              type="date"
+              value={nextDueDate}
+              onChange={(e) => setNextDueDate(e.target.value)}
+              className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            />
+          </div>
+          <input
+            value={comments}
+            onChange={(e) => setComments(e.target.value)}
+            placeholder="Comments..."
+            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+          />
+          <button
+            type="submit"
+            className="md:col-span-5 flex items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-colors hover:bg-[#0066ff]/20"
+          >
+            <Plus className="h-4 w-4" /> Add Compliance Item
+          </button>
+        </form>
+      </Panel>
 
-      <div className="mt-4 flex items-center gap-2 rounded-md border border-amber-400/20 bg-amber-400/5 px-3 py-2">
-        <AlertTriangle className="h-4 w-4 text-amber-400" />
-        <p className="text-xs text-amber-300/90">
-          <span className="font-mono tabular-nums">{compliances.filter((c) => !c.completed).length}</span> compliance item(s) outstanding.
-        </p>
-      </div>
-    </Panel>
+      <Panel title="Estate Compliance Tracker" icon={ShieldCheck} refCode="0200-C">
+        <div className="mb-2 hidden gap-3 px-3 text-[9px] uppercase tracking-widest text-cyan-600 md:grid md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.3fr_auto]">
+          <span>Status</span>
+          <span>Item</span>
+          <span>Last Completed</span>
+          <span>Next Due</span>
+          <span>Comments</span>
+          <span />
+        </div>
+        <div className="space-y-2">
+          {compliances.length === 0 && (
+            <p className="py-8 text-center font-mono text-xs text-cyan-700">No compliance items logged.</p>
+          )}
+          {compliances.map((item) => (
+            <div
+              key={item.id}
+              className="relative grid grid-cols-1 items-center gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] p-3 md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.3fr_auto]"
+            >
+              <MicroCorners />
+              <button
+                onClick={() => {
+                  if (!item.completed) playSuccessChime();
+                  onToggle(item.id);
+                }}
+                className="flex items-center justify-center"
+                title={item.completed ? 'Mark incomplete' : 'Mark complete'}
+              >
+                {item.completed ? (
+                  <CheckCircle2 className="h-6 w-6 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.7)]" />
+                ) : (
+                  <Circle className="h-6 w-6 text-cyan-700" />
+                )}
+              </button>
+
+              <p className={`text-sm ${item.completed ? 'text-emerald-200' : 'text-cyan-100'}`}>{item.name}</p>
+
+              <input
+                type="date"
+                value={item.date}
+                onChange={(e) => onChangeDate(item.id, e.target.value)}
+                className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-2 py-1.5 text-xs text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+              />
+
+              <input
+                type="date"
+                value={item.nextDueDate}
+                onChange={(e) => onChangeNextDueDate(item.id, e.target.value)}
+                className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-2 py-1.5 text-xs text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+              />
+
+              <input
+                value={item.comments}
+                onChange={(e) => onChangeComments(item.id, e.target.value)}
+                placeholder="Comments..."
+                className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-2 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+              />
+
+              <button
+                onClick={() => onDelete(item.id)}
+                className="flex items-center justify-center rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 transition-colors hover:bg-red-500/20"
+                title="Delete compliance item"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex items-center gap-2 rounded-md border border-amber-400/20 bg-amber-400/5 px-3 py-2">
+          <AlertTriangle className="h-4 w-4 text-amber-400" />
+          <p className="text-xs text-amber-300/90">
+            <span className="font-mono tabular-nums">{compliances.filter((c) => !c.completed).length}</span> compliance item(s) outstanding.
+          </p>
+        </div>
+      </Panel>
+    </div>
   );
 }
 
@@ -1225,12 +1317,16 @@ export default function JarvisTrackerPage() {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
   const handleDeleteTask = (id: string) => setTasks((prev) => prev.filter((t) => t.id !== id));
 
+  const handleAddCompliance = (item: ComplianceItem) => setCompliances((prev) => [...prev, item]);
   const handleToggleCompliance = (id: string) =>
     setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, completed: !c.completed } : c)));
   const handleChangeDate = (id: string, date: string) =>
     setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, date } : c)));
+  const handleChangeNextDueDate = (id: string, nextDueDate: string) =>
+    setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, nextDueDate } : c)));
   const handleChangeComments = (id: string, comments: string) =>
     setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, comments } : c)));
+  const handleDeleteCompliance = (id: string) => setCompliances((prev) => prev.filter((c) => c.id !== id));
 
   return (
     <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#020813] font-mono text-cyan-100">
@@ -1262,9 +1358,12 @@ export default function JarvisTrackerPage() {
             {activePage === 'compliance' && (
               <ComplianceTracker
                 compliances={compliances}
+                onAdd={handleAddCompliance}
                 onToggle={handleToggleCompliance}
                 onChangeDate={handleChangeDate}
+                onChangeNextDueDate={handleChangeNextDueDate}
                 onChangeComments={handleChangeComments}
+                onDelete={handleDeleteCompliance}
               />
             )}
           </main>
