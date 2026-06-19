@@ -27,6 +27,11 @@ import {
   ImageOff,
   ExternalLink,
   RefreshCw,
+  Cloud,
+  Droplets,
+  Eye,
+  Wind,
+  Music2,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -356,6 +361,265 @@ function SwirlCore() {
 }
 
 // ---------------------------------------------------------------------------
+// Boot dial — layered chevron track + radial control buttons + core readout
+// ---------------------------------------------------------------------------
+
+function ChevronRing({
+  count,
+  radius,
+  tickLength,
+  thickness,
+  slant,
+  duration,
+  reverse = false,
+  opacity = 0.9,
+}: {
+  count: number;
+  radius: number;
+  tickLength: number;
+  thickness: number;
+  slant: number;
+  duration: string;
+  reverse?: boolean;
+  opacity?: number;
+}) {
+  const ticks = Array.from({ length: count });
+  return (
+    <svg
+      viewBox="0 0 200 200"
+      className="absolute h-full w-full text-cyan-300"
+      style={{
+        animation: `spin ${duration} linear infinite${reverse ? ' reverse' : ''}`,
+        filter: 'drop-shadow(0 0 6px rgba(0,240,255,0.8))',
+      }}
+    >
+      {ticks.map((_, i) => {
+        const angle = (i / count) * 360;
+        return (
+          <rect
+            key={i}
+            x={100 - thickness / 2}
+            y={100 - radius - tickLength / 2}
+            width={thickness}
+            height={tickLength}
+            fill="currentColor"
+            opacity={opacity}
+            transform={`rotate(${angle} 100 100) rotate(${slant} 100 ${100 - radius})`}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function radialStyle(angleDeg: number, radiusFraction: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  const pct = radiusFraction * 50;
+  return {
+    left: `${50 + pct * Math.cos(rad)}%`,
+    top: `${50 + pct * Math.sin(rad)}%`,
+  };
+}
+
+const DIAL_BUTTON_LABELS = ['PWR', 'NET', 'ENV', 'SEC', 'FIRE', 'H2O', 'ELEC', 'HVAC', 'CAM', 'NAV', 'LOG', 'SYS', 'DOC', 'COM', 'AUX', 'RAD'];
+
+function RadialButtonRing({ radiusFraction }: { radiusFraction: number }) {
+  return (
+    <>
+      {DIAL_BUTTON_LABELS.map((label, i) => {
+        const angle = (i / DIAL_BUTTON_LABELS.length) * 360;
+        const active = i % 3 !== 0;
+        return (
+          <div
+            key={label}
+            className="absolute flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-[3px] border border-cyan-400/30 bg-[#020813]/85 font-mono text-[6.5px] font-semibold uppercase tracking-wide text-cyan-400/70 shadow-[0_0_6px_rgba(0,102,255,0.15)] sm:h-8 sm:w-8 sm:text-[7px]"
+            style={radialStyle(angle, radiusFraction)}
+          >
+            <span className={`h-1 w-1 rounded-full ${active ? 'bg-cyan-300 shadow-[0_0_4px_rgba(0,240,255,0.9)]' : 'bg-cyan-900'}`} />
+            {label}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function BootDial({ onIgnite, tick }: { onIgnite: () => void; tick: number }) {
+  return (
+    <div className="relative h-[280px] w-[280px] shrink-0 sm:h-[340px] sm:w-[340px] lg:h-[420px] lg:w-[420px]">
+      <span className="absolute -top-1 -left-1 h-4 w-4 border-l-2 border-t-2 border-cyan-400/60" />
+      <span className="absolute -top-1 -right-1 h-4 w-4 border-r-2 border-t-2 border-cyan-400/60" />
+      <span className="absolute -bottom-1 -left-1 h-4 w-4 border-l-2 border-b-2 border-cyan-400/60" />
+      <span className="absolute -bottom-1 -right-1 h-4 w-4 border-r-2 border-b-2 border-cyan-400/60" />
+
+      <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_26s_linear_infinite]">
+        <circle cx="100" cy="100" r="97" fill="none" stroke="rgba(0,240,255,0.16)" strokeWidth="0.75" strokeDasharray="2 6" />
+      </svg>
+      <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_19s_linear_infinite_reverse]">
+        <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(0,240,255,0.2)" strokeWidth="1" strokeDasharray="1 9" />
+      </svg>
+      <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_33s_linear_infinite]">
+        <circle cx="100" cy="100" r="87" fill="none" stroke="rgba(0,240,255,0.12)" strokeWidth="0.5" strokeDasharray="6 3 1 3" />
+      </svg>
+
+      <RadialButtonRing radiusFraction={0.74} />
+
+      <ChevronRing count={84} radius={56} tickLength={10} thickness={2.2} slant={30} duration="15s" opacity={0.85} />
+      <ChevronRing count={60} radius={51} tickLength={6} thickness={1.4} slant={-22} duration="22s" reverse opacity={0.4} />
+
+      <button
+        onClick={onIgnite}
+        className="group absolute inset-[31%] flex flex-col items-center justify-center gap-1 overflow-hidden rounded-full border-2 border-cyan-400/60 bg-cyan-500/5 transition-transform duration-300 hover:scale-105"
+      >
+        <span className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping" />
+        <span className="absolute -inset-3 rounded-full border border-cyan-400/20 animate-pulse" />
+        <SwirlCore />
+        <Power className="relative z-10 h-6 w-6 text-cyan-300 drop-shadow-[0_0_12px_rgba(0,240,255,0.9)] transition-colors group-hover:text-white" />
+        <span className="relative z-10 font-mono text-lg font-bold tabular-nums text-cyan-200 [text-shadow:0_0_8px_rgba(0,240,255,0.7)]">
+          {String(tick).padStart(2, '0')}
+        </span>
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Boot HUD side panels — network/quick-links and environment/systems
+// ---------------------------------------------------------------------------
+
+function HudCornerPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`relative border border-cyan-400/30 bg-[#020813]/60 p-4 shadow-[0_0_20px_rgba(0,102,255,0.1)] backdrop-blur-md ${className}`}>
+      <MicroCorners />
+      {children}
+    </div>
+  );
+}
+
+function SignalBars({ level }: { level: number }) {
+  const bars = Array.from({ length: 5 });
+  return (
+    <div className="flex items-end gap-0.5">
+      {bars.map((_, i) => (
+        <span
+          key={i}
+          className={`w-1 rounded-sm ${i < level ? 'bg-cyan-300 shadow-[0_0_4px_rgba(0,240,255,0.8)]' : 'bg-cyan-900'}`}
+          style={{ height: `${6 + i * 3}px` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function MiniMeter({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex-1">
+      <div className="mb-1 flex items-center justify-between text-[9px] uppercase tracking-widest text-cyan-500">
+        <span>{label}</span>
+        <span className="font-mono tabular-nums text-cyan-300">{value}%</span>
+      </div>
+      <div className="h-1 w-full overflow-hidden rounded-full bg-cyan-950/70">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-[#0066ff] to-[#00f0ff] shadow-[0_0_6px_rgba(0,240,255,0.7)]"
+          style={{ width: `${value}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+const BOOT_QUICK_LINKS: { label: string; icon: typeof ListChecks; value: number }[] = [
+  { label: 'Task Queue', icon: ListChecks, value: 64 },
+  { label: 'Compliance DB', icon: ShieldCheck, value: 100 },
+  { label: 'News Uplink', icon: Newspaper, value: 88 },
+  { label: 'JARVIS Core', icon: Bot, value: 100 },
+];
+
+function NetworkPanel() {
+  return (
+    <HudCornerPanel className="w-52">
+      <div className="mb-4 flex items-center justify-between">
+        <Kicker>Estate Link</Kicker>
+        <SignalBars level={5} />
+      </div>
+      <div className="mb-1 flex items-center gap-2">
+        <Wifi className="h-4 w-4 text-cyan-300" />
+        <span className="font-mono text-lg font-bold tabular-nums text-cyan-200 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">98%</span>
+      </div>
+      <p className="mb-4 font-mono text-[10px] tracking-widest text-cyan-600">ESTATE-WIFI · LAN SECURE</p>
+
+      <div className="space-y-3 border-t border-cyan-400/15 pt-3">
+        {BOOT_QUICK_LINKS.map((link) => (
+          <div key={link.label} className="flex items-center gap-2">
+            <link.icon className="h-3.5 w-3.5 shrink-0 text-cyan-500" />
+            <MiniMeter label={link.label} value={link.value} />
+          </div>
+        ))}
+      </div>
+    </HudCornerPanel>
+  );
+}
+
+function Waveform() {
+  const bars = Array.from({ length: 14 });
+  return (
+    <div className="flex h-6 items-end gap-[3px]">
+      {bars.map((_, i) => (
+        <span
+          key={i}
+          className="w-[3px] rounded-sm bg-cyan-300/80 shadow-[0_0_4px_rgba(0,240,255,0.6)]"
+          style={{
+            animation: `waveform ${0.8 + (i % 4) * 0.15}s ease-in-out infinite`,
+            animationDelay: `${i * 0.05}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function EnvironmentPanel() {
+  return (
+    <HudCornerPanel className="w-56">
+      <Kicker className="mb-3">Site Environment</Kicker>
+      <div className="mb-1 flex items-center gap-2">
+        <Cloud className="h-5 w-5 text-cyan-300" />
+        <span className="font-mono text-2xl font-bold tabular-nums text-cyan-200 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">18°C</span>
+      </div>
+      <p className="mb-3 font-mono text-[10px] tracking-widest text-cyan-600">OVERCAST · ESTATE GROUNDS</p>
+
+      <div className="mb-4 grid grid-cols-3 gap-2 border-t border-cyan-400/15 pt-3 text-center">
+        <div>
+          <Droplets className="mx-auto mb-1 h-3.5 w-3.5 text-cyan-500" />
+          <p className="font-mono text-xs text-cyan-200">64%</p>
+          <p className="text-[8px] uppercase tracking-widest text-cyan-700">Humid</p>
+        </div>
+        <div>
+          <Eye className="mx-auto mb-1 h-3.5 w-3.5 text-cyan-500" />
+          <p className="font-mono text-xs text-cyan-200">9km</p>
+          <p className="text-[8px] uppercase tracking-widest text-cyan-700">Visib</p>
+        </div>
+        <div>
+          <Wind className="mx-auto mb-1 h-3.5 w-3.5 text-cyan-500" />
+          <p className="font-mono text-xs text-cyan-200">14kt</p>
+          <p className="text-[8px] uppercase tracking-widest text-cyan-700">Wind</p>
+        </div>
+      </div>
+
+      <div className="border-t border-cyan-400/15 pt-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-cyan-500">
+            <Music2 className="h-3 w-3" /> Ambient Feed
+          </span>
+          <span className="text-[9px] uppercase tracking-widest text-emerald-400">Live</span>
+        </div>
+        <Waveform />
+      </div>
+    </HudCornerPanel>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Circular progress chart — radial HUD dial with tick ring + radar sweep
 // ---------------------------------------------------------------------------
 
@@ -476,6 +740,15 @@ function CircularProgress({ percentage }: { percentage: number }) {
 function BootSequence({ onComplete }: { onComplete: () => void }) {
   const [stage, setStage] = useState<'idle' | 'booting'>('idle');
   const [stepIndex, setStepIndex] = useState(0);
+  const [tick, setTick] = useState(13);
+
+  useEffect(() => {
+    if (stage !== 'idle') return;
+    const interval = setInterval(() => {
+      setTick((prev) => (prev + 1) % 100);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [stage]);
 
   useEffect(() => {
     if (stage !== 'booting') return;
@@ -501,29 +774,20 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,102,255,0.1),transparent_70%)]" />
 
       {stage === 'idle' && (
-        <div className="relative h-52 w-52">
-          <span className="absolute -top-1 -left-1 h-4 w-4 border-l-2 border-t-2 border-cyan-400/60" />
-          <span className="absolute -top-1 -right-1 h-4 w-4 border-r-2 border-t-2 border-cyan-400/60" />
-          <span className="absolute -bottom-1 -left-1 h-4 w-4 border-l-2 border-b-2 border-cyan-400/60" />
-          <span className="absolute -bottom-1 -right-1 h-4 w-4 border-r-2 border-b-2 border-cyan-400/60" />
-          <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_12s_linear_infinite]">
-            <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(0,240,255,0.25)" strokeWidth="1" strokeDasharray="3 7" />
-          </svg>
-          <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_16s_linear_infinite_reverse]">
-            <circle cx="100" cy="100" r="86" fill="none" stroke="rgba(0,240,255,0.18)" strokeWidth="1" strokeDasharray="1 9" />
-          </svg>
-          <button
-            onClick={() => {
+        <div className="flex w-full max-w-6xl items-center justify-center gap-6 px-6 lg:gap-10">
+          <div className="hidden shrink-0 lg:block">
+            <NetworkPanel />
+          </div>
+          <BootDial
+            tick={tick}
+            onIgnite={() => {
               playPowerUpHum();
               setStage('booting');
             }}
-            className="group absolute inset-6 flex items-center justify-center overflow-hidden rounded-full border-2 border-cyan-400/60 bg-cyan-500/5 transition-transform duration-300 hover:scale-105"
-          >
-            <span className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping" />
-            <span className="absolute -inset-3 rounded-full border border-cyan-400/20 animate-pulse" />
-            <SwirlCore />
-            <Power className="absolute inset-0 m-auto h-10 w-10 text-cyan-300 drop-shadow-[0_0_12px_rgba(0,240,255,0.9)] transition-colors group-hover:text-white" />
-          </button>
+          />
+          <div className="hidden shrink-0 lg:block">
+            <EnvironmentPanel />
+          </div>
         </div>
       )}
 

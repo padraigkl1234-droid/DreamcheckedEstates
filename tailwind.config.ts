@@ -111,6 +111,10 @@ export default {
           '0%': { backgroundPosition: '0 0' },
           '100%': { backgroundPosition: '0 8px' },
         },
+        waveform: {
+          '0%, 100%': { transform: 'scaleY(0.25)' },
+          '50%': { transform: 'scaleY(1)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -118,6 +122,7 @@ export default {
         marquee: 'marquee 28s linear infinite',
         'jarvis-scan': 'jarvis-scan 3s ease-in-out infinite',
         scanlines: 'scanlines 9s linear infinite',
+        waveform: 'waveform 1s ease-in-out infinite',
       },
     },
   },
