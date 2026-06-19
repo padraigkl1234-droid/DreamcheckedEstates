@@ -23,6 +23,10 @@ import {
   Gauge,
   Satellite,
   Server,
+  Briefcase,
+  ImageOff,
+  ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -55,6 +59,13 @@ interface ChatMessage {
   text: string;
 }
 
+interface NewsItem {
+  title: string;
+  link: string;
+  image: string | null;
+  pubDate: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Seed data
 // ---------------------------------------------------------------------------
@@ -83,16 +94,6 @@ const BOOT_STEPS = [
   'SYSTEMS NOMINAL.',
 ];
 
-const NEWS_HEADLINES = [
-  'BBC NEWS // Global markets steady as energy prices ease across Europe',
-  'BBC NEWS // Met Office issues amber wind warning for the weekend',
-  'BBC NEWS // Council approves new funding for coastal flood defences',
-  'BBC NEWS // Tech sector reports strong quarterly growth amid AI investment surge',
-  'BBC NEWS // Transport authority announces signalling upgrades on the underground',
-  'BBC NEWS // Health officials issue updated guidance on seasonal flu vaccination',
-  'BBC NEWS // Housing report shows uptick in regional construction activity',
-];
-
 const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'tasks', label: 'Task Manager', icon: ListChecks },
@@ -117,6 +118,19 @@ function clamp(value: number, min: number, max: number) {
 
 function genId() {
   return `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function formatRelativeTime(pubDate: string | null): string {
+  if (!pubDate) return '';
+  const then = new Date(pubDate).getTime();
+  if (Number.isNaN(then)) return '';
+  const diffMins = Math.round((Date.now() - then) / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.round(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays}d ago`;
 }
 
 // ---------------------------------------------------------------------------
@@ -607,6 +621,33 @@ function Sidebar({ activePage, onNavigate }: { activePage: PageKey; onNavigate: 
 function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: ComplianceItem[] }) {
   const [now, setNow] = useState(new Date());
   const [load, setLoad] = useState({ cpu: 38, mem: 52, net: 24 });
+  const [news, setNews] = useState<{ general: NewsItem[]; business: NewsItem[] }>({ general: [], business: [] });
+  const [newsStatus, setNewsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadNews = async () => {
+      try {
+        const res = await fetch('/api/jarvis-news');
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok || data.error) {
+          setNewsStatus('error');
+          return;
+        }
+        setNews({ general: data.general ?? [], business: data.business ?? [] });
+        setNewsStatus('ready');
+      } catch {
+        if (!cancelled) setNewsStatus('error');
+      }
+    };
+    loadNews();
+    const newsId = setInterval(loadNews, 5 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(newsId);
+    };
+  }, []);
 
   useEffect(() => {
     const clockId = setInterval(() => setNow(new Date()), 1000);
@@ -697,21 +738,107 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
         </Panel>
       </div>
 
-      <Panel title="BBC News Feed" icon={Newspaper} refCode="0091-N">
-        <div className="relative flex items-center overflow-hidden rounded-md border border-cyan-400/25 bg-[#020813]/60 py-3 shadow-[0_0_12px_rgba(0,102,255,0.08)]">
-          <span className="absolute left-0 z-10 flex h-full items-center bg-gradient-to-r from-[#020813] via-[#020813] to-transparent px-3">
-            <Radio className="h-4 w-4 text-red-400" />
-          </span>
-          <div className="flex w-max animate-marquee whitespace-nowrap pl-12">
-            {[...NEWS_HEADLINES, ...NEWS_HEADLINES].map((headline, i) => (
-              <span key={i} className="mx-6 text-sm text-cyan-200">
-                {headline}
-              </span>
-            ))}
-          </div>
-        </div>
-      </Panel>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <NewsPanel
+          title="BBC News Feed"
+          icon={Newspaper}
+          refCode="0091-N"
+          items={news.general}
+          status={newsStatus}
+        />
+        <NewsPanel
+          title="Business & Economics"
+          icon={Briefcase}
+          refCode="0092-B"
+          items={news.business}
+          status={newsStatus}
+        />
+      </div>
     </div>
+  );
+}
+
+function NewsPanel({
+  title,
+  icon,
+  refCode,
+  items,
+  status,
+}: {
+  title: string;
+  icon: typeof Gauge;
+  refCode: string;
+  items: NewsItem[];
+  status: 'loading' | 'ready' | 'error';
+}) {
+  return (
+    <Panel title={title} icon={icon} refCode={refCode}>
+      <div className="flex items-center gap-1.5 pb-3">
+        <Radio className="h-3 w-3 text-red-400" />
+        <span className="font-mono text-[10px] uppercase tracking-widest text-red-400">Live</span>
+      </div>
+
+      {status === 'loading' && (
+        <div className="flex flex-col items-center gap-2 py-10 text-cyan-600">
+          <RefreshCw className="h-5 w-5 animate-spin" />
+          <p className="font-mono text-xs uppercase tracking-widest">Acquiring feed...</p>
+        </div>
+      )}
+
+      {status === 'error' && (
+        <div className="flex flex-col items-center gap-2 py-10 text-amber-400">
+          <AlertTriangle className="h-5 w-5" />
+          <p className="text-center font-mono text-xs uppercase tracking-widest">Feed uplink unavailable</p>
+        </div>
+      )}
+
+      {status === 'ready' && items.length === 0 && (
+        <p className="py-10 text-center font-mono text-xs text-cyan-700">No headlines returned.</p>
+      )}
+
+      {status === 'ready' && items.length > 0 && (
+        <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1">
+          {items.map((item, i) => (
+            <NewsCard key={`${item.link}-${i}`} item={item} />
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function NewsCard({ item }: { item: NewsItem }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImage = item.image && !imgFailed;
+
+  return (
+    <a
+      href={item.link}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group relative flex gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 p-2.5 shadow-[0_0_12px_rgba(0,102,255,0.08)] transition-colors hover:border-cyan-400/60 hover:bg-cyan-400/5"
+    >
+      <MicroCorners />
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-cyan-400/20 bg-[#01060f]">
+        {showImage ? (
+          <img
+            src={item.image ?? ''}
+            alt=""
+            className="h-full w-full object-cover"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <ImageOff className="h-5 w-5 text-cyan-700" />
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+        <p className="line-clamp-2 text-sm text-cyan-100 group-hover:text-cyan-50">{item.title}</p>
+        <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-cyan-600">
+          {item.pubDate && <span>{formatRelativeTime(item.pubDate)}</span>}
+          <ExternalLink className="h-3 w-3" />
+        </div>
+      </div>
+    </a>
   );
 }
 
