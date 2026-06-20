@@ -9,10 +9,10 @@ import {
   Wrench,
   LogOut,
   User as UserIcon,
-  Flame,
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import { Trident } from '@/components/icons/Trident';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -29,7 +29,7 @@ import { BRAND_NAME } from '@/lib/brand';
 
 const NAV_ITEMS = [
   { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
-  { name: BRAND_NAME, href: '/jarvis-tracker', icon: Flame },
+  { name: BRAND_NAME, href: '/jarvis-tracker', icon: Trident },
 ];
 
 export function Navbar() {
