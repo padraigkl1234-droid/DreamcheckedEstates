@@ -102,6 +102,19 @@ function getWeatherInfo(code: number): { label: string; icon: typeof Cloud } {
   return { label: 'Overcast', icon: Cloud };
 }
 
+type WeatherCategory = 'clear' | 'partly-cloudy' | 'cloudy' | 'fog' | 'rain' | 'snow' | 'storm';
+
+function getWeatherCategory(code: number): WeatherCategory {
+  if (code === 0) return 'clear';
+  if (code === 1 || code === 2) return 'partly-cloudy';
+  if (code === 3) return 'cloudy';
+  if (code === 45 || code === 48) return 'fog';
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+  if (code >= 95 && code <= 99) return 'storm';
+  return 'cloudy';
+}
+
 // ---------------------------------------------------------------------------
 // Seed data
 // ---------------------------------------------------------------------------
@@ -957,7 +970,7 @@ function WeatherPanel({ weather, status }: { weather: WeatherData | null; status
       )}
 
       {status === 'ready' && weather && info && (
-        <div className="flex flex-col gap-4">
+        <div className="flex h-full flex-col gap-4">
           <div className="text-center">
             <div className="mb-1 flex items-center justify-center gap-2">
               <WeatherIcon className="h-6 w-6 text-cyan-300" />
@@ -980,9 +993,141 @@ function WeatherPanel({ weather, status }: { weather: WeatherData | null; status
               <p className="text-[8px] uppercase tracking-widest text-cyan-700">Wind</p>
             </div>
           </div>
+
+          <WeatherScene category={getWeatherCategory(weather.weatherCode)} />
         </div>
       )}
     </Panel>
+  );
+}
+
+function WeatherScene({ category }: { category: WeatherCategory }) {
+  return (
+    <div className="relative min-h-[90px] flex-1 overflow-hidden rounded-md border border-cyan-400/15 bg-[#01060f]/40">
+      {category === 'clear' && <SunScene />}
+      {category === 'partly-cloudy' && <CloudScene withSun />}
+      {category === 'cloudy' && <CloudScene />}
+      {category === 'fog' && <FogScene />}
+      {category === 'rain' && <RainScene />}
+      {category === 'snow' && <SnowScene />}
+      {category === 'storm' && <StormScene />}
+    </div>
+  );
+}
+
+function SunScene() {
+  const sparkles = Array.from({ length: 6 });
+  return (
+    <div className="relative flex h-full w-full items-center justify-center">
+      <div className="absolute h-16 w-16 rounded-full bg-amber-300/20 blur-xl animate-pulse" />
+      <Sun className="relative h-12 w-12 text-amber-300 drop-shadow-[0_0_16px_rgba(251,191,36,0.8)] animate-[spin_18s_linear_infinite]" />
+      {sparkles.map((_, i) => (
+        <span
+          key={i}
+          className="absolute bottom-3 h-1 w-1 rounded-full bg-amber-200/80 animate-float-sparkle"
+          style={{
+            left: `${14 + i * 14}%`,
+            animationDuration: `${2.6 + i * 0.4}s`,
+            animationDelay: `${i * 0.45}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CloudScene({ withSun = false }: { withSun?: boolean }) {
+  return (
+    <div className="relative h-full w-full">
+      {withSun && (
+        <Sun className="absolute left-[30%] top-[22%] h-9 w-9 text-amber-300/80 drop-shadow-[0_0_12px_rgba(251,191,36,0.6)] animate-[spin_22s_linear_infinite]" />
+      )}
+      <Cloud
+        className="absolute top-1/2 h-12 w-12 -translate-y-1/2 text-cyan-200 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)] animate-cloud-drift"
+        style={{ left: '22%' }}
+      />
+      <Cloud
+        className="absolute top-[62%] h-7 w-7 text-cyan-300/50 animate-cloud-drift"
+        style={{ left: '54%', animationDuration: '13s', animationDirection: 'reverse' }}
+      />
+    </div>
+  );
+}
+
+function FogScene() {
+  const bands = Array.from({ length: 3 });
+  return (
+    <div className="relative flex h-full w-full flex-col items-center justify-center gap-2.5">
+      <CloudFog className="mb-1 h-9 w-9 text-cyan-200/80 drop-shadow-[0_0_10px_rgba(0,240,255,0.35)]" />
+      {bands.map((_, i) => (
+        <span
+          key={i}
+          className="h-1 w-[70%] rounded-full bg-cyan-300/30 animate-fog-drift"
+          style={{ animationDuration: `${8 + i * 2}s`, animationDelay: `${i * 0.6}s` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function RainScene() {
+  const drops = Array.from({ length: 10 });
+  return (
+    <div className="relative h-full w-full">
+      <CloudRain className="absolute left-1/2 top-[18%] h-11 w-11 -translate-x-1/2 text-cyan-200 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]" />
+      {drops.map((_, i) => (
+        <span
+          key={i}
+          className="absolute top-[52%] w-[2px] h-2.5 rounded-full bg-cyan-300/70 animate-rain-fall"
+          style={{
+            left: `${8 + i * 9}%`,
+            animationDuration: `${0.6 + (i % 3) * 0.15}s`,
+            animationDelay: `${i * 0.12}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SnowScene() {
+  const flakes = Array.from({ length: 9 });
+  return (
+    <div className="relative h-full w-full">
+      <CloudSnow className="absolute left-1/2 top-[16%] h-11 w-11 -translate-x-1/2 text-cyan-100 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]" />
+      {flakes.map((_, i) => (
+        <span
+          key={i}
+          className="absolute top-[48%] h-1.5 w-1.5 rounded-full bg-cyan-100/80 animate-snow-fall"
+          style={{
+            left: `${6 + i * 10}%`,
+            animationDuration: `${3 + (i % 4) * 0.6}s`,
+            animationDelay: `${i * 0.3}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function StormScene() {
+  const drops = Array.from({ length: 8 });
+  return (
+    <div className="relative h-full w-full">
+      <Cloud className="absolute left-1/2 top-[14%] h-11 w-11 -translate-x-1/2 text-cyan-200/90" />
+      <CloudLightning className="absolute left-1/2 top-[34%] h-8 w-8 -translate-x-1/2 text-amber-300 drop-shadow-[0_0_14px_rgba(251,191,36,0.9)] animate-bolt-flash" />
+      {drops.map((_, i) => (
+        <span
+          key={i}
+          className="absolute top-[58%] w-[2px] h-2.5 rounded-full bg-cyan-300/70 animate-rain-fall"
+          style={{
+            left: `${10 + i * 11}%`,
+            animationDuration: `${0.55 + (i % 3) * 0.15}s`,
+            animationDelay: `${i * 0.14}s`,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
