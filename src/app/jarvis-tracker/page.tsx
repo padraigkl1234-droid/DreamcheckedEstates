@@ -715,8 +715,6 @@ function Sidebar({
         <Bot className="h-7 w-7 text-cyan-300 drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]" />
         <div className="hidden md:block">
           <p className="font-mono text-sm font-bold tracking-[0.15em] text-cyan-300 [text-shadow:0_0_10px_rgba(0,240,255,0.6)]">J.A.R.V.I.S.</p>
-          <p className="font-mono text-[10px] tracking-[0.2em] text-cyan-600">ESTATES OS</p>
-          <SysRef code="0001-CORE" className="mt-0.5 text-cyan-700/60" />
         </div>
       </div>
 
