@@ -1042,17 +1042,17 @@ function TaskManager({
   return (
     <div className="space-y-5">
       <Panel title="Deploy New Task" icon={Plus} refCode="0103-T">
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 md:grid-cols-5">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Task name"
-            className="md:col-span-2 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50 sm:col-span-2 lg:col-span-2"
           />
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as Priority)}
-            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           >
             <option>High</option>
             <option>Medium</option>
@@ -1062,12 +1062,12 @@ function TaskManager({
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           />
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value as TaskStatus)}
-            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           >
             <option>Not Started</option>
             <option>In Progress</option>
@@ -1075,7 +1075,7 @@ function TaskManager({
           </select>
           <button
             type="submit"
-            className="md:col-span-5 flex items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-colors hover:bg-[#0066ff]/20"
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-colors hover:bg-[#0066ff]/20 sm:col-span-2 lg:col-span-5"
           >
             <Plus className="h-4 w-4" /> Add Task
           </button>
