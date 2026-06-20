@@ -76,11 +76,24 @@
 
 :root,
 .dark {
+  /* Neutral ambient text glow — the resting "lit edge" used across most readouts. */
   --glow-text-none: none;
-  --glow-text-subtle: 0 0 3px rgba(0, 240, 255, 0.25);
-  --glow-text-strong: 0 0 10px rgba(0, 240, 255, 0.85);
+  --glow-text-subtle: 0 0 3px rgba(255, 255, 255, 0.22);
+  /* Brand crimson — reserved for the wordmark, hero figures, and active/live indicators. */
+  --glow-text-strong: 0 0 8px rgba(194, 48, 74, 0.8);
   --glow-text-strong-amber: 0 0 10px rgba(251, 191, 36, 0.8);
-  --glow-text-strong-red: 0 0 10px rgba(248, 113, 113, 0.8);
+  /* Hot alert red — deliberately hotter/brighter than brand crimson so danger states read distinctly. */
+  --glow-text-strong-red: 0 0 10px rgba(255, 59, 78, 0.9);
+}
+
+@font-face {
+  font-family: 'Morgenta';
+  src:
+    url('/fonts/Morgenta.woff2') format('woff2'),
+    url('/fonts/Morgenta.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
 @layer base {
@@ -89,5 +102,16 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -13,6 +13,11 @@ export default {
         body: ['Poppins', 'sans-serif'],
         headline: ['Poppins', 'sans-serif'],
         code: ['monospace'],
+        display: [
+          'Morgenta',
+          'ui-sans-serif',
+          'sans-serif',
+        ],
         sans: [
           'var(--font-inter)',
           'ui-sans-serif',
@@ -34,20 +39,29 @@ export default {
       },
       boxShadow: {
         'glow-none': 'none',
-        'glow-subtle': '0 0 6px 0 rgba(0, 240, 255, 0.12), inset 0 0 8px 0 rgba(0, 240, 255, 0.06)',
-        'glow-strong': '0 0 22px 2px rgba(0, 240, 255, 0.55), inset 0 0 14px 0 rgba(0, 240, 255, 0.15)',
-        'glow-strong-amber': '0 0 22px 2px rgba(251, 191, 36, 0.5), inset 0 0 14px 0 rgba(251, 191, 36, 0.12)',
-        'glow-strong-red': '0 0 22px 2px rgba(248, 113, 113, 0.55), inset 0 0 14px 0 rgba(248, 113, 113, 0.15)',
-        'glow-strong-blue': '0 0 22px 2px rgba(0, 102, 255, 0.5), inset 0 0 14px 0 rgba(0, 102, 255, 0.15)',
+        'glow-subtle': '0 0 5px 0 rgba(255, 255, 255, 0.05), inset 0 0 6px 0 rgba(255, 255, 255, 0.03)',
+        'glow-strong': '0 0 18px 2px rgba(194, 48, 74, 0.45), inset 0 0 12px 0 rgba(194, 48, 74, 0.15)',
+        'glow-caution': '0 0 16px 2px rgba(251, 191, 36, 0.4), inset 0 0 10px 0 rgba(251, 191, 36, 0.12)',
+        'glow-alert': '0 0 20px 3px rgba(255, 59, 78, 0.55), inset 0 0 12px 0 rgba(255, 59, 78, 0.18)',
       },
       dropShadow: {
         'glow-none': 'none',
-        'glow-subtle': '0 0 3px rgba(0, 240, 255, 0.25)',
-        'glow-strong': '0 0 10px rgba(0, 240, 255, 0.85)',
-        'glow-strong-amber': '0 0 10px rgba(251, 191, 36, 0.8)',
-        'glow-strong-red': '0 0 10px rgba(248, 113, 113, 0.8)',
+        'glow-subtle': '0 0 3px rgba(255, 255, 255, 0.18)',
+        'glow-strong': '0 0 8px rgba(194, 48, 74, 0.75)',
+        'glow-caution': '0 0 8px rgba(251, 191, 36, 0.7)',
       },
       colors: {
+        invictus: {
+          base: '#0A0A0C',
+          surface: '#121215',
+          raised: '#17171B',
+          crimson: '#9A2236',
+          'crimson-bright': '#C2304A',
+        },
+        alert: {
+          DEFAULT: '#FF3B4E',
+          dim: '#7A0F1A',
+        },
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {
@@ -125,7 +139,7 @@ export default {
           '0%': { transform: 'translateX(0%)' },
           '100%': { transform: 'translateX(-50%)' },
         },
-        'jarvis-scan': {
+        'scan-beam': {
           '0%': { transform: 'translateY(-100%)' },
           '100%': { transform: 'translateY(100%)' },
         },
@@ -170,13 +184,18 @@ export default {
           from: { opacity: '0', transform: 'translateY(14px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        'pulse-alert': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.55' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         marquee: 'marquee 28s linear infinite',
-        'jarvis-scan': 'jarvis-scan 3s ease-in-out infinite',
+        'scan-beam': 'scan-beam 3s ease-in-out infinite',
         scanlines: 'scanlines 9s linear infinite',
+        'pulse-alert': 'pulse-alert 1.4s ease-in-out infinite',
         waveform: 'waveform 1s ease-in-out infinite',
         'float-sparkle': 'float-sparkle 3s ease-in-out infinite',
         'cloud-drift': 'cloud-drift 9s ease-in-out infinite',

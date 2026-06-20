@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useSound, getSharedAudioContext } from '@/components/SoundProvider';
+import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
 import {
   type ComplianceItem,
   type ComplianceUrgency,
@@ -23,12 +24,10 @@ import {
   Radio,
   Newspaper,
   Bot,
-  Send,
   CheckCircle2,
   Circle,
   AlertTriangle,
   X,
-  Minus,
   Gauge,
   Satellite,
   Server,
@@ -76,12 +75,6 @@ interface CalendarEvent {
   date: string;
   priority: Priority;
   notes: string;
-}
-
-interface ChatMessage {
-  id: string;
-  sender: 'jarvis' | 'user';
-  text: string;
 }
 
 interface NewsItem {
@@ -156,7 +149,7 @@ const BOOT_STEPS = [
 ];
 
 // Once-per-browser-session gate: cleared on a new tab/session, untouched by in-app navigation.
-const SESSION_BOOTED_KEY = 'jarvis:sessionBooted';
+const SESSION_BOOTED_KEY = 'invictus:sessionBooted';
 
 // Per-card stagger timing for the dashboard's post-boot reveal animation.
 const CARD_REVEAL_STEP_MS = 90;
@@ -436,7 +429,7 @@ const BOOT_QUICK_LINKS: { label: string; icon: typeof ListChecks; value: number 
   { label: 'Task Queue', icon: ListChecks, value: 64 },
   { label: 'Compliance DB', icon: ShieldCheck, value: 100 },
   { label: 'News Uplink', icon: Newspaper, value: 88 },
-  { label: 'JARVIS Core', icon: Bot, value: 100 },
+  { label: `${BRAND_NAME} Core`, icon: Bot, value: 100 },
 ];
 
 function NetworkPanel() {
@@ -536,7 +529,7 @@ function CircularProgress({ percentage }: { percentage: number }) {
     <div className="relative flex h-56 w-56 items-center justify-center">
       <svg viewBox="0 0 200 200" className="absolute h-full w-full -rotate-90">
         <defs>
-          <linearGradient id="jarvisProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id="invictusProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#00f0ff" />
             <stop offset="100%" stopColor="#0066ff" />
           </linearGradient>
@@ -551,7 +544,7 @@ function CircularProgress({ percentage }: { percentage: number }) {
           cy="100"
           r={radius}
           fill="none"
-          stroke="url(#jarvisProgressGradient)"
+          stroke="url(#invictusProgressGradient)"
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -732,7 +725,7 @@ function Sidebar({
       <div className="flex h-16 items-center justify-center gap-2 border-b border-cyan-400/20 px-2 md:justify-start md:px-5">
         <Bot className="h-7 w-7 text-cyan-300 drop-shadow-glow-subtle" />
         <div className="hidden md:block">
-          <p className="text-sm font-bold tracking-[0.15em] text-cyan-300 [text-shadow:var(--glow-text-subtle)]">J.A.R.V.I.S.</p>
+          <p className="text-sm font-bold tracking-[0.15em] text-cyan-300 [text-shadow:var(--glow-text-subtle)]">{BRAND_NAME_DOTTED}</p>
         </div>
       </div>
 
@@ -806,7 +799,7 @@ function Sidebar({
 }
 
 // ---------------------------------------------------------------------------
-// JARVIS greeting line — time-of-day aware, names the single most urgent
+// INVICTUS greeting line — time-of-day aware, names the single most urgent
 // compliance item using the shared Compliance Countdown data/RAG logic.
 // ---------------------------------------------------------------------------
 
@@ -845,7 +838,7 @@ function buildGreeting(user: User | null, compliances: ComplianceItem[], now: Da
   return `${prefix}, ${name}. ${outstanding.length} items need attention — most urgent is ${top.item.name}, ${dueClause}.`;
 }
 
-function JarvisGreeting({ compliances }: { compliances: ComplianceItem[] }) {
+function InvictusGreeting({ compliances }: { compliances: ComplianceItem[] }) {
   const { user } = useAuth();
   const [greeting] = useState(() => buildGreeting(user, compliances, new Date()));
 
@@ -990,7 +983,7 @@ function Dashboard({
   return (
     <div className="space-y-6">
       <Reveal index={0} animate={animateCardsIn}>
-        <JarvisGreeting compliances={compliances} />
+        <InvictusGreeting compliances={compliances} />
       </Reveal>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -2030,290 +2023,10 @@ function ComplianceTracker({
 }
 
 // ---------------------------------------------------------------------------
-// JARVIS intent parsing — turns free-text chat commands into state actions
-// ---------------------------------------------------------------------------
-
-const MONTH_NAMES = [
-  'january', 'february', 'march', 'april', 'may', 'june',
-  'july', 'august', 'september', 'october', 'november', 'december',
-];
-
-function addDays(base: Date, days: number) {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function toISODate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function parseDueDate(text: string, now: Date): string | null {
-  const lower = text.toLowerCase();
-  const monthPattern = MONTH_NAMES.join('|');
-
-  const iso = lower.match(/\b(\d{4}-\d{2}-\d{2})\b/);
-  if (iso) return iso[1];
-
-  const monthDay = lower.match(new RegExp(`\\b(${monthPattern})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?\\b`));
-  if (monthDay) {
-    const month = MONTH_NAMES.indexOf(monthDay[1]);
-    const day = parseInt(monthDay[2], 10);
-    const year = monthDay[3] ? parseInt(monthDay[3], 10) : now.getFullYear();
-    return toISODate(new Date(year, month, day));
-  }
-
-  const dayMonth = lower.match(new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${monthPattern})(?:,?\\s+(\\d{4}))?\\b`));
-  if (dayMonth) {
-    const day = parseInt(dayMonth[1], 10);
-    const month = MONTH_NAMES.indexOf(dayMonth[2]);
-    const year = dayMonth[3] ? parseInt(dayMonth[3], 10) : now.getFullYear();
-    return toISODate(new Date(year, month, day));
-  }
-
-  if (/\btomorrow\b/.test(lower)) return toISODate(addDays(now, 1));
-  if (/\btoday\b/.test(lower)) return toISODate(now);
-  if (/\bnext week\b/.test(lower)) return toISODate(addDays(now, 7));
-  if (/\bnext month\b/.test(lower)) {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() + 1);
-    return toISODate(d);
-  }
-  if (/\bnext year\b/.test(lower)) {
-    const d = new Date(now);
-    d.setFullYear(d.getFullYear() + 1);
-    return toISODate(d);
-  }
-  const inDays = lower.match(/\bin\s+(\d+)\s+days?\b/);
-  if (inDays) return toISODate(addDays(now, parseInt(inDays[1], 10)));
-  const inWeeks = lower.match(/\bin\s+(\d+)\s+weeks?\b/);
-  if (inWeeks) return toISODate(addDays(now, parseInt(inWeeks[1], 10) * 7));
-  const inMonths = lower.match(/\bin\s+(\d+)\s+months?\b/);
-  if (inMonths) {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() + parseInt(inMonths[1], 10));
-    return toISODate(d);
-  }
-  const inYears = lower.match(/\bin\s+(\d+)\s+years?\b/);
-  if (inYears) {
-    const d = new Date(now);
-    d.setFullYear(d.getFullYear() + parseInt(inYears[1], 10));
-    return toISODate(d);
-  }
-
-  return null;
-}
-
-const DUE_CLAUSE = new RegExp(
-  `\\b(on|by|due)\\s+(today|tomorrow|next\\s+week|next\\s+month|next\\s+year|in\\s+\\d+\\s+(days?|weeks?|months?|years?)|\\d{4}-\\d{2}-\\d{2}|(${MONTH_NAMES.join('|')})\\s+\\d{1,2}(st|nd|rd|th)?(,?\\s+\\d{4})?|\\d{1,2}(st|nd|rd|th)?\\s+(${MONTH_NAMES.join('|')})(,?\\s+\\d{4})?)\\b`,
-  'gi'
-);
-
-function cleanName(name: string, fallback: string): string {
-  const trimmed = name.replace(/\s{2,}/g, ' ').trim().replace(/^[.,;:\s]+|[.,;:\s]+$/g, '');
-  if (!trimmed) return fallback;
-  return trimmed[0].toUpperCase() + trimmed.slice(1);
-}
-
-type JarvisIntent =
-  | { type: 'add_task'; task: Task }
-  | { type: 'add_compliance'; item: ComplianceItem }
-  | { type: 'none' };
-
-function parseJarvisCommand(text: string, now: Date = new Date()): JarvisIntent {
-  const lower = text.toLowerCase();
-  const actionWord = /\b(add|create|schedule|deploy|log|set\s*up)\b/;
-  const mentionsCompliance = /\bcompliance\b/.test(lower);
-  const mentionsTask = /\btask\b/.test(lower);
-
-  if (mentionsCompliance && actionWord.test(lower)) {
-    const dueDate = parseDueDate(text, now) ?? toISODate(addDays(now, 365));
-    let name = text
-      .replace(/^.*?\b(add|create|schedule|deploy|log|set\s*up)\b\s+(a\s+)?(new\s+)?/i, '')
-      .replace(/\bcompliance\b\s*(log|item|record|entry)?/gi, '')
-      .replace(DUE_CLAUSE, '');
-    return {
-      type: 'add_compliance',
-      item: {
-        id: genId(),
-        name: cleanName(name, 'Untitled compliance item'),
-        completed: false,
-        date: '',
-        nextDueDate: dueDate,
-        comments: '',
-      },
-    };
-  }
-
-  if (mentionsTask && actionWord.test(lower)) {
-    const priorityMatch = lower.match(/\b(high|medium|low)\b\s*(priority)?/);
-    const priority: Priority = priorityMatch
-      ? ((priorityMatch[1][0].toUpperCase() + priorityMatch[1].slice(1)) as Priority)
-      : 'Medium';
-    const dueDate = parseDueDate(text, now) ?? toISODate(addDays(now, 7));
-    let name = text
-      .replace(/^.*?\btask\b(\s+to)?\s*/i, '')
-      .replace(/\b(with\s+)?(high|medium|low)\s*(priority)?\b/gi, '')
-      .replace(DUE_CLAUSE, '');
-    return {
-      type: 'add_task',
-      task: {
-        id: genId(),
-        name: cleanName(name, 'Untitled task'),
-        priority,
-        dueDate,
-        status: 'Not Started',
-      },
-    };
-  }
-
-  return { type: 'none' };
-}
-
-// ---------------------------------------------------------------------------
-// JARVIS Chatbox
-// ---------------------------------------------------------------------------
-
-function JarvisChatbox({
-  completionPct,
-  outstandingTasks,
-  onAddTask,
-  onAddCompliance,
-}: {
-  completionPct: number;
-  outstandingTasks: number;
-  onAddTask: (task: Task) => void;
-  onAddCompliance: (item: ComplianceItem) => void;
-}) {
-  const [open, setOpen] = useState(true);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const { playHover, playConfirm, startThinking, stopThinking } = useSound();
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages, open]);
-
-  const reply = (text: string) => {
-    const lower = text.toLowerCase();
-    if (lower.includes('status') || lower.includes('progress')) {
-      return `Current estate completion stands at ${completionPct} percent, with ${outstandingTasks} item(s) outstanding, sir.`;
-    }
-    if (lower.includes('compliance')) {
-      return 'Compliance records are up to date. I recommend reviewing any outstanding certifications on the Compliance page.';
-    }
-    if (lower.includes('task')) {
-      return 'You can deploy or update tasks from the Task Manager. Shall I flag any high-priority items?';
-    }
-    if (lower.includes('hello') || lower.includes('hi')) {
-      return 'Good to see you again, sir. All estate systems are functioning within normal parameters.';
-    }
-    return "Noted, sir. I've logged that for the estate records.";
-  };
-
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text) return;
-    playConfirm();
-    const userMsg: ChatMessage = { id: genId(), sender: 'user', text };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput('');
-
-    const intent = parseJarvisCommand(text);
-    let responseText: string;
-    if (intent.type === 'add_task') {
-      onAddTask(intent.task);
-      responseText = `Understood, sir. I have deployed the "${intent.task.name}" task with ${intent.task.priority} priority for ${intent.task.dueDate}.`;
-    } else if (intent.type === 'add_compliance') {
-      onAddCompliance(intent.item);
-      responseText = `Understood, sir. I have created the "${intent.item.name}" compliance log, due ${intent.item.nextDueDate}.`;
-    } else {
-      responseText = reply(text);
-    }
-
-    startThinking();
-    setTimeout(() => {
-      stopThinking();
-      setMessages((prev) => [...prev, { id: genId(), sender: 'jarvis', text: responseText }]);
-    }, 700);
-  };
-
-  return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end">
-      {open && (
-        <div className="relative mb-3 flex h-96 w-80 flex-col overflow-hidden border border-cyan-400/30 bg-[#020813]/70 shadow-glow-subtle backdrop-blur-xl">
-          <HudCorners />
-          <div className="flex items-center justify-between border-b border-cyan-400/25 bg-cyan-500/5 px-3 py-2.5">
-            <div className="flex items-center gap-2">
-              <div className="relative flex h-7 w-7 items-center justify-center rounded-full border border-cyan-400/50 bg-cyan-400/10">
-                <Bot className="h-4 w-4 text-cyan-300" />
-                <ConcentricPulse />
-              </div>
-              <div>
-                <p className="text-xs font-semibold tracking-widest text-cyan-300 [text-shadow:var(--glow-text-subtle)]">J.A.R.V.I.S.</p>
-                <p className="text-[9px] uppercase tracking-widest text-emerald-400">Online</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <SysRef code="0500-AI" className="hidden text-cyan-700/60 sm:inline-flex" />
-              <button onClick={() => setOpen(false)} className="text-cyan-500 hover:text-cyan-300">
-                <Minus className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-3">
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`max-w-[85%] rounded-md px-3 py-2 text-xs leading-relaxed ${
-                  m.sender === 'jarvis'
-                    ? 'border border-cyan-400/25 bg-cyan-500/10 text-cyan-100 shadow-glow-subtle'
-                    : 'ml-auto border border-[#0066ff]/30 bg-[#0066ff]/10 text-right text-cyan-50 shadow-glow-subtle'
-                }`}
-              >
-                {m.text}
-              </div>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 border-t border-cyan-400/25 p-2.5">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Message J.A.R.V.I.S..."
-              className="flex-1 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
-            />
-            <button
-              onClick={handleSend}
-              onMouseEnter={playHover}
-              className="rounded-md border border-cyan-400/50 bg-cyan-400/10 p-2 text-cyan-300 transition-colors hover:bg-cyan-400/20"
-            >
-              <Send className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <button
-        onClick={() => setOpen((o) => !o)}
-        onMouseEnter={playHover}
-        className="relative flex h-14 w-14 items-center justify-center rounded-full border border-cyan-400/50 bg-[#020813]/90 shadow-glow-subtle backdrop-blur-xl transition-all hover:scale-105 hover:shadow-glow-strong-blue"
-      >
-        <ConcentricPulse />
-        {open ? <X className="h-5 w-5 text-cyan-300" /> : <Bot className="h-6 w-6 text-cyan-300" />}
-      </button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Root page
 // ---------------------------------------------------------------------------
 
-export default function JarvisTrackerPage() {
+export default function InvictusTrackerPage() {
   const { user } = useAuth();
   const [bootPhase, setBootPhase] = useState<'pending' | 'boot' | 'done'>('pending');
   const [animateCardsIn, setAnimateCardsIn] = useState(false);
@@ -2358,7 +2071,7 @@ export default function JarvisTrackerPage() {
         }
         setSyncStatus('synced');
       } catch (error) {
-        console.error('Failed to load JARVIS progress:', error);
+        console.error('Failed to load INVICTUS progress:', error);
         setSyncStatus('error');
       } finally {
         readyToSave.current = true;
@@ -2378,7 +2091,7 @@ export default function JarvisTrackerPage() {
       })
         .then(() => setSyncStatus('synced'))
         .catch((error) => {
-          console.error('Failed to save JARVIS progress:', error);
+          console.error('Failed to save INVICTUS progress:', error);
           setSyncStatus('error');
         });
     }, 600);
@@ -2467,12 +2180,6 @@ export default function JarvisTrackerPage() {
               />
             )}
           </main>
-          <JarvisChatbox
-            completionPct={completionPct}
-            outstandingTasks={totalItems - completedItems}
-            onAddTask={handleAddTask}
-            onAddCompliance={handleAddCompliance}
-          />
         </div>
       )}
     </div>

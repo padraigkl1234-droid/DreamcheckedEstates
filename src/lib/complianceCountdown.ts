@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Shared compliance countdown / RAG (red-amber-green) urgency logic.
 // Single source of truth for "how urgent is this compliance item" so the
-// dashboard's Compliance Countdown card and the JARVIS greeting line never
+// dashboard's Compliance Countdown card and the INVICTUS greeting line never
 // disagree about which item is most pressing.
 // ---------------------------------------------------------------------------
 
