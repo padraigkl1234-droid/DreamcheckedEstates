@@ -43,6 +43,9 @@ import {
   CloudFog,
   CloudDrizzle,
   Trophy,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -51,7 +54,7 @@ import {
 
 type Priority = 'High' | 'Medium' | 'Low';
 type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
-type PageKey = 'dashboard' | 'tasks' | 'compliance';
+type PageKey = 'dashboard' | 'calendar' | 'tasks' | 'compliance';
 
 interface Task {
   id: string;
@@ -68,6 +71,14 @@ interface ComplianceItem {
   date: string;
   nextDueDate: string;
   comments: string;
+}
+
+interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  priority: Priority;
+  notes: string;
 }
 
 interface ChatMessage {
@@ -126,6 +137,10 @@ const SEED_TASKS: Task[] = [
   { id: 't4', name: 'Audit fire extinguisher inventory', priority: 'High', dueDate: '2026-06-19', status: 'Completed' },
 ];
 
+const SEED_EVENTS: CalendarEvent[] = [
+  { id: 'e1', title: 'Ansul Meeting', date: '2026-06-20', priority: 'High', notes: 'It is with Paul A.' },
+];
+
 const SEED_COMPLIANCES: ComplianceItem[] = [
   { id: 'c1', name: 'Fire Risk Assessment (FRA)', completed: true, date: '2026-04-12', nextDueDate: '2027-04-12', comments: 'Annual review complete, no actions outstanding.' },
   { id: 'c2', name: 'Legionella Risk Assessment', completed: false, date: '', nextDueDate: '2026-07-01', comments: '' },
@@ -145,6 +160,7 @@ const BOOT_STEPS = [
 
 const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'calendar', label: 'Calendar', icon: CalendarDays },
   { key: 'tasks', label: 'Task Manager', icon: ListChecks },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
 ];
@@ -167,6 +183,13 @@ function clamp(value: number, min: number, max: number) {
 
 function genId() {
   return `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function toDateInputValue(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function formatRelativeTime(pubDate: string | null): string {
@@ -1278,6 +1301,202 @@ function Panel({
 }
 
 // ---------------------------------------------------------------------------
+// Calendar
+// ---------------------------------------------------------------------------
+
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const MONTH_LABELS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function CalendarPage({
+  events,
+  onAdd,
+  onDelete,
+}: {
+  events: CalendarEvent[];
+  onAdd: (event: CalendarEvent) => void;
+  onDelete: (id: string) => void;
+}) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState(toDateInputValue(today));
+  const [priority, setPriority] = useState<Priority>('Medium');
+  const [notes, setNotes] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !date) return;
+    onAdd({ id: genId(), title: title.trim(), date, priority, notes: notes.trim() });
+    playSuccessChime();
+    setTitle('');
+    setPriority('Medium');
+    setNotes('');
+  };
+
+  const eventsByDate = useMemo(() => {
+    return events.reduce<Record<string, CalendarEvent[]>>((acc, ev) => {
+      (acc[ev.date] ??= []).push(ev);
+      return acc;
+    }, {});
+  }, [events]);
+
+  const cells = useMemo(() => {
+    const firstOfMonth = new Date(viewYear, viewMonth, 1);
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const leadingBlanks = (firstOfMonth.getDay() + 6) % 7;
+    const totalCells = Math.ceil((leadingBlanks + daysInMonth) / 7) * 7;
+    return Array.from({ length: totalCells }, (_, i) => {
+      const dayNum = i - leadingBlanks + 1;
+      if (dayNum < 1 || dayNum > daysInMonth) return null;
+      return toDateInputValue(new Date(viewYear, viewMonth, dayNum));
+    });
+  }, [viewYear, viewMonth]);
+
+  const goToPrevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  };
+
+  const goToToday = () => {
+    setViewYear(today.getFullYear());
+    setViewMonth(today.getMonth());
+  };
+
+  const todayStr = toDateInputValue(today);
+
+  return (
+    <div className="space-y-5">
+      <Panel title="New Diary Entry" icon={Plus} refCode="0102-C">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Ansul Meeting"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50 sm:col-span-2 lg:col-span-2"
+          />
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+          />
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as Priority)}
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+          >
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+          </select>
+          <input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Notes, e.g. it is with Paul A"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+          />
+          <button
+            type="submit"
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-colors hover:bg-[#0066ff]/20 sm:col-span-2 lg:col-span-5"
+          >
+            <Plus className="h-4 w-4" /> Add to Diary
+          </button>
+        </form>
+      </Panel>
+
+      <Panel title={`${MONTH_LABELS[viewMonth]} ${viewYear}`} icon={CalendarDays} refCode="0103-C">
+        <div className="mb-4 flex items-center justify-end gap-2">
+          <button
+            onClick={goToPrevMonth}
+            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 p-1.5 text-cyan-300 transition-colors hover:bg-cyan-400/10"
+            title="Previous month"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={goToToday}
+            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-cyan-300 transition-colors hover:bg-cyan-400/10"
+          >
+            Today
+          </button>
+          <button
+            onClick={goToNextMonth}
+            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 p-1.5 text-cyan-300 transition-colors hover:bg-cyan-400/10"
+            title="Next month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1.5">
+          {WEEKDAY_LABELS.map((label) => (
+            <div key={label} className="px-1 pb-1 text-center font-mono text-[10px] font-semibold uppercase tracking-wide text-cyan-500">
+              {label}
+            </div>
+          ))}
+          {cells.map((cellDate, i) => {
+            if (!cellDate) {
+              return <div key={`blank-${i}`} className="min-h-[5.5rem] rounded-md border border-transparent" />;
+            }
+            const dayEvents = eventsByDate[cellDate] ?? [];
+            const isToday = cellDate === todayStr;
+            const dayNum = Number(cellDate.slice(-2));
+            return (
+              <div
+                key={cellDate}
+                className={`relative flex min-h-[5.5rem] flex-col gap-1 rounded-md border p-1.5 ${
+                  isToday
+                    ? 'border-cyan-300 bg-cyan-400/10 shadow-[0_0_12px_rgba(0,240,255,0.3)]'
+                    : 'border-cyan-400/20 bg-[#020813]/40'
+                }`}
+              >
+                <span className={`font-mono text-[11px] ${isToday ? 'font-bold text-cyan-200' : 'text-cyan-500'}`}>{dayNum}</span>
+                <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
+                  {dayEvents.map((ev) => (
+                    <div
+                      key={ev.id}
+                      title={ev.notes ? `${ev.title} — ${ev.notes}` : ev.title}
+                      className={`group flex items-center justify-between gap-1 rounded border px-1.5 py-0.5 text-[10px] ${PRIORITY_STYLES[ev.priority]}`}
+                    >
+                      <span className="truncate">{ev.title}</span>
+                      <button
+                        onClick={() => onDelete(ev.id)}
+                        className="shrink-0 opacity-60 hover:opacity-100"
+                        title="Delete entry"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Task Manager
 // ---------------------------------------------------------------------------
 
@@ -1838,6 +2057,7 @@ export default function JarvisTrackerPage() {
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [tasks, setTasks] = useState<Task[]>(SEED_TASKS);
   const [compliances, setCompliances] = useState<ComplianceItem[]>(SEED_COMPLIANCES);
+  const [events, setEvents] = useState<CalendarEvent[]>(SEED_EVENTS);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'synced' | 'error'>('idle');
   const loadedForUid = useRef<string | null>(null);
   const readyToSave = useRef(false);
@@ -1862,6 +2082,7 @@ export default function JarvisTrackerPage() {
         if (data) {
           if (Array.isArray(data.tasks)) setTasks(data.tasks as Task[]);
           if (Array.isArray(data.compliances)) setCompliances(data.compliances as ComplianceItem[]);
+          if (Array.isArray(data.events)) setEvents(data.events as CalendarEvent[]);
         }
         setSyncStatus('synced');
       } catch (error) {
@@ -1880,6 +2101,7 @@ export default function JarvisTrackerPage() {
       setDoc(doc(db, 'jarvisState', user.uid), {
         tasks,
         compliances,
+        events,
         updatedAt: Date.now(),
       })
         .then(() => setSyncStatus('synced'))
@@ -1889,7 +2111,7 @@ export default function JarvisTrackerPage() {
         });
     }, 600);
     return () => clearTimeout(timeout);
-  }, [tasks, compliances, user]);
+  }, [tasks, compliances, events, user]);
 
   const totalItems = tasks.length + compliances.length;
   const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
@@ -1911,6 +2133,9 @@ export default function JarvisTrackerPage() {
     setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, comments } : c)));
   const handleDeleteCompliance = (id: string) => setCompliances((prev) => prev.filter((c) => c.id !== id));
 
+  const handleAddEvent = (event: CalendarEvent) => setEvents((prev) => [...prev, event]);
+  const handleDeleteEvent = (id: string) => setEvents((prev) => prev.filter((e) => e.id !== id));
+
   return (
     <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#020813] font-mono text-cyan-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
@@ -1930,6 +2155,9 @@ export default function JarvisTrackerPage() {
           <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} />
           <main className="flex-1 overflow-y-auto p-5">
             {activePage === 'dashboard' && <Dashboard tasks={tasks} compliances={compliances} />}
+            {activePage === 'calendar' && (
+              <CalendarPage events={events} onAdd={handleAddEvent} onDelete={handleDeleteEvent} />
+            )}
             {activePage === 'tasks' && (
               <TaskManager
                 tasks={tasks}
