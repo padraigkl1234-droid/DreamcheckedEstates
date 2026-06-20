@@ -7,7 +7,6 @@ import {
   Menu,
   CheckSquare,
   Wrench,
-  Home,
   LogOut,
   User as UserIcon,
   Bot
@@ -25,7 +24,6 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/AuthProvider';
 
 const NAV_ITEMS = [
-  { name: 'Home', href: '/', icon: Home },
   { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
   { name: 'JARVIS', href: '/jarvis-tracker', icon: Bot },
 ];
@@ -33,6 +31,7 @@ const NAV_ITEMS = [
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const isActive = (href: string) => pathname === href || (href === '/jarvis-tracker' && pathname === '/');
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 border-b bg-background/80 backdrop-blur-md">
@@ -59,10 +58,10 @@ export function Navbar() {
                       href={item.href}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-                        pathname === item.href ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+                        isActive(item.href) ? "bg-accent text-accent-foreground" : "text-muted-foreground"
                       )}
                     >
-                      <item.icon className={cn("h-5 w-5", pathname === item.href ? "text-primary" : "")} />
+                      <item.icon className={cn("h-5 w-5", isActive(item.href) ? "text-primary" : "")} />
                       {item.name}
                     </Link>
                   </SheetClose>
@@ -108,7 +107,7 @@ export function Navbar() {
               href={item.href}
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-                pathname === item.href ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+                isActive(item.href) ? "bg-accent text-accent-foreground" : "text-muted-foreground"
               )}
             >
               {item.name}

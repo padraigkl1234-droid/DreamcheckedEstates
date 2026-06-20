@@ -264,13 +264,13 @@ export default function AssignmentsModule() {
         <div className="mb-6 inline-flex rounded-full bg-primary/10 p-6">
           <LogIn className="h-10 w-10 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold">Team Login Required</h2>
+        <h2 className="text-2xl font-bold">Sign In</h2>
         <p className="mt-2 text-muted-foreground">
-          Please sign in with your team account to access and manage shared assignments.
+          Please sign in with your team account to continue.
         </p>
         <Button onClick={login} size="lg" className="mt-8 w-full gap-2">
           <LogIn className="h-5 w-5" />
-          Sign in with Microsoft
+          Sign in with Google
         </Button>
       </div>
     );
