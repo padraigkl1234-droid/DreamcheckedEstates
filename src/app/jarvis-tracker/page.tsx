@@ -297,187 +297,36 @@ function ConcentricPulse() {
   );
 }
 
-function SpokeBurst({
-  count,
-  duration,
-  reverse = false,
-  baseOpacity = 0.6,
-  minR = 5,
-  maxR = 42,
-  thickness = 1,
-  majorEvery = 3,
-}: {
-  count: number;
-  duration: string;
-  reverse?: boolean;
-  baseOpacity?: number;
-  minR?: number;
-  maxR?: number;
-  thickness?: number;
-  majorEvery?: number;
-}) {
-  const spokes = Array.from({ length: count });
-  return (
-    <svg
-      viewBox="0 0 100 100"
-      className="absolute h-full w-full"
-      style={{
-        animation: `spin ${duration} linear infinite${reverse ? ' reverse' : ''}`,
-        transformOrigin: 'center',
-        transformBox: 'fill-box',
-      }}
-    >
-      {spokes.map((_, i) => {
-        const angle = (i / spokes.length) * 360;
-        const major = i % majorEvery === 0;
-        const len = major ? maxR : maxR * 0.52;
-        return (
-          <line
-            key={i}
-            x1="50"
-            y1={50 - minR}
-            x2="50"
-            y2={50 - len}
-            stroke="currentColor"
-            strokeWidth={major ? thickness * 1.8 : thickness}
-            strokeLinecap="round"
-            opacity={major ? baseOpacity : baseOpacity * 0.4}
-            transform={`rotate(${angle} 50 50)`}
-          />
-        );
-      })}
-    </svg>
-  );
-}
-
-function SwirlCore() {
-  return (
-    <div className="absolute inset-0 h-full w-full text-cyan-300">
-      <SpokeBurst count={48} duration="16s" baseOpacity={0.25} minR={6} maxR={46} thickness={0.5} majorEvery={4} />
-      <SpokeBurst count={24} duration="9s" reverse baseOpacity={0.45} minR={5} maxR={38} thickness={0.9} majorEvery={3} />
-      <SpokeBurst count={16} duration="5s" baseOpacity={0.85} minR={4} maxR={28} thickness={1.4} majorEvery={2} />
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
-// Boot dial — layered chevron track + radial control buttons + core readout
+// Boot dial — slim glowing ring, rotating clockwise
 // ---------------------------------------------------------------------------
 
-function ChevronRing({
-  count,
-  radius,
-  tickLength,
-  thickness,
-  slant,
-  duration,
-  reverse = false,
-  opacity = 0.9,
-}: {
-  count: number;
-  radius: number;
-  tickLength: number;
-  thickness: number;
-  slant: number;
-  duration: string;
-  reverse?: boolean;
-  opacity?: number;
-}) {
-  const ticks = Array.from({ length: count });
+function BootDial({ onIgnite }: { onIgnite: () => void }) {
   return (
-    <svg
-      viewBox="0 0 200 200"
-      className="absolute h-full w-full text-cyan-300"
-      style={{
-        animation: `spin ${duration} linear infinite${reverse ? ' reverse' : ''}`,
-        filter: 'drop-shadow(0 0 6px rgba(0,240,255,0.8))',
-      }}
-    >
-      {ticks.map((_, i) => {
-        const angle = (i / count) * 360;
-        return (
-          <rect
-            key={i}
-            x={100 - thickness / 2}
-            y={100 - radius - tickLength / 2}
-            width={thickness}
-            height={tickLength}
-            fill="currentColor"
-            opacity={opacity}
-            transform={`rotate(${angle} 100 100) rotate(${slant} 100 ${100 - radius})`}
-          />
-        );
-      })}
-    </svg>
-  );
-}
-
-function radialStyle(angleDeg: number, radiusFraction: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180;
-  const pct = radiusFraction * 50;
-  return {
-    left: `${50 + pct * Math.cos(rad)}%`,
-    top: `${50 + pct * Math.sin(rad)}%`,
-  };
-}
-
-const DIAL_BUTTON_LABELS = ['PWR', 'NET', 'ENV', 'SEC', 'FIRE', 'H2O', 'ELEC', 'HVAC', 'CAM', 'NAV', 'LOG', 'SYS', 'DOC', 'COM', 'AUX', 'RAD'];
-
-function RadialButtonRing({ radiusFraction }: { radiusFraction: number }) {
-  return (
-    <>
-      {DIAL_BUTTON_LABELS.map((label, i) => {
-        const angle = (i / DIAL_BUTTON_LABELS.length) * 360;
-        const active = i % 3 !== 0;
-        return (
-          <div
-            key={label}
-            className="absolute flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-[3px] border border-cyan-400/30 bg-[#020813]/85 font-mono text-[6.5px] font-semibold uppercase tracking-wide text-cyan-400/70 shadow-[0_0_6px_rgba(0,102,255,0.15)] sm:h-8 sm:w-8 sm:text-[7px]"
-            style={radialStyle(angle, radiusFraction)}
-          >
-            <span className={`h-1 w-1 rounded-full ${active ? 'bg-cyan-300 shadow-[0_0_4px_rgba(0,240,255,0.9)]' : 'bg-cyan-900'}`} />
-            {label}
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
-function BootDial({ onIgnite, tick }: { onIgnite: () => void; tick: number }) {
-  return (
-    <div className="relative h-[280px] w-[280px] shrink-0 sm:h-[340px] sm:w-[340px] lg:h-[420px] lg:w-[420px]">
-      <span className="absolute -top-1 -left-1 h-4 w-4 border-l-2 border-t-2 border-cyan-400/60" />
-      <span className="absolute -top-1 -right-1 h-4 w-4 border-r-2 border-t-2 border-cyan-400/60" />
-      <span className="absolute -bottom-1 -left-1 h-4 w-4 border-l-2 border-b-2 border-cyan-400/60" />
-      <span className="absolute -bottom-1 -right-1 h-4 w-4 border-r-2 border-b-2 border-cyan-400/60" />
-
-      <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_26s_linear_infinite]">
-        <circle cx="100" cy="100" r="97" fill="none" stroke="rgba(0,240,255,0.16)" strokeWidth="0.75" strokeDasharray="2 6" />
+    <div className="relative h-[240px] w-[240px] shrink-0 sm:h-[300px] sm:w-[300px] lg:h-[360px] lg:w-[360px]">
+      <svg viewBox="0 0 200 200" className="absolute h-full w-full">
+        <circle cx="100" cy="100" r="94" fill="none" stroke="rgba(0,240,255,0.12)" strokeWidth="1.5" />
       </svg>
-      <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_19s_linear_infinite_reverse]">
-        <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(0,240,255,0.2)" strokeWidth="1" strokeDasharray="1 9" />
+      <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_5s_linear_infinite]">
+        <circle
+          cx="100"
+          cy="100"
+          r="94"
+          fill="none"
+          stroke="rgba(0,240,255,0.9)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray="110 480"
+          style={{ filter: 'drop-shadow(0 0 10px rgba(0,240,255,0.9))' }}
+        />
       </svg>
-      <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_33s_linear_infinite]">
-        <circle cx="100" cy="100" r="87" fill="none" stroke="rgba(0,240,255,0.12)" strokeWidth="0.5" strokeDasharray="6 3 1 3" />
-      </svg>
-
-      <RadialButtonRing radiusFraction={0.74} />
-
-      <ChevronRing count={84} radius={56} tickLength={10} thickness={2.2} slant={30} duration="15s" opacity={0.85} />
-      <ChevronRing count={60} radius={51} tickLength={6} thickness={1.4} slant={-22} duration="22s" reverse opacity={0.4} />
 
       <button
         onClick={onIgnite}
-        className="group absolute inset-[31%] flex flex-col items-center justify-center gap-1 overflow-hidden rounded-full border-2 border-cyan-400/60 bg-cyan-500/5 transition-transform duration-300 hover:scale-105"
+        className="group absolute inset-[32%] flex items-center justify-center rounded-full border border-cyan-400/50 bg-cyan-500/5 shadow-[0_0_24px_rgba(0,240,255,0.4)] transition-transform duration-300 hover:scale-105"
       >
-        <span className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping" />
-        <span className="absolute -inset-3 rounded-full border border-cyan-400/20 animate-pulse" />
-        <SwirlCore />
-        <Power className="relative z-10 h-6 w-6 text-cyan-300 drop-shadow-[0_0_12px_rgba(0,240,255,0.9)] transition-colors group-hover:text-white" />
-        <span className="relative z-10 font-mono text-lg font-bold tabular-nums text-cyan-200 [text-shadow:0_0_8px_rgba(0,240,255,0.7)]">
-          {String(tick).padStart(2, '0')}
-        </span>
+        <span className="absolute inset-0 rounded-full border border-cyan-400/30 animate-pulse" />
+        <Power className="relative z-10 h-7 w-7 text-cyan-300 drop-shadow-[0_0_12px_rgba(0,240,255,0.9)] transition-colors group-hover:text-white" />
       </button>
     </div>
   );
@@ -740,15 +589,6 @@ function CircularProgress({ percentage }: { percentage: number }) {
 function BootSequence({ onComplete }: { onComplete: () => void }) {
   const [stage, setStage] = useState<'idle' | 'booting'>('idle');
   const [stepIndex, setStepIndex] = useState(0);
-  const [tick, setTick] = useState(13);
-
-  useEffect(() => {
-    if (stage !== 'idle') return;
-    const interval = setInterval(() => {
-      setTick((prev) => (prev + 1) % 100);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [stage]);
 
   useEffect(() => {
     if (stage !== 'booting') return;
@@ -779,7 +619,6 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
             <NetworkPanel />
           </div>
           <BootDial
-            tick={tick}
             onIgnite={() => {
               playPowerUpHum();
               setStage('booting');
