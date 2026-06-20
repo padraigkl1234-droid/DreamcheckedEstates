@@ -13,6 +13,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { Trident } from '@/components/icons/Trident';
+import { InstallPwaButton } from '@/components/InstallPwaButton';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -72,6 +73,9 @@ export function Navbar() {
                   </SheetClose>
                 ))}
               </nav>
+              <div className="px-2">
+                <InstallPwaButton />
+              </div>
               {user && (
                 <div className="absolute bottom-8 left-6 right-6 border-t pt-6">
                   <div className="mb-4 flex items-center gap-3 px-2">
@@ -121,6 +125,7 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <InstallPwaButton />
           <Button
             variant="ghost"
             size="icon"
