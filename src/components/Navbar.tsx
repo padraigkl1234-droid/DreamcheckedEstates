@@ -7,10 +7,6 @@ import {
   Menu,
   CheckSquare,
   Wrench,
-  ClipboardCheck,
-  ShieldCheck,
-  FileCheck,
-  ClipboardList,
   Home,
   LogOut,
   User as UserIcon,
@@ -31,10 +27,6 @@ import { useAuth } from '@/components/AuthProvider';
 const NAV_ITEMS = [
   { name: 'Home', href: '/', icon: Home },
   { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
-  { name: 'Audits', href: '/audits', icon: ClipboardCheck },
-  { name: 'Checklists', href: '/checklists', icon: ShieldCheck },
-  { name: 'Compliances', href: '/compliances', icon: FileCheck },
-  { name: 'Assignments', href: '/assignments', icon: ClipboardList },
   { name: 'JARVIS', href: '/jarvis-tracker', icon: Bot },
 ];
 
