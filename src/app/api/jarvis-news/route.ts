@@ -12,6 +12,7 @@ interface NewsItem {
 const FEEDS = {
   general: 'http://feeds.bbci.co.uk/news/rss.xml',
   business: 'http://feeds.bbci.co.uk/news/business/rss.xml',
+  football: 'http://feeds.bbci.co.uk/sport/football/rss.xml',
 };
 
 function decodeEntities(text: string): string {
@@ -52,25 +53,31 @@ function parseFeed(xml: string, limit: number): NewsItem[] {
 
 export async function GET() {
   try {
-    const [generalRes, businessRes] = await Promise.all([
+    const [generalRes, businessRes, footballRes] = await Promise.all([
       fetch(FEEDS.general, { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' }),
       fetch(FEEDS.business, { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' }),
+      fetch(FEEDS.football, { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' }),
     ]);
 
-    if (!generalRes.ok || !businessRes.ok) {
+    if (!generalRes.ok || !businessRes.ok || !footballRes.ok) {
       return NextResponse.json(
-        { general: [], business: [], fetchedAt: new Date().toISOString(), error: 'BBC feed request was rejected' },
+        { general: [], business: [], football: [], fetchedAt: new Date().toISOString(), error: 'BBC feed request was rejected' },
         { status: 502 },
       );
     }
 
-    const [generalXml, businessXml] = await Promise.all([generalRes.text(), businessRes.text()]);
-    const general = parseFeed(generalXml, 8);
-    const business = parseFeed(businessXml, 8);
+    const [generalXml, businessXml, footballXml] = await Promise.all([
+      generalRes.text(),
+      businessRes.text(),
+      footballRes.text(),
+    ]);
+    const general = parseFeed(generalXml, 4);
+    const business = parseFeed(businessXml, 4);
+    const football = parseFeed(footballXml, 4);
 
-    if (general.length === 0 && business.length === 0) {
+    if (general.length === 0 && business.length === 0 && football.length === 0) {
       return NextResponse.json(
-        { general: [], business: [], fetchedAt: new Date().toISOString(), error: 'BBC feed response did not contain any items' },
+        { general: [], business: [], football: [], fetchedAt: new Date().toISOString(), error: 'BBC feed response did not contain any items' },
         { status: 502 },
       );
     }
@@ -78,11 +85,12 @@ export async function GET() {
     return NextResponse.json({
       general,
       business,
+      football,
       fetchedAt: new Date().toISOString(),
     });
   } catch {
     return NextResponse.json(
-      { general: [], business: [], fetchedAt: new Date().toISOString(), error: 'Failed to fetch BBC feeds' },
+      { general: [], business: [], football: [], fetchedAt: new Date().toISOString(), error: 'Failed to fetch BBC feeds' },
       { status: 502 },
     );
   }

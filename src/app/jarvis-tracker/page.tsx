@@ -35,6 +35,14 @@ import {
   Eye,
   Wind,
   Music2,
+  Sun,
+  CloudSun,
+  CloudRain,
+  CloudSnow,
+  CloudLightning,
+  CloudFog,
+  CloudDrizzle,
+  Trophy,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -73,6 +81,25 @@ interface NewsItem {
   link: string;
   image: string | null;
   pubDate: string | null;
+}
+
+interface WeatherData {
+  temperatureC: number;
+  humidity: number;
+  windSpeedKmh: number;
+  weatherCode: number;
+}
+
+function getWeatherInfo(code: number): { label: string; icon: typeof Cloud } {
+  if (code === 0) return { label: 'Clear Sky', icon: Sun };
+  if (code === 1 || code === 2) return { label: 'Partly Cloudy', icon: CloudSun };
+  if (code === 3) return { label: 'Overcast', icon: Cloud };
+  if (code === 45 || code === 48) return { label: 'Fog', icon: CloudFog };
+  if (code >= 51 && code <= 57) return { label: 'Drizzle', icon: CloudDrizzle };
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: 'Rain', icon: CloudRain };
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: 'Snow', icon: CloudSnow };
+  if (code >= 95 && code <= 99) return { label: 'Thunderstorm', icon: CloudLightning };
+  return { label: 'Overcast', icon: Cloud };
 }
 
 // ---------------------------------------------------------------------------
@@ -732,8 +759,14 @@ function Sidebar({
 function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: ComplianceItem[] }) {
   const [now, setNow] = useState(new Date());
   const [load, setLoad] = useState({ cpu: 38, mem: 52, net: 24 });
-  const [news, setNews] = useState<{ general: NewsItem[]; business: NewsItem[] }>({ general: [], business: [] });
+  const [news, setNews] = useState<{ general: NewsItem[]; business: NewsItem[]; football: NewsItem[] }>({
+    general: [],
+    business: [],
+    football: [],
+  });
   const [newsStatus, setNewsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [weatherStatus, setWeatherStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   useEffect(() => {
     let cancelled = false;
@@ -746,7 +779,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
           setNewsStatus('error');
           return;
         }
-        setNews({ general: data.general ?? [], business: data.business ?? [] });
+        setNews({ general: data.general ?? [], business: data.business ?? [], football: data.football ?? [] });
         setNewsStatus('ready');
       } catch {
         if (!cancelled) setNewsStatus('error');
@@ -757,6 +790,31 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
     return () => {
       cancelled = true;
       clearInterval(newsId);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadWeather = async () => {
+      try {
+        const res = await fetch('/api/jarvis-weather');
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok || data.error) {
+          setWeatherStatus('error');
+          return;
+        }
+        setWeather(data);
+        setWeatherStatus('ready');
+      } catch {
+        if (!cancelled) setWeatherStatus('error');
+      }
+    };
+    loadWeather();
+    const weatherId = setInterval(loadWeather, 10 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(weatherId);
     };
   }, []);
 
@@ -784,7 +842,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <Panel title="Estates & Maintenance Overall" icon={Gauge} refCode="0012-A">
           <div className="flex flex-1 items-center justify-center py-2">
             <CircularProgress percentage={completionPct} />
@@ -847,9 +905,11 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
             </div>
           </div>
         </Panel>
+
+        <WeatherPanel weather={weather} status={weatherStatus} />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <NewsPanel
           title="BBC News Feed"
           icon={Newspaper}
@@ -864,8 +924,65 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
           items={news.business}
           status={newsStatus}
         />
+        <NewsPanel
+          title="Football News"
+          icon={Trophy}
+          refCode="0093-F"
+          items={news.football}
+          status={newsStatus}
+        />
       </div>
     </div>
+  );
+}
+
+function WeatherPanel({ weather, status }: { weather: WeatherData | null; status: 'loading' | 'ready' | 'error' }) {
+  const info = weather ? getWeatherInfo(weather.weatherCode) : null;
+  const WeatherIcon = info?.icon ?? Cloud;
+
+  return (
+    <Panel title="Margate Weather" icon={WeatherIcon} refCode="0061-W">
+      {status === 'loading' && (
+        <div className="flex flex-col items-center gap-2 py-10 text-cyan-600">
+          <RefreshCw className="h-5 w-5 animate-spin" />
+          <p className="font-mono text-xs uppercase tracking-widest">Acquiring feed...</p>
+        </div>
+      )}
+
+      {status === 'error' && (
+        <div className="flex flex-col items-center gap-2 py-10 text-amber-400">
+          <AlertTriangle className="h-5 w-5" />
+          <p className="text-center font-mono text-xs uppercase tracking-widest">Weather uplink unavailable</p>
+        </div>
+      )}
+
+      {status === 'ready' && weather && info && (
+        <div className="flex flex-col gap-4">
+          <div className="text-center">
+            <div className="mb-1 flex items-center justify-center gap-2">
+              <WeatherIcon className="h-6 w-6 text-cyan-300" />
+              <span className="font-mono text-3xl font-bold tabular-nums text-cyan-200 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">
+                {weather.temperatureC}°C
+              </span>
+            </div>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-cyan-600">{info.label} · Margate, UK</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 border-t border-cyan-500/15 pt-4 text-center">
+            <div>
+              <Droplets className="mx-auto mb-1 h-3.5 w-3.5 text-cyan-500" />
+              <p className="font-mono text-xs text-cyan-200">{weather.humidity}%</p>
+              <p className="text-[8px] uppercase tracking-widest text-cyan-700">Humidity</p>
+            </div>
+            <div>
+              <Wind className="mx-auto mb-1 h-3.5 w-3.5 text-cyan-500" />
+              <p className="font-mono text-xs text-cyan-200">{weather.windSpeedKmh}km/h</p>
+              <p className="text-[8px] uppercase tracking-widest text-cyan-700">Wind</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -908,7 +1025,7 @@ function NewsPanel({
       )}
 
       {status === 'ready' && items.length > 0 && (
-        <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
           {items.map((item, i) => (
             <NewsCard key={`${item.link}-${i}`} item={item} />
           ))}
@@ -927,10 +1044,10 @@ function NewsCard({ item }: { item: NewsItem }) {
       href={item.link}
       target="_blank"
       rel="noopener noreferrer"
-      className="group relative flex gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 p-2.5 shadow-[0_0_12px_rgba(0,102,255,0.08)] transition-colors hover:border-cyan-400/60 hover:bg-cyan-400/5"
+      className="group relative flex gap-2 rounded-md border border-cyan-400/25 bg-[#020813]/40 p-2 shadow-[0_0_12px_rgba(0,102,255,0.08)] transition-colors hover:border-cyan-400/60 hover:bg-cyan-400/5"
     >
       <MicroCorners />
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-cyan-400/20 bg-[#01060f]">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-cyan-400/20 bg-[#01060f]">
         {showImage ? (
           <img
             src={item.image ?? ''}
@@ -939,14 +1056,14 @@ function NewsCard({ item }: { item: NewsItem }) {
             onError={() => setImgFailed(true)}
           />
         ) : (
-          <ImageOff className="h-5 w-5 text-cyan-700" />
+          <ImageOff className="h-4 w-4 text-cyan-700" />
         )}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
-        <p className="line-clamp-2 text-sm text-cyan-100 group-hover:text-cyan-50">{item.title}</p>
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-cyan-600">
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+        <p className="line-clamp-2 text-xs text-cyan-100 group-hover:text-cyan-50">{item.title}</p>
+        <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-cyan-600">
           {item.pubDate && <span>{formatRelativeTime(item.pubDate)}</span>}
-          <ExternalLink className="h-3 w-3" />
+          <ExternalLink className="h-2.5 w-2.5" />
         </div>
       </div>
     </a>
