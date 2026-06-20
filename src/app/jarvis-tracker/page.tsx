@@ -479,7 +479,6 @@ function CircularProgress({ percentage }: { percentage: number }) {
   const radius = 76;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percentage / 100) * circumference;
-  const ticks = Array.from({ length: 60 });
 
   return (
     <div className="relative flex h-56 w-56 items-center justify-center">
@@ -490,39 +489,6 @@ function CircularProgress({ percentage }: { percentage: number }) {
             <stop offset="100%" stopColor="#0066ff" />
           </linearGradient>
         </defs>
-
-        {/* faint outer dial ring, slowly rotating */}
-        <circle
-          cx="100"
-          cy="100"
-          r="97"
-          fill="none"
-          stroke="rgba(0,240,255,0.18)"
-          strokeWidth="1"
-          strokeDasharray="1 9"
-          className="animate-[spin_22s_linear_infinite]"
-          style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
-        />
-
-        {/* compass-style tick ring */}
-        <g stroke="rgba(0,240,255,0.5)">
-          {ticks.map((_, i) => {
-            const angle = (i / ticks.length) * 360;
-            const major = i % 5 === 0;
-            return (
-              <line
-                key={i}
-                x1="100"
-                y1={major ? 6 : 11}
-                x2="100"
-                y2="16"
-                strokeWidth={major ? 2 : 1}
-                opacity={major ? 0.85 : 0.35}
-                transform={`rotate(${angle} 100 100)`}
-              />
-            );
-          })}
-        </g>
 
         {/* base ring */}
         <circle cx="100" cy="100" r={radius} fill="none" stroke="rgba(0,240,255,0.08)" strokeWidth="10" />
@@ -576,10 +542,6 @@ function CircularProgress({ percentage }: { percentage: number }) {
         <span className="font-mono text-5xl font-bold tabular-nums tracking-tight text-cyan-300 [text-shadow:0_0_15px_rgba(0,240,255,0.8)]">
           {percentage}%
         </span>
-        <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-500/70">
-          Overall Complete
-        </span>
-        <SysRef code="0013-OC" className="mt-1.5 text-cyan-600/50" />
       </div>
     </div>
   );
