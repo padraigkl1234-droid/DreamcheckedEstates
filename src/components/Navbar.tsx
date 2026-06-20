@@ -9,7 +9,9 @@ import {
   Wrench,
   LogOut,
   User as UserIcon,
-  Bot
+  Bot,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +24,7 @@ import {
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/AuthProvider';
+import { useSound } from '@/components/SoundProvider';
 
 const NAV_ITEMS = [
   { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
@@ -31,6 +34,7 @@ const NAV_ITEMS = [
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { muted, toggleMute } = useSound();
   const isActive = (href: string) => pathname === href || (href === '/jarvis-tracker' && pathname === '/');
 
   return (
@@ -116,6 +120,20 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleMute}
+            title={muted ? 'Unmute interface sounds' : 'Mute interface sounds'}
+            aria-pressed={muted}
+          >
+            {muted ? (
+              <VolumeX className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <Volume2 className="h-5 w-5 text-muted-foreground" />
+            )}
+            <span className="sr-only">{muted ? 'Unmute interface sounds' : 'Mute interface sounds'}</span>
+          </Button>
           {user ? (
             <div className="hidden items-center gap-3 md:flex">
               <span className="text-xs text-muted-foreground">{user.displayName || user.email}</span>

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
+import { useSound, getSharedAudioContext } from '@/components/SoundProvider';
 import {
   Power,
   LayoutDashboard,
@@ -206,23 +207,15 @@ function formatRelativeTime(pubDate: string | null): string {
 }
 
 // ---------------------------------------------------------------------------
-// Synthesized interface sound effects (Web Audio API, no audio files)
+// Boot sequence power-up hum — a one-off effect tied to the ignite button
+// itself (the click is the unlock gesture), reusing the shared AudioContext
+// from SoundProvider so the app only ever has one audio graph.
 // ---------------------------------------------------------------------------
 
-let sharedAudioCtx: AudioContext | null = null;
-
-function getAudioCtx(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  const AudioContextCtor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextCtor) return null;
-  if (!sharedAudioCtx) sharedAudioCtx = new AudioContextCtor();
-  if (sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
-  return sharedAudioCtx;
-}
-
 function playPowerUpHum() {
-  const ctx = getAudioCtx();
+  const ctx = getSharedAudioContext();
   if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
   const now = ctx.currentTime;
   const duration = 1.6;
 
@@ -255,32 +248,6 @@ function playPowerUpHum() {
   overtone.start(now);
   fundamental.stop(now + duration);
   overtone.stop(now + duration);
-}
-
-function playSuccessChime() {
-  const ctx = getAudioCtx();
-  if (!ctx) return;
-  const now = ctx.currentTime;
-  const notes: Array<{ freq: number; start: number; dur: number }> = [
-    { freq: 880, start: 0, dur: 0.08 },
-    { freq: 1320, start: 0.09, dur: 0.12 },
-  ];
-
-  notes.forEach(({ freq, start, dur }) => {
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, now + start);
-
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, now + start);
-    gain.gain.exponentialRampToValueAtTime(0.22, now + start + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now + start);
-    osc.stop(now + start + dur + 0.02);
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -709,6 +676,7 @@ function Sidebar({
   user: User | null;
   syncStatus: 'idle' | 'loading' | 'synced' | 'error';
 }) {
+  const { playHover } = useSound();
   return (
     <aside className="flex w-16 flex-col border-r border-cyan-400/20 bg-[#020813]/70 shadow-glow-subtle backdrop-blur-xl md:w-60">
       <div className="flex h-16 items-center justify-center gap-2 border-b border-cyan-400/20 px-2 md:justify-start md:px-5">
@@ -726,6 +694,7 @@ function Sidebar({
             <button
               key={item.key}
               onClick={() => onNavigate(item.key)}
+              onMouseEnter={playHover}
               className={`flex items-center justify-center gap-3 rounded-md border px-3 py-2.5 text-xs uppercase tracking-wider transition-all md:justify-start ${
                 active
                   ? 'border-[#0066ff]/60 bg-[#0066ff]/10 text-cyan-200 shadow-glow-strong-blue'
@@ -1402,12 +1371,13 @@ function CalendarPage({
   const [priority, setPriority] = useState<Priority>('Medium');
   const [notes, setNotes] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const { playConfirm } = useSound();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !date) return;
     onAdd({ id: genId(), title: title.trim(), date, priority, notes: notes.trim() });
-    playSuccessChime();
+    playConfirm();
     setTitle('');
     setPriority('Medium');
     setNotes('');
@@ -1640,12 +1610,13 @@ function TaskManager({
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
   const [status, setStatus] = useState<TaskStatus>('Not Started');
+  const { playConfirm } = useSound();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     onAdd({ id: genId(), name: name.trim(), priority, dueDate, status });
-    playSuccessChime();
+    playConfirm();
     setName('');
     setPriority('Medium');
     setDueDate('');
@@ -1764,12 +1735,13 @@ function ComplianceTracker({
   const [date, setDate] = useState('');
   const [nextDueDate, setNextDueDate] = useState('');
   const [comments, setComments] = useState('');
+  const { playConfirm } = useSound();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     onAdd({ id: genId(), name: name.trim(), completed: false, date, nextDueDate, comments });
-    playSuccessChime();
+    playConfirm();
     setName('');
     setDate('');
     setNextDueDate('');
@@ -1840,7 +1812,7 @@ function ComplianceTracker({
               <MicroCorners />
               <button
                 onClick={() => {
-                  if (!item.completed) playSuccessChime();
+                  if (!item.completed) playConfirm();
                   onToggle(item.id);
                 }}
                 className="flex items-center justify-center"
@@ -2058,6 +2030,7 @@ function JarvisChatbox({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { playHover, playConfirm, startThinking, stopThinking } = useSound();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -2083,6 +2056,7 @@ function JarvisChatbox({
   const handleSend = () => {
     const text = input.trim();
     if (!text) return;
+    playConfirm();
     const userMsg: ChatMessage = { id: genId(), sender: 'user', text };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
@@ -2099,7 +2073,9 @@ function JarvisChatbox({
       responseText = reply(text);
     }
 
+    startThinking();
     setTimeout(() => {
+      stopThinking();
       setMessages((prev) => [...prev, { id: genId(), sender: 'jarvis', text: responseText }]);
     }, 700);
   };
@@ -2153,6 +2129,7 @@ function JarvisChatbox({
             />
             <button
               onClick={handleSend}
+              onMouseEnter={playHover}
               className="rounded-md border border-cyan-400/50 bg-cyan-400/10 p-2 text-cyan-300 transition-colors hover:bg-cyan-400/20"
             >
               <Send className="h-3.5 w-3.5" />
@@ -2163,6 +2140,7 @@ function JarvisChatbox({
 
       <button
         onClick={() => setOpen((o) => !o)}
+        onMouseEnter={playHover}
         className="relative flex h-14 w-14 items-center justify-center rounded-full border border-cyan-400/50 bg-[#020813]/90 shadow-glow-subtle backdrop-blur-xl transition-all hover:scale-105 hover:shadow-glow-strong-blue"
       >
         <ConcentricPulse />

@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from "@/components/AuthProvider";
+import { SoundProvider } from "@/components/SoundProvider";
 import { PointerCaptureFix } from "@/components/PointerCaptureFix";
 import { Navbar } from "@/components/Navbar";
 
@@ -33,10 +34,12 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <PointerCaptureFix />
         <AuthProvider>
-          <Navbar />
-          <div className="pt-16">
-            {children}
-          </div>
+          <SoundProvider>
+            <Navbar />
+            <div className="pt-16">
+              {children}
+            </div>
+          </SoundProvider>
         </AuthProvider>
         <Toaster />
       </body>
