@@ -166,6 +166,10 @@ export default {
           '0%, 100%': { transform: 'translateX(-12px)', opacity: '0.5' },
           '50%': { transform: 'translateX(12px)', opacity: '0.85' },
         },
+        'card-in': {
+          from: { opacity: '0', transform: 'translateY(14px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -180,6 +184,7 @@ export default {
         'snow-fall': 'snow-fall 4s linear infinite',
         'bolt-flash': 'bolt-flash 3.2s ease-in-out infinite',
         'fog-drift': 'fog-drift 10s ease-in-out infinite',
+        'card-in': 'card-in 0.42s ease-out both',
       },
     },
   },

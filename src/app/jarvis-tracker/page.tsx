@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
@@ -149,11 +149,18 @@ const SEED_COMPLIANCES: ComplianceItem[] = [
 
 const BOOT_STEPS = [
   'INITIALIZING CORE...',
-  'CALIBRATING SENSOR ARRAY...',
-  'ESTABLISHING ESTATE UPLINK...',
-  'LOADING COMPLIANCE DATABASE...',
-  'SYSTEMS NOMINAL.',
+  'ESTATES ONLINE...',
+  'COMPLIANCE SYNCED...',
+  'NEWS & WEATHER UPLINK ESTABLISHED...',
+  'ALL SYSTEMS NOMINAL.',
 ];
+
+// Once-per-browser-session gate: cleared on a new tab/session, untouched by in-app navigation.
+const SESSION_BOOTED_KEY = 'jarvis:sessionBooted';
+
+// Per-card stagger timing for the dashboard's post-boot reveal animation.
+const CARD_REVEAL_STEP_MS = 90;
+const CARD_REVEAL_DURATION_MS = 420;
 
 const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -367,7 +374,10 @@ function BootDial({ onIgnite }: { onIgnite: () => void }) {
       </svg>
 
       <button
-        onClick={onIgnite}
+        onClick={(e) => {
+          e.stopPropagation();
+          onIgnite();
+        }}
         className="group absolute inset-[32%] flex items-center justify-center rounded-full border border-cyan-400/50 bg-cyan-500/5 shadow-glow-subtle transition-all duration-300 hover:scale-105 hover:shadow-glow-strong"
       >
         <span className="absolute inset-0 rounded-full border border-cyan-400/30 animate-pulse" />
@@ -593,9 +603,27 @@ function CircularProgress({ percentage }: { percentage: number }) {
 // Boot sequence
 // ---------------------------------------------------------------------------
 
-function BootSequence({ onComplete }: { onComplete: () => void }) {
+function BootSequence({ onComplete }: { onComplete: (skipped: boolean) => void }) {
   const [stage, setStage] = useState<'idle' | 'booting'>('idle');
   const [stepIndex, setStepIndex] = useState(0);
+  const { playHover } = useSound();
+  const finishedRef = useRef(false);
+
+  const finish = useCallback(
+    (skipped: boolean) => {
+      if (finishedRef.current) return;
+      finishedRef.current = true;
+      onComplete(skipped);
+    },
+    [onComplete]
+  );
+
+  // Any keypress (Escape included) jumps straight to the final state.
+  useEffect(() => {
+    const handleKeyDown = () => finish(true);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [finish]);
 
   useEffect(() => {
     if (stage !== 'booting') return;
@@ -604,7 +632,7 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
       setStepIndex((prev) => {
         if (prev + 1 >= BOOT_STEPS.length) {
           clearInterval(interval);
-          setTimeout(onComplete, 700);
+          setTimeout(() => finish(false), 700);
           return prev;
         }
         return prev + 1;
@@ -614,10 +642,20 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
 
+  // Soft blip per readout line as it streams in; respects mute via useSound.
+  useEffect(() => {
+    if (stage !== 'booting') return;
+    playHover();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, stepIndex]);
+
   const progress = ((stepIndex + 1) / BOOT_STEPS.length) * 100;
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#020813]">
+    <div
+      className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#020813]"
+      onClick={() => finish(true)}
+    >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,102,255,0.1),transparent_70%)]" />
 
       {stage === 'idle' && (
@@ -824,10 +862,35 @@ function JarvisGreeting({ compliances }: { compliances: ComplianceItem[] }) {
 }
 
 // ---------------------------------------------------------------------------
+// Reveal — staggered fade/translate-in wrapper for the post-boot dashboard
+// assembly. Renders children as-is (no wrapper, no animation) when `animate`
+// is false, so it's a no-op once a session has already booted.
+// ---------------------------------------------------------------------------
+
+function Reveal({ index, animate, children }: { index: number; animate: boolean; children: React.ReactNode }) {
+  if (!animate) return <>{children}</>;
+  return (
+    <div className="animate-card-in" style={{ animationDelay: `${index * CARD_REVEAL_STEP_MS}ms` }}>
+      {children}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
 
-function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: ComplianceItem[] }) {
+function Dashboard({
+  tasks,
+  compliances,
+  animateCardsIn = false,
+  onCardsRevealed,
+}: {
+  tasks: Task[];
+  compliances: ComplianceItem[];
+  animateCardsIn?: boolean;
+  onCardsRevealed?: () => void;
+}) {
   const [now, setNow] = useState(new Date());
   const [load, setLoad] = useState({ cpu: 38, mem: 52, net: 24 });
   const [news, setNews] = useState<{ general: NewsItem[]; business: NewsItem[]; football: NewsItem[] }>({
@@ -905,6 +968,17 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
     return () => clearInterval(loadId);
   }, []);
 
+  // Tell the parent once the staggered reveal has finished so re-mounting
+  // this component later in the same session (switching tabs and back) won't replay it.
+  useEffect(() => {
+    if (!animateCardsIn) return;
+    const cardCount = 9; // greeting + 8 panels
+    const totalMs = (cardCount - 1) * CARD_REVEAL_STEP_MS + CARD_REVEAL_DURATION_MS;
+    const timeout = setTimeout(() => onCardsRevealed?.(), totalMs);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animateCardsIn]);
+
   const totalItems = tasks.length + compliances.length;
   const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
   const completionPct = totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
@@ -915,9 +989,12 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
 
   return (
     <div className="space-y-6">
-      <JarvisGreeting compliances={compliances} />
+      <Reveal index={0} animate={animateCardsIn}>
+        <JarvisGreeting compliances={compliances} />
+      </Reveal>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <Reveal index={1} animate={animateCardsIn}>
         <Panel title="Estates & Maintenance Overall" icon={Gauge} refCode="0012-A" tier="primary">
           <div className="flex flex-1 items-center justify-center py-2">
             <CircularProgress percentage={completionPct} />
@@ -933,7 +1010,9 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
             </div>
           </div>
         </Panel>
+        </Reveal>
 
+        <Reveal index={2} animate={animateCardsIn}>
         <Panel title="Recently Added Tasks" icon={ListChecks} refCode="0027-T" tier="primary">
           <div className="flex flex-col gap-2">
             {recentTasks.length === 0 && (
@@ -956,7 +1035,9 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
             ))}
           </div>
         </Panel>
+        </Reveal>
 
+        <Reveal index={3} animate={animateCardsIn}>
         <Panel title="Compliance Countdown" icon={ShieldCheck} refCode="0030-C" tier="primary">
           <div className="flex flex-col gap-2">
             {upcomingCompliances.length === 0 && (
@@ -979,9 +1060,11 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
             ))}
           </div>
         </Panel>
+        </Reveal>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <Reveal index={4} animate={animateCardsIn}>
         <Panel title="System Diagnostics" icon={Activity} refCode="0048-A" tier="ambient">
           <div className="flex flex-col gap-4">
             <div className="text-center">
@@ -1005,35 +1088,44 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
             </div>
           </div>
         </Panel>
+        </Reveal>
 
-        <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
+        <Reveal index={5} animate={animateCardsIn}>
+          <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
+        </Reveal>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <NewsPanel
-          title="BBC News Feed"
-          icon={Newspaper}
-          refCode="0091-N"
-          items={news.general}
-          status={newsStatus}
-          tier="ambient"
-        />
-        <NewsPanel
-          title="Business & Economics"
-          icon={Briefcase}
-          refCode="0092-B"
-          items={news.business}
-          status={newsStatus}
-          tier="ambient"
-        />
-        <NewsPanel
-          title="Football News"
-          icon={Trophy}
-          refCode="0093-F"
-          items={news.football}
-          status={newsStatus}
-          tier="ambient"
-        />
+        <Reveal index={6} animate={animateCardsIn}>
+          <NewsPanel
+            title="BBC News Feed"
+            icon={Newspaper}
+            refCode="0091-N"
+            items={news.general}
+            status={newsStatus}
+            tier="ambient"
+          />
+        </Reveal>
+        <Reveal index={7} animate={animateCardsIn}>
+          <NewsPanel
+            title="Business & Economics"
+            icon={Briefcase}
+            refCode="0092-B"
+            items={news.business}
+            status={newsStatus}
+            tier="ambient"
+          />
+        </Reveal>
+        <Reveal index={8} animate={animateCardsIn}>
+          <NewsPanel
+            title="Football News"
+            icon={Trophy}
+            refCode="0093-F"
+            items={news.football}
+            status={newsStatus}
+            tier="ambient"
+          />
+        </Reveal>
       </div>
     </div>
   );
@@ -2223,7 +2315,9 @@ function JarvisChatbox({
 
 export default function JarvisTrackerPage() {
   const { user } = useAuth();
-  const [booted, setBooted] = useState(false);
+  const [bootPhase, setBootPhase] = useState<'pending' | 'boot' | 'done'>('pending');
+  const [animateCardsIn, setAnimateCardsIn] = useState(false);
+  const cardsRevealedRef = useRef(false);
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [tasks, setTasks] = useState<Task[]>(SEED_TASKS);
   const [compliances, setCompliances] = useState<ComplianceItem[]>(SEED_COMPLIANCES);
@@ -2231,6 +2325,14 @@ export default function JarvisTrackerPage() {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'synced' | 'error'>('idle');
   const loadedForUid = useRef<string | null>(null);
   const readyToSave = useRef(false);
+
+  // Decide once on mount whether the boot sequence should play: skip it for
+  // an already-booted session (in-app navigation) or for reduced-motion users.
+  useEffect(() => {
+    const alreadyBooted = window.sessionStorage.getItem(SESSION_BOOTED_KEY) === 'true';
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setBootPhase(alreadyBooted || reducedMotion ? 'done' : 'boot');
+  }, []);
 
   // Load this user's saved progress from Firestore whenever they sign in.
   useEffect(() => {
@@ -2318,13 +2420,30 @@ export default function JarvisTrackerPage() {
         }}
       />
 
-      {!booted && <BootSequence onComplete={() => setBooted(true)} />}
+      {bootPhase === 'boot' && (
+        <BootSequence
+          onComplete={(skipped) => {
+            window.sessionStorage.setItem(SESSION_BOOTED_KEY, 'true');
+            if (!skipped) setAnimateCardsIn(true);
+            setBootPhase('done');
+          }}
+        />
+      )}
 
-      {booted && (
+      {bootPhase === 'done' && (
         <div className="relative flex h-full">
           <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} />
           <main className="flex-1 overflow-y-auto p-5">
-            {activePage === 'dashboard' && <Dashboard tasks={tasks} compliances={compliances} />}
+            {activePage === 'dashboard' && (
+              <Dashboard
+                tasks={tasks}
+                compliances={compliances}
+                animateCardsIn={animateCardsIn && !cardsRevealedRef.current}
+                onCardsRevealed={() => {
+                  cardsRevealedRef.current = true;
+                }}
+              />
+            )}
             {activePage === 'calendar' && (
               <CalendarPage events={events} onAdd={handleAddEvent} onDelete={handleDeleteEvent} />
             )}
