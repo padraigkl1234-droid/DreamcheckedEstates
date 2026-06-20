@@ -1310,6 +1310,12 @@ const MONTH_LABELS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+function formatDisplayDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return dateStr;
+  return `${d} ${MONTH_LABELS[m - 1]} ${y}`;
+}
+
 function CalendarPage({
   events,
   onAdd,
@@ -1327,6 +1333,7 @@ function CalendarPage({
   const [date, setDate] = useState(toDateInputValue(today));
   const [priority, setPriority] = useState<Priority>('Medium');
   const [notes, setNotes] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1473,12 +1480,16 @@ function CalendarPage({
                   {dayEvents.map((ev) => (
                     <div
                       key={ev.id}
+                      onClick={() => setSelectedEvent(ev)}
                       title={ev.notes ? `${ev.title} — ${ev.notes}` : ev.title}
-                      className={`group flex items-center justify-between gap-1 rounded border px-1.5 py-0.5 text-[10px] ${PRIORITY_STYLES[ev.priority]}`}
+                      className={`group flex cursor-pointer items-center justify-between gap-1 rounded border px-1.5 py-0.5 text-[10px] transition-colors hover:brightness-125 ${PRIORITY_STYLES[ev.priority]}`}
                     >
                       <span className="truncate">{ev.title}</span>
                       <button
-                        onClick={() => onDelete(ev.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(ev.id);
+                        }}
                         className="shrink-0 opacity-60 hover:opacity-100"
                         title="Delete entry"
                       >
@@ -1492,6 +1503,52 @@ function CalendarPage({
           })}
         </div>
       </Panel>
+
+      {selectedEvent && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setSelectedEvent(null)}
+        >
+          <div
+            className="relative w-full max-w-sm border border-cyan-400/40 bg-[#020813]/95 p-5 shadow-[0_0_30px_rgba(0,102,255,0.3)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <HudCorners />
+            <button
+              onClick={() => setSelectedEvent(null)}
+              className="absolute right-3 top-3 text-cyan-500 transition-colors hover:text-cyan-200"
+              title="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <Kicker>Diary Entry</Kicker>
+            <h3 className="mt-1 pr-6 text-base font-semibold text-cyan-100">{selectedEvent.title}</h3>
+            <div className="mt-3 space-y-2.5 text-sm">
+              <div className="flex items-center gap-2 text-cyan-300">
+                <CalendarDays className="h-3.5 w-3.5" />
+                <span>{formatDisplayDate(selectedEvent.date)}</span>
+              </div>
+              <span
+                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[selectedEvent.priority]}`}
+              >
+                {selectedEvent.priority} Priority
+              </span>
+              <p className="rounded-md border border-cyan-400/20 bg-[#020813]/60 p-2 text-xs text-cyan-200">
+                {selectedEvent.notes || 'No notes added.'}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                onDelete(selectedEvent.id);
+                setSelectedEvent(null);
+              }}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-red-300 transition-colors hover:bg-red-500/20"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete Entry
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
