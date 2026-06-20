@@ -6,6 +6,11 @@ import { db, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useSound, getSharedAudioContext } from '@/components/SoundProvider';
 import {
+  type ComplianceItem,
+  type ComplianceUrgency,
+  getOutstandingCompliances,
+} from '@/lib/complianceCountdown';
+import {
   Power,
   LayoutDashboard,
   ListChecks,
@@ -63,15 +68,6 @@ interface Task {
   priority: Priority;
   dueDate: string;
   status: TaskStatus;
-}
-
-interface ComplianceItem {
-  id: string;
-  name: string;
-  completed: boolean;
-  date: string;
-  nextDueDate: string;
-  comments: string;
 }
 
 interface CalendarEvent {
@@ -177,6 +173,22 @@ const STATUS_STYLES: Record<TaskStatus, string> = {
   'In Progress': 'text-amber-300 border-amber-400/40 bg-amber-400/10',
   Completed: 'text-emerald-300 border-emerald-400/40 bg-emerald-400/10',
 };
+
+const URGENCY_STYLES: Record<ComplianceUrgency, string> = {
+  red: 'text-red-400 border-red-500/40 bg-red-500/10',
+  amber: 'text-amber-300 border-amber-400/40 bg-amber-400/10',
+  green: 'text-emerald-300 border-emerald-400/40 bg-emerald-400/10',
+};
+
+function formatDueIn(daysUntilDue: number): string {
+  if (daysUntilDue < 0) {
+    const overdue = Math.abs(daysUntilDue);
+    return `Overdue ${overdue}d`;
+  }
+  if (daysUntilDue === 0) return 'Due today';
+  if (daysUntilDue === 1) return 'Due tomorrow';
+  return `Due in ${daysUntilDue}d`;
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -756,6 +768,62 @@ function Sidebar({
 }
 
 // ---------------------------------------------------------------------------
+// JARVIS greeting line — time-of-day aware, names the single most urgent
+// compliance item using the shared Compliance Countdown data/RAG logic.
+// ---------------------------------------------------------------------------
+
+function getFirstName(user: User | null): string {
+  if (user?.displayName) return user.displayName.trim().split(/\s+/)[0];
+  if (user?.email) {
+    const local = user.email.split('@')[0];
+    return local.charAt(0).toUpperCase() + local.slice(1);
+  }
+  return 'sir';
+}
+
+function getGreetingPrefix(hour: number): string {
+  if (hour >= 5 && hour < 12) return 'Good morning';
+  if (hour >= 12 && hour < 17) return 'Good afternoon';
+  if (hour >= 17 && hour < 22) return 'Good evening';
+  return 'Burning the midnight oil';
+}
+
+function buildGreeting(user: User | null, compliances: ComplianceItem[], now: Date): string {
+  const name = getFirstName(user);
+  const prefix = getGreetingPrefix(now.getHours());
+  const outstanding = getOutstandingCompliances(compliances, now);
+
+  if (outstanding.length === 0) {
+    return `${prefix}, ${name}. All systems nominal, nothing outstanding.`;
+  }
+
+  const top = outstanding[0];
+  const dueClause = formatDueIn(top.daysUntilDue).toLowerCase();
+
+  if (outstanding.length === 1) {
+    return `${prefix}, ${name}. One item needs attention — ${top.item.name}, ${dueClause}.`;
+  }
+
+  return `${prefix}, ${name}. ${outstanding.length} items need attention — most urgent is ${top.item.name}, ${dueClause}.`;
+}
+
+function JarvisGreeting({ compliances }: { compliances: ComplianceItem[] }) {
+  const { user } = useAuth();
+  const [greeting] = useState(() => buildGreeting(user, compliances, new Date()));
+
+  return (
+    <div className="relative mb-6 flex items-center gap-3 rounded-md border border-cyan-400/25 bg-cyan-500/5 px-4 py-3 shadow-glow-subtle">
+      <MicroCorners />
+      <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cyan-400/50 bg-cyan-400/10">
+        <Bot className="h-4 w-4 text-cyan-300" />
+        <ConcentricPulse />
+      </div>
+      <p className="text-sm text-cyan-100 [text-shadow:var(--glow-text-subtle)]">{greeting}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
 
@@ -843,13 +911,12 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
 
   const recentTasks = [...tasks].slice(-4).reverse();
 
-  const upcomingCompliances = [...compliances]
-    .filter((c) => !c.completed)
-    .sort((a, b) => (a.nextDueDate || '').localeCompare(b.nextDueDate || ''))
-    .slice(0, 4);
+  const upcomingCompliances = getOutstandingCompliances(compliances).slice(0, 4);
 
   return (
     <div className="space-y-6">
+      <JarvisGreeting compliances={compliances} />
+
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Panel title="Estates & Maintenance Overall" icon={Gauge} refCode="0012-A" tier="primary">
           <div className="flex flex-1 items-center justify-center py-2">
@@ -890,12 +957,12 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
           </div>
         </Panel>
 
-        <Panel title="Compliance" icon={ShieldCheck} refCode="0030-C" tier="primary">
+        <Panel title="Compliance Countdown" icon={ShieldCheck} refCode="0030-C" tier="primary">
           <div className="flex flex-col gap-2">
             {upcomingCompliances.length === 0 && (
               <p className="py-6 text-center text-xs text-cyan-700">No outstanding compliance items.</p>
             )}
-            {upcomingCompliances.map((item) => (
+            {upcomingCompliances.map(({ item, daysUntilDue, urgency }) => (
               <div
                 key={item.id}
                 className="relative flex items-center justify-between gap-2 rounded-md border border-cyan-400/20 bg-[#020813]/40 shadow-glow-subtle px-3 py-2.5"
@@ -905,8 +972,8 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
                   <p className="truncate text-sm text-cyan-100">{item.name}</p>
                   <Kicker>Due {item.nextDueDate || '—'}</Kicker>
                 </div>
-                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLES['Not Started']}`}>
-                  Outstanding
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${URGENCY_STYLES[urgency]}`}>
+                  {formatDueIn(daysUntilDue)}
                 </span>
               </div>
             ))}
