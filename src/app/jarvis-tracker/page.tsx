@@ -23,7 +23,7 @@ import {
   Wifi,
   Radio,
   Newspaper,
-  Bot,
+  Flame,
   CheckCircle2,
   Circle,
   AlertTriangle,
@@ -429,7 +429,7 @@ const BOOT_QUICK_LINKS: { label: string; icon: typeof ListChecks; value: number 
   { label: 'Task Queue', icon: ListChecks, value: 64 },
   { label: 'Compliance DB', icon: ShieldCheck, value: 100 },
   { label: 'News Uplink', icon: Newspaper, value: 88 },
-  { label: `${BRAND_NAME} Core`, icon: Bot, value: 100 },
+  { label: `${BRAND_NAME} Core`, icon: Flame, value: 100 },
 ];
 
 function NetworkPanel() {
@@ -723,7 +723,7 @@ function Sidebar({
   return (
     <aside className="flex w-16 flex-col border-r border-neutral-400/20 bg-invictus-base/70 shadow-glow-subtle backdrop-blur-xl md:w-60">
       <div className="flex h-16 items-center justify-center gap-2 border-b border-neutral-400/20 px-2 md:justify-start md:px-5">
-        <Bot className="h-7 w-7 text-invictus-crimson-bright drop-shadow-glow-subtle" />
+        <Flame className="h-7 w-7 text-invictus-crimson-bright drop-shadow-glow-subtle" />
         <div className="hidden md:block">
           <p className="font-display text-sm font-normal tracking-[0.15em] text-invictus-crimson-bright [text-shadow:var(--glow-text-subtle)]">{BRAND_NAME_DOTTED}</p>
         </div>
@@ -846,7 +846,7 @@ function InvictusGreeting({ compliances }: { compliances: ComplianceItem[] }) {
     <div className="relative mb-6 flex items-center gap-3 rounded-md border border-invictus-crimson-bright/25 bg-invictus-crimson-bright/5 px-4 py-3 shadow-glow-subtle">
       <MicroCorners />
       <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10">
-        <Bot className="h-4 w-4 text-invictus-crimson-bright" />
+        <Flame className="h-4 w-4 text-invictus-crimson-bright" />
         <ConcentricPulse />
       </div>
       <p className="text-sm text-neutral-100 [text-shadow:var(--glow-text-subtle)]">{greeting}</p>

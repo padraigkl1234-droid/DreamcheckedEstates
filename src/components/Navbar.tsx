@@ -9,7 +9,7 @@ import {
   Wrench,
   LogOut,
   User as UserIcon,
-  Bot,
+  Flame,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -29,7 +29,7 @@ import { BRAND_NAME } from '@/lib/brand';
 
 const NAV_ITEMS = [
   { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
-  { name: BRAND_NAME, href: '/jarvis-tracker', icon: Bot },
+  { name: BRAND_NAME, href: '/jarvis-tracker', icon: Flame },
 ];
 
 export function Navbar() {
