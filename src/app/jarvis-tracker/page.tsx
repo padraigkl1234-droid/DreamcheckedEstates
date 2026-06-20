@@ -874,10 +874,15 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
 
   const recentTasks = [...tasks].slice(-4).reverse();
 
+  const upcomingCompliances = [...compliances]
+    .filter((c) => !c.completed)
+    .sort((a, b) => (a.nextDueDate || '').localeCompare(b.nextDueDate || ''))
+    .slice(0, 4);
+
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <Panel title="Estates & Maintenance Overall" icon={Gauge} refCode="0012-A">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <Panel title="Estates & Maintenance Overall" icon={Gauge} refCode="0012-A" tier="primary">
           <div className="flex flex-1 items-center justify-center py-2">
             <CircularProgress percentage={completionPct} />
           </div>
@@ -893,7 +898,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
           </div>
         </Panel>
 
-        <Panel title="Recently Added Tasks" icon={ListChecks} refCode="0027-T">
+        <Panel title="Recently Added Tasks" icon={ListChecks} refCode="0027-T" tier="primary">
           <div className="flex flex-col gap-2">
             {recentTasks.length === 0 && (
               <p className="py-6 text-center text-xs text-cyan-700">No tasks logged yet.</p>
@@ -916,7 +921,32 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
           </div>
         </Panel>
 
-        <Panel title="System Diagnostics" icon={Activity} refCode="0048-A">
+        <Panel title="Compliance" icon={ShieldCheck} refCode="0030-C" tier="primary">
+          <div className="flex flex-col gap-2">
+            {upcomingCompliances.length === 0 && (
+              <p className="py-6 text-center text-xs text-cyan-700">No outstanding compliance items.</p>
+            )}
+            {upcomingCompliances.map((item) => (
+              <div
+                key={item.id}
+                className="relative flex items-center justify-between gap-2 rounded-md border border-cyan-400/20 bg-[#020813]/40 shadow-glow-subtle px-3 py-2.5"
+              >
+                <MicroCorners />
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-cyan-100">{item.name}</p>
+                  <Kicker>Due {item.nextDueDate || '—'}</Kicker>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLES['Not Started']}`}>
+                  Outstanding
+                </span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <Panel title="System Diagnostics" icon={Activity} refCode="0048-A" tier="ambient">
           <div className="flex flex-col gap-4">
             <div className="text-center">
               <p className="font-mono text-3xl font-bold tabular-nums tracking-widest text-cyan-300 [text-shadow:var(--glow-text-subtle)]">
@@ -940,7 +970,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
           </div>
         </Panel>
 
-        <WeatherPanel weather={weather} status={weatherStatus} />
+        <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -950,6 +980,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
           refCode="0091-N"
           items={news.general}
           status={newsStatus}
+          tier="ambient"
         />
         <NewsPanel
           title="Business & Economics"
@@ -957,6 +988,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
           refCode="0092-B"
           items={news.business}
           status={newsStatus}
+          tier="ambient"
         />
         <NewsPanel
           title="Football News"
@@ -964,18 +996,27 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
           refCode="0093-F"
           items={news.football}
           status={newsStatus}
+          tier="ambient"
         />
       </div>
     </div>
   );
 }
 
-function WeatherPanel({ weather, status }: { weather: WeatherData | null; status: 'loading' | 'ready' | 'error' }) {
+function WeatherPanel({
+  weather,
+  status,
+  tier = 'primary',
+}: {
+  weather: WeatherData | null;
+  status: 'loading' | 'ready' | 'error';
+  tier?: 'primary' | 'ambient';
+}) {
   const info = weather ? getWeatherInfo(weather.weatherCode) : null;
   const WeatherIcon = info?.icon ?? Cloud;
 
   return (
-    <Panel title="Margate Weather" icon={WeatherIcon} refCode="0061-W">
+    <Panel title="Margate Weather" icon={WeatherIcon} refCode="0061-W" tier={tier}>
       {status === 'loading' && (
         <div className="flex flex-col items-center gap-2 py-10 text-cyan-600">
           <RefreshCw className="h-5 w-5 animate-spin" />
@@ -1158,15 +1199,17 @@ function NewsPanel({
   refCode,
   items,
   status,
+  tier = 'primary',
 }: {
   title: string;
   icon: typeof Gauge;
   refCode: string;
   items: NewsItem[];
   status: 'loading' | 'ready' | 'error';
+  tier?: 'primary' | 'ambient';
 }) {
   return (
-    <Panel title={title} icon={icon} refCode={refCode}>
+    <Panel title={title} icon={icon} refCode={refCode} tier={tier}>
       <div className="flex items-center gap-1.5 pb-3">
         <Radio className="h-3 w-3 text-red-400" />
         <span className="text-[10px] uppercase tracking-widest text-red-400 [text-shadow:var(--glow-text-strong-red)]">Live</span>
@@ -1274,20 +1317,47 @@ function Panel({
   title,
   icon: Icon,
   refCode,
+  tier = 'primary',
   children,
 }: {
   title: string;
   icon: typeof Gauge;
   refCode?: string;
+  tier?: 'primary' | 'ambient';
   children: React.ReactNode;
 }) {
+  const isAmbient = tier === 'ambient';
   return (
-    <div className="relative flex flex-col border border-cyan-400/20 bg-[#020813]/50 p-4 shadow-glow-subtle backdrop-blur-xl">
+    <div
+      className={
+        isAmbient
+          ? 'relative flex flex-col border border-cyan-400/10 bg-[#020813]/50 p-4 shadow-glow-none backdrop-blur-xl'
+          : 'relative flex flex-col border border-cyan-400/30 bg-[#020813]/50 p-5 shadow-glow-subtle backdrop-blur-xl'
+      }
+    >
       <HudCorners />
-      <div className="mb-4 flex items-center justify-between gap-2 border-b border-cyan-400/15 pb-3">
+      <div
+        className={
+          isAmbient
+            ? 'mb-4 flex items-center justify-between gap-2 border-b border-cyan-400/15 pb-3'
+            : 'mb-4 flex items-center justify-between gap-2 border-b border-cyan-400/20 pb-3'
+        }
+      >
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-cyan-300 drop-shadow-glow-subtle" />
-          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300 [text-shadow:var(--glow-text-subtle)]">
+          <Icon
+            className={
+              isAmbient
+                ? 'h-4 w-4 text-cyan-500/70'
+                : 'h-4 w-4 text-cyan-300 drop-shadow-glow-subtle'
+            }
+          />
+          <h2
+            className={
+              isAmbient
+                ? 'text-[11px] font-medium uppercase tracking-[0.2em] text-cyan-500/70'
+                : 'text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300 [text-shadow:var(--glow-text-subtle)]'
+            }
+          >
             {title}
           </h2>
         </div>
