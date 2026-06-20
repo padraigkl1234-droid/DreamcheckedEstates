@@ -1286,10 +1286,161 @@ function ComplianceTracker({
 }
 
 // ---------------------------------------------------------------------------
+// JARVIS intent parsing — turns free-text chat commands into state actions
+// ---------------------------------------------------------------------------
+
+const MONTH_NAMES = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+];
+
+function addDays(base: Date, days: number) {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function toISODate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+function parseDueDate(text: string, now: Date): string | null {
+  const lower = text.toLowerCase();
+  const monthPattern = MONTH_NAMES.join('|');
+
+  const iso = lower.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (iso) return iso[1];
+
+  const monthDay = lower.match(new RegExp(`\\b(${monthPattern})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?\\b`));
+  if (monthDay) {
+    const month = MONTH_NAMES.indexOf(monthDay[1]);
+    const day = parseInt(monthDay[2], 10);
+    const year = monthDay[3] ? parseInt(monthDay[3], 10) : now.getFullYear();
+    return toISODate(new Date(year, month, day));
+  }
+
+  const dayMonth = lower.match(new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${monthPattern})(?:,?\\s+(\\d{4}))?\\b`));
+  if (dayMonth) {
+    const day = parseInt(dayMonth[1], 10);
+    const month = MONTH_NAMES.indexOf(dayMonth[2]);
+    const year = dayMonth[3] ? parseInt(dayMonth[3], 10) : now.getFullYear();
+    return toISODate(new Date(year, month, day));
+  }
+
+  if (/\btomorrow\b/.test(lower)) return toISODate(addDays(now, 1));
+  if (/\btoday\b/.test(lower)) return toISODate(now);
+  if (/\bnext week\b/.test(lower)) return toISODate(addDays(now, 7));
+  if (/\bnext month\b/.test(lower)) {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() + 1);
+    return toISODate(d);
+  }
+  if (/\bnext year\b/.test(lower)) {
+    const d = new Date(now);
+    d.setFullYear(d.getFullYear() + 1);
+    return toISODate(d);
+  }
+  const inDays = lower.match(/\bin\s+(\d+)\s+days?\b/);
+  if (inDays) return toISODate(addDays(now, parseInt(inDays[1], 10)));
+  const inWeeks = lower.match(/\bin\s+(\d+)\s+weeks?\b/);
+  if (inWeeks) return toISODate(addDays(now, parseInt(inWeeks[1], 10) * 7));
+  const inMonths = lower.match(/\bin\s+(\d+)\s+months?\b/);
+  if (inMonths) {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() + parseInt(inMonths[1], 10));
+    return toISODate(d);
+  }
+  const inYears = lower.match(/\bin\s+(\d+)\s+years?\b/);
+  if (inYears) {
+    const d = new Date(now);
+    d.setFullYear(d.getFullYear() + parseInt(inYears[1], 10));
+    return toISODate(d);
+  }
+
+  return null;
+}
+
+const DUE_CLAUSE = new RegExp(
+  `\\b(on|by|due)\\s+(today|tomorrow|next\\s+week|next\\s+month|next\\s+year|in\\s+\\d+\\s+(days?|weeks?|months?|years?)|\\d{4}-\\d{2}-\\d{2}|(${MONTH_NAMES.join('|')})\\s+\\d{1,2}(st|nd|rd|th)?(,?\\s+\\d{4})?|\\d{1,2}(st|nd|rd|th)?\\s+(${MONTH_NAMES.join('|')})(,?\\s+\\d{4})?)\\b`,
+  'gi'
+);
+
+function cleanName(name: string, fallback: string): string {
+  const trimmed = name.replace(/\s{2,}/g, ' ').trim().replace(/^[.,;:\s]+|[.,;:\s]+$/g, '');
+  if (!trimmed) return fallback;
+  return trimmed[0].toUpperCase() + trimmed.slice(1);
+}
+
+type JarvisIntent =
+  | { type: 'add_task'; task: Task }
+  | { type: 'add_compliance'; item: ComplianceItem }
+  | { type: 'none' };
+
+function parseJarvisCommand(text: string, now: Date = new Date()): JarvisIntent {
+  const lower = text.toLowerCase();
+  const actionWord = /\b(add|create|schedule|deploy|log|set\s*up)\b/;
+  const mentionsCompliance = /\bcompliance\b/.test(lower);
+  const mentionsTask = /\btask\b/.test(lower);
+
+  if (mentionsCompliance && actionWord.test(lower)) {
+    const dueDate = parseDueDate(text, now) ?? toISODate(addDays(now, 365));
+    let name = text
+      .replace(/^.*?\b(add|create|schedule|deploy|log|set\s*up)\b\s+(a\s+)?(new\s+)?/i, '')
+      .replace(/\bcompliance\b\s*(log|item|record|entry)?/gi, '')
+      .replace(DUE_CLAUSE, '');
+    return {
+      type: 'add_compliance',
+      item: {
+        id: genId(),
+        name: cleanName(name, 'Untitled compliance item'),
+        completed: false,
+        date: '',
+        nextDueDate: dueDate,
+        comments: '',
+      },
+    };
+  }
+
+  if (mentionsTask && actionWord.test(lower)) {
+    const priorityMatch = lower.match(/\b(high|medium|low)\b\s*(priority)?/);
+    const priority: Priority = priorityMatch
+      ? ((priorityMatch[1][0].toUpperCase() + priorityMatch[1].slice(1)) as Priority)
+      : 'Medium';
+    const dueDate = parseDueDate(text, now) ?? toISODate(addDays(now, 7));
+    let name = text
+      .replace(/^.*?\btask\b(\s+to)?\s*/i, '')
+      .replace(/\b(with\s+)?(high|medium|low)\s*(priority)?\b/gi, '')
+      .replace(DUE_CLAUSE, '');
+    return {
+      type: 'add_task',
+      task: {
+        id: genId(),
+        name: cleanName(name, 'Untitled task'),
+        priority,
+        dueDate,
+        status: 'Not Started',
+      },
+    };
+  }
+
+  return { type: 'none' };
+}
+
+// ---------------------------------------------------------------------------
 // JARVIS Chatbox
 // ---------------------------------------------------------------------------
 
-function JarvisChatbox({ completionPct, outstandingTasks }: { completionPct: number; outstandingTasks: number }) {
+function JarvisChatbox({
+  completionPct,
+  outstandingTasks,
+  onAddTask,
+  onAddCompliance,
+}: {
+  completionPct: number;
+  outstandingTasks: number;
+  onAddTask: (task: Task) => void;
+  onAddCompliance: (item: ComplianceItem) => void;
+}) {
   const [open, setOpen] = useState(true);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -1328,8 +1479,21 @@ function JarvisChatbox({ completionPct, outstandingTasks }: { completionPct: num
     const userMsg: ChatMessage = { id: genId(), sender: 'user', text };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+
+    const intent = parseJarvisCommand(text);
+    let responseText: string;
+    if (intent.type === 'add_task') {
+      onAddTask(intent.task);
+      responseText = `Understood, sir. I have deployed the "${intent.task.name}" task with ${intent.task.priority} priority for ${intent.task.dueDate}.`;
+    } else if (intent.type === 'add_compliance') {
+      onAddCompliance(intent.item);
+      responseText = `Understood, sir. I have created the "${intent.item.name}" compliance log, due ${intent.item.nextDueDate}.`;
+    } else {
+      responseText = reply(text);
+    }
+
     setTimeout(() => {
-      setMessages((prev) => [...prev, { id: genId(), sender: 'jarvis', text: reply(text) }]);
+      setMessages((prev) => [...prev, { id: genId(), sender: 'jarvis', text: responseText }]);
     }, 700);
   };
 
@@ -1470,7 +1634,12 @@ export default function JarvisTrackerPage() {
               />
             )}
           </main>
-          <JarvisChatbox completionPct={completionPct} outstandingTasks={totalItems - completedItems} />
+          <JarvisChatbox
+            completionPct={completionPct}
+            outstandingTasks={totalItems - completedItems}
+            onAddTask={handleAddTask}
+            onAddCompliance={handleAddCompliance}
+          />
         </div>
       )}
     </div>
