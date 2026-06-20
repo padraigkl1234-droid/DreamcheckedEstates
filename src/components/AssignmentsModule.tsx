@@ -51,7 +51,7 @@ const LOCATIONS = [
 ];
 
 const PRIORITIES = {
-  LOW: { label: "LOW", color: "bg-blue-500", text: "text-blue-500", border: "border-blue-200", bg: "bg-blue-50" },
+  LOW: { label: "LOW", color: "bg-slate-400", text: "text-slate-500", border: "border-slate-200", bg: "bg-slate-50" },
   MED: { label: "MED", color: "bg-yellow-500", text: "text-yellow-500", border: "border-yellow-200", bg: "bg-yellow-50" },
   HIGH: { label: "HIGH", color: "bg-orange-500", text: "text-orange-500", border: "border-orange-200", bg: "bg-orange-50" },
   CRIT: { label: "CRIT", color: "bg-red-600", text: "text-red-600", border: "border-red-200", bg: "bg-red-50" }
@@ -59,7 +59,7 @@ const PRIORITIES = {
 
 const STATUSES = {
   "Not Started": { progress: 0, color: "bg-slate-400", dot: "bg-slate-400" },
-  "In Progress": { progress: 20, color: "bg-blue-500", dot: "bg-blue-500" },
+  "In Progress": { progress: 20, color: "bg-invictus-crimson-bright", dot: "bg-invictus-crimson-bright" },
   "Awaiting Parts": { progress: 35, color: "bg-purple-500", dot: "bg-purple-500" },
   "On Hold": { progress: 50, color: "bg-amber-500", dot: "bg-amber-500" },
   "Completed": { progress: 100, color: "bg-green-500", dot: "bg-green-500" }
@@ -284,7 +284,7 @@ export default function AssignmentsModule() {
       {/* Stats Bar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Total Active" value={stats.totalActive} icon={<LayoutDashboard className="h-4 w-4" />} color="text-primary" />
-        <StatTile label="In Progress" value={stats.inProgress} icon={<Clock className="h-4 w-4" />} color="text-blue-500" />
+        <StatTile label="In Progress" value={stats.inProgress} icon={<Clock className="h-4 w-4" />} color="text-invictus-crimson-bright" />
         <StatTile label="Critical" value={stats.critical} icon={<AlertCircle className="h-4 w-4" />} color="text-red-600" />
         <StatTile label="Completed" value={stats.completed} icon={<CheckCircle2 className="h-4 w-4" />} color="text-green-600" />
       </div>
