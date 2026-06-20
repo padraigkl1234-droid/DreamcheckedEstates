@@ -1566,13 +1566,7 @@ function JarvisChatbox({
   onAddCompliance: (item: ComplianceItem) => void;
 }) {
   const [open, setOpen] = useState(true);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: genId(),
-      sender: 'jarvis',
-      text: 'Welcome back, sir. Systems are online. How can I assist you with the estate today?',
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
