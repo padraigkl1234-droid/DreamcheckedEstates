@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db, type User } from '@/lib/firebase';
+import { useAuth } from '@/components/AuthProvider';
 import {
   Power,
   LayoutDashboard,
@@ -670,7 +673,17 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
 // Sidebar
 // ---------------------------------------------------------------------------
 
-function Sidebar({ activePage, onNavigate }: { activePage: PageKey; onNavigate: (p: PageKey) => void }) {
+function Sidebar({
+  activePage,
+  onNavigate,
+  user,
+  syncStatus,
+}: {
+  activePage: PageKey;
+  onNavigate: (p: PageKey) => void;
+  user: User | null;
+  syncStatus: 'idle' | 'loading' | 'synced' | 'error';
+}) {
   return (
     <aside className="flex w-16 flex-col border-r border-cyan-400/30 bg-[#020813]/70 shadow-[0_0_25px_rgba(0,102,255,0.1)] backdrop-blur-xl md:w-60">
       <div className="flex h-16 items-center justify-center gap-2 border-b border-cyan-400/30 px-2 md:justify-start md:px-5">
@@ -711,6 +724,38 @@ function Sidebar({ activePage, onNavigate }: { activePage: PageKey; onNavigate: 
           </span>
           <span className="hidden font-mono text-[10px] uppercase tracking-widest text-emerald-400 md:inline">
             Online
+          </span>
+        </div>
+        <div className="mt-2 flex items-center justify-center gap-2 md:justify-start">
+          <Cloud
+            className={`h-3.5 w-3.5 ${
+              !user
+                ? 'text-cyan-800'
+                : syncStatus === 'error'
+                ? 'text-red-400'
+                : syncStatus === 'loading'
+                ? 'animate-pulse text-cyan-400'
+                : 'text-emerald-400'
+            }`}
+          />
+          <span
+            className={`hidden font-mono text-[10px] uppercase tracking-widest md:inline ${
+              !user
+                ? 'text-cyan-800'
+                : syncStatus === 'error'
+                ? 'text-red-400'
+                : syncStatus === 'loading'
+                ? 'text-cyan-400'
+                : 'text-emerald-400'
+            }`}
+          >
+            {!user
+              ? 'Sign in to save'
+              : syncStatus === 'error'
+              ? 'Sync error'
+              : syncStatus === 'loading'
+              ? 'Syncing...'
+              : 'Progress saved'}
           </span>
         </div>
       </div>
@@ -1570,10 +1615,63 @@ function JarvisChatbox({
 // ---------------------------------------------------------------------------
 
 export default function JarvisTrackerPage() {
+  const { user } = useAuth();
   const [booted, setBooted] = useState(false);
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [tasks, setTasks] = useState<Task[]>(SEED_TASKS);
   const [compliances, setCompliances] = useState<ComplianceItem[]>(SEED_COMPLIANCES);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'synced' | 'error'>('idle');
+  const loadedForUid = useRef<string | null>(null);
+  const readyToSave = useRef(false);
+
+  // Load this user's saved progress from Firestore whenever they sign in.
+  useEffect(() => {
+    if (!user) {
+      loadedForUid.current = null;
+      readyToSave.current = false;
+      setSyncStatus('idle');
+      return;
+    }
+    if (loadedForUid.current === user.uid) return;
+    loadedForUid.current = user.uid;
+    readyToSave.current = false;
+    setSyncStatus('loading');
+
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'jarvisState', user.uid));
+        const data = snap.data();
+        if (data) {
+          if (Array.isArray(data.tasks)) setTasks(data.tasks as Task[]);
+          if (Array.isArray(data.compliances)) setCompliances(data.compliances as ComplianceItem[]);
+        }
+        setSyncStatus('synced');
+      } catch (error) {
+        console.error('Failed to load JARVIS progress:', error);
+        setSyncStatus('error');
+      } finally {
+        readyToSave.current = true;
+      }
+    })();
+  }, [user]);
+
+  // Persist tasks/compliances to Firestore whenever they change, while signed in.
+  useEffect(() => {
+    if (!user || !readyToSave.current) return;
+    const timeout = setTimeout(() => {
+      setDoc(doc(db, 'jarvisState', user.uid), {
+        tasks,
+        compliances,
+        updatedAt: Date.now(),
+      })
+        .then(() => setSyncStatus('synced'))
+        .catch((error) => {
+          console.error('Failed to save JARVIS progress:', error);
+          setSyncStatus('error');
+        });
+    }, 600);
+    return () => clearTimeout(timeout);
+  }, [tasks, compliances, user]);
 
   const totalItems = tasks.length + compliances.length;
   const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
@@ -1611,7 +1709,7 @@ export default function JarvisTrackerPage() {
 
       {booted && (
         <div className="relative flex h-full">
-          <Sidebar activePage={activePage} onNavigate={setActivePage} />
+          <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} />
           <main className="flex-1 overflow-y-auto p-5">
             {activePage === 'dashboard' && <Dashboard tasks={tasks} compliances={compliances} />}
             {activePage === 'tasks' && (

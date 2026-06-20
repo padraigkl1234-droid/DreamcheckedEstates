@@ -270,7 +270,7 @@ export default function AssignmentsModule() {
         </p>
         <Button onClick={login} size="lg" className="mt-8 w-full gap-2">
           <LogIn className="h-5 w-5" />
-          Sign in with Google
+          Sign in with Microsoft
         </Button>
       </div>
     );
