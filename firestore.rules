@@ -29,6 +29,13 @@ service cloud.firestore {
     //   - completionComment: string (optional, 0-1000 chars)
     //   - createdBy: string (optional, UID)
     //
+    // Collection: jarvisState
+    // Document ID: {userId} (matches request.auth.uid)
+    // Fields:
+    //   - tasks: list (required, max 1000 items)
+    //   - compliances: list (required, max 1000 items)
+    //   - updatedAt: number (required)
+    //
     // ===============================================================
 
     // ===============================================================
@@ -75,6 +82,12 @@ service cloud.firestore {
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100));
     }
 
+    function isValidJarvisState(data) {
+      return data.tasks is list && data.tasks.size() <= 1000 &&
+             data.compliances is list && data.compliances.size() <= 1000 &&
+             data.updatedAt is number;
+    }
+
     function isValidAssignment(data) {
       return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
              data.assignee is string && data.assignee.size() > 0 && data.assignee.size() <= 100 &&
@@ -118,6 +131,12 @@ service cloud.firestore {
       allow update: if isAuthenticated() && isValidAssignment(request.resource.data);
       
       allow delete: if isAuthenticated(); // Or restrict to admin/creator if needed
+    }
+
+    match /jarvisState/{userId} {
+      // Each user's JARVIS tasks/compliance progress is private to them.
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidJarvisState(request.resource.data);
     }
 
     match /test/connection {
