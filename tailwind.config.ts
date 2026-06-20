@@ -13,6 +13,13 @@ export default {
         body: ['Poppins', 'sans-serif'],
         headline: ['Poppins', 'sans-serif'],
         code: ['monospace'],
+        sans: [
+          'var(--font-inter)',
+          'ui-sans-serif',
+          'system-ui',
+          '-apple-system',
+          'sans-serif',
+        ],
         mono: [
           '"JetBrains Mono"',
           'ui-monospace',
@@ -24,6 +31,21 @@ export default {
           '"Liberation Mono"',
           'monospace',
         ],
+      },
+      boxShadow: {
+        'glow-none': 'none',
+        'glow-subtle': '0 0 6px 0 rgba(0, 240, 255, 0.12), inset 0 0 8px 0 rgba(0, 240, 255, 0.06)',
+        'glow-strong': '0 0 22px 2px rgba(0, 240, 255, 0.55), inset 0 0 14px 0 rgba(0, 240, 255, 0.15)',
+        'glow-strong-amber': '0 0 22px 2px rgba(251, 191, 36, 0.5), inset 0 0 14px 0 rgba(251, 191, 36, 0.12)',
+        'glow-strong-red': '0 0 22px 2px rgba(248, 113, 113, 0.55), inset 0 0 14px 0 rgba(248, 113, 113, 0.15)',
+        'glow-strong-blue': '0 0 22px 2px rgba(0, 102, 255, 0.5), inset 0 0 14px 0 rgba(0, 102, 255, 0.15)',
+      },
+      dropShadow: {
+        'glow-none': 'none',
+        'glow-subtle': '0 0 3px rgba(0, 240, 255, 0.25)',
+        'glow-strong': '0 0 10px rgba(0, 240, 255, 0.85)',
+        'glow-strong-amber': '0 0 10px rgba(251, 191, 36, 0.8)',
+        'glow-strong-red': '0 0 10px rgba(248, 113, 113, 0.8)',
       },
       colors: {
         background: 'hsl(var(--background))',

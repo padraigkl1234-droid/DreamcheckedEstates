@@ -166,9 +166,9 @@ const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard }[]
 ];
 
 const PRIORITY_STYLES: Record<Priority, string> = {
-  High: 'text-red-400 border-red-500/40 bg-red-500/10 shadow-[0_0_10px_rgba(248,113,113,0.35)]',
-  Medium: 'text-amber-300 border-amber-400/40 bg-amber-400/10 shadow-[0_0_10px_rgba(251,191,36,0.3)]',
-  Low: 'text-cyan-300 border-cyan-400/40 bg-cyan-400/10 shadow-[0_0_10px_rgba(0,240,255,0.3)]',
+  High: 'text-red-400 border-red-500/30 bg-red-500/10 shadow-glow-subtle',
+  Medium: 'text-amber-300 border-amber-400/30 bg-amber-400/10 shadow-glow-subtle',
+  Low: 'text-cyan-300 border-cyan-400/30 bg-cyan-400/10 shadow-glow-subtle',
 };
 
 const STATUS_STYLES: Record<TaskStatus, string> = {
@@ -389,10 +389,10 @@ function BootDial({ onIgnite }: { onIgnite: () => void }) {
 
       <button
         onClick={onIgnite}
-        className="group absolute inset-[32%] flex items-center justify-center rounded-full border border-cyan-400/50 bg-cyan-500/5 shadow-[0_0_24px_rgba(0,240,255,0.4)] transition-transform duration-300 hover:scale-105"
+        className="group absolute inset-[32%] flex items-center justify-center rounded-full border border-cyan-400/50 bg-cyan-500/5 shadow-glow-subtle transition-all duration-300 hover:scale-105 hover:shadow-glow-strong"
       >
         <span className="absolute inset-0 rounded-full border border-cyan-400/30 animate-pulse" />
-        <Power className="relative z-10 h-7 w-7 text-cyan-300 drop-shadow-[0_0_12px_rgba(0,240,255,0.9)] transition-colors group-hover:text-white" />
+        <Power className="relative z-10 h-7 w-7 text-cyan-300 drop-shadow-glow-subtle transition-all group-hover:text-white group-hover:drop-shadow-glow-strong" />
       </button>
     </div>
   );
@@ -404,7 +404,7 @@ function BootDial({ onIgnite }: { onIgnite: () => void }) {
 
 function HudCornerPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`relative border border-cyan-400/30 bg-[#020813]/60 p-4 shadow-[0_0_20px_rgba(0,102,255,0.1)] backdrop-blur-md ${className}`}>
+    <div className={`relative border border-cyan-400/20 bg-[#020813]/60 p-4 shadow-glow-subtle backdrop-blur-md ${className}`}>
       <MicroCorners />
       {children}
     </div>
@@ -418,7 +418,7 @@ function SignalBars({ level }: { level: number }) {
       {bars.map((_, i) => (
         <span
           key={i}
-          className={`w-1 rounded-sm ${i < level ? 'bg-cyan-300 shadow-[0_0_4px_rgba(0,240,255,0.8)]' : 'bg-cyan-900'}`}
+          className={`w-1 rounded-sm ${i < level ? 'bg-cyan-300 shadow-glow-subtle' : 'bg-cyan-900'}`}
           style={{ height: `${6 + i * 3}px` }}
         />
       ))}
@@ -435,7 +435,7 @@ function MiniMeter({ label, value }: { label: string; value: number }) {
       </div>
       <div className="h-1 w-full overflow-hidden rounded-full bg-cyan-950/70">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-[#0066ff] to-[#00f0ff] shadow-[0_0_6px_rgba(0,240,255,0.7)]"
+          className="h-full rounded-full bg-gradient-to-r from-[#0066ff] to-[#00f0ff] shadow-glow-subtle"
           style={{ width: `${value}%` }}
         />
       </div>
@@ -459,9 +459,9 @@ function NetworkPanel() {
       </div>
       <div className="mb-1 flex items-center gap-2">
         <Wifi className="h-4 w-4 text-cyan-300" />
-        <span className="font-mono text-lg font-bold tabular-nums text-cyan-200 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">98%</span>
+        <span className="font-mono text-lg font-bold tabular-nums text-cyan-200 [text-shadow:var(--glow-text-subtle)]">98%</span>
       </div>
-      <p className="mb-4 font-mono text-[10px] tracking-widest text-cyan-600">ESTATE-WIFI · LAN SECURE</p>
+      <p className="mb-4 text-[10px] tracking-widest text-cyan-600">ESTATE-WIFI · LAN SECURE</p>
 
       <div className="space-y-3 border-t border-cyan-400/15 pt-3">
         {BOOT_QUICK_LINKS.map((link) => (
@@ -482,7 +482,7 @@ function Waveform() {
       {bars.map((_, i) => (
         <span
           key={i}
-          className="w-[3px] rounded-sm bg-cyan-300/80 shadow-[0_0_4px_rgba(0,240,255,0.6)]"
+          className="w-[3px] rounded-sm bg-cyan-300/80 shadow-glow-subtle"
           style={{
             animation: `waveform ${0.8 + (i % 4) * 0.15}s ease-in-out infinite`,
             animationDelay: `${i * 0.05}s`,
@@ -499,9 +499,9 @@ function EnvironmentPanel() {
       <Kicker className="mb-3">Site Environment</Kicker>
       <div className="mb-1 flex items-center gap-2">
         <Cloud className="h-5 w-5 text-cyan-300" />
-        <span className="font-mono text-2xl font-bold tabular-nums text-cyan-200 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">18°C</span>
+        <span className="font-mono text-2xl font-bold tabular-nums text-cyan-200 [text-shadow:var(--glow-text-subtle)]">18°C</span>
       </div>
-      <p className="mb-3 font-mono text-[10px] tracking-widest text-cyan-600">OVERCAST · ESTATE GROUNDS</p>
+      <p className="mb-3 text-[10px] tracking-widest text-cyan-600">OVERCAST · ESTATE GROUNDS</p>
 
       <div className="mb-4 grid grid-cols-3 gap-2 border-t border-cyan-400/15 pt-3 text-center">
         <div>
@@ -526,7 +526,7 @@ function EnvironmentPanel() {
           <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-cyan-500">
             <Music2 className="h-3 w-3" /> Ambient Feed
           </span>
-          <span className="text-[9px] uppercase tracking-widest text-emerald-400">Live</span>
+          <span className="text-[9px] uppercase tracking-widest text-emerald-400 [text-shadow:0_0_8px_rgba(52,211,153,0.8)]">Live</span>
         </div>
         <Waveform />
       </div>
@@ -569,7 +569,7 @@ function CircularProgress({ percentage }: { percentage: number }) {
           strokeDashoffset={offset}
           style={{
             transition: 'stroke-dashoffset 0.7s ease',
-            filter: 'drop-shadow(0 0 8px rgba(0,240,255,0.85))',
+            filter: 'drop-shadow(0 0 3px rgba(0,240,255,0.3))',
           }}
         />
 
@@ -602,7 +602,7 @@ function CircularProgress({ percentage }: { percentage: number }) {
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-mono text-5xl font-bold tabular-nums tracking-tight text-cyan-300 [text-shadow:0_0_15px_rgba(0,240,255,0.8)]">
+        <span className="font-mono text-5xl font-bold tabular-nums tracking-tight text-cyan-300 [text-shadow:var(--glow-text-subtle)]">
           {percentage}%
         </span>
       </div>
@@ -659,7 +659,7 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
       )}
 
       {stage === 'booting' && (
-        <div className="w-80 max-w-[90vw] font-mono">
+        <div className="w-80 max-w-[90vw]">
           <div className="mb-6 flex items-center justify-center gap-3">
             <Satellite className="h-8 w-8 animate-pulse text-cyan-300 drop-shadow-[0_0_10px_rgba(0,240,255,0.8)]" />
           </div>
@@ -710,11 +710,11 @@ function Sidebar({
   syncStatus: 'idle' | 'loading' | 'synced' | 'error';
 }) {
   return (
-    <aside className="flex w-16 flex-col border-r border-cyan-400/30 bg-[#020813]/70 shadow-[0_0_25px_rgba(0,102,255,0.1)] backdrop-blur-xl md:w-60">
-      <div className="flex h-16 items-center justify-center gap-2 border-b border-cyan-400/30 px-2 md:justify-start md:px-5">
-        <Bot className="h-7 w-7 text-cyan-300 drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]" />
+    <aside className="flex w-16 flex-col border-r border-cyan-400/20 bg-[#020813]/70 shadow-glow-subtle backdrop-blur-xl md:w-60">
+      <div className="flex h-16 items-center justify-center gap-2 border-b border-cyan-400/20 px-2 md:justify-start md:px-5">
+        <Bot className="h-7 w-7 text-cyan-300 drop-shadow-glow-subtle" />
         <div className="hidden md:block">
-          <p className="font-mono text-sm font-bold tracking-[0.15em] text-cyan-300 [text-shadow:0_0_10px_rgba(0,240,255,0.6)]">J.A.R.V.I.S.</p>
+          <p className="text-sm font-bold tracking-[0.15em] text-cyan-300 [text-shadow:var(--glow-text-subtle)]">J.A.R.V.I.S.</p>
         </div>
       </div>
 
@@ -726,9 +726,9 @@ function Sidebar({
             <button
               key={item.key}
               onClick={() => onNavigate(item.key)}
-              className={`flex items-center justify-center gap-3 rounded-md border px-3 py-2.5 font-mono text-xs uppercase tracking-wider transition-all md:justify-start ${
+              className={`flex items-center justify-center gap-3 rounded-md border px-3 py-2.5 text-xs uppercase tracking-wider transition-all md:justify-start ${
                 active
-                  ? 'border-[#0066ff]/60 bg-[#0066ff]/10 text-cyan-200 shadow-[0_0_15px_rgba(0,102,255,0.4)]'
+                  ? 'border-[#0066ff]/60 bg-[#0066ff]/10 text-cyan-200 shadow-glow-strong-blue'
                   : 'border-transparent text-cyan-700 hover:border-cyan-500/20 hover:bg-cyan-500/5 hover:text-cyan-400'
               }`}
             >
@@ -739,13 +739,13 @@ function Sidebar({
         })}
       </nav>
 
-      <div className="mt-auto border-t border-cyan-400/30 p-3">
+      <div className="mt-auto border-t border-cyan-400/20 p-3">
         <div className="flex items-center justify-center gap-2 md:justify-start">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
           </span>
-          <span className="hidden font-mono text-[10px] uppercase tracking-widest text-emerald-400 md:inline">
+          <span className="hidden text-[10px] uppercase tracking-widest text-emerald-400 md:inline">
             Online
           </span>
         </div>
@@ -762,7 +762,7 @@ function Sidebar({
             }`}
           />
           <span
-            className={`hidden font-mono text-[10px] uppercase tracking-widest md:inline ${
+            className={`hidden text-[10px] uppercase tracking-widest md:inline ${
               !user
                 ? 'text-cyan-800'
                 : syncStatus === 'error'
@@ -896,12 +896,12 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
         <Panel title="Recently Added Tasks" icon={ListChecks} refCode="0027-T">
           <div className="flex flex-col gap-2">
             {recentTasks.length === 0 && (
-              <p className="py-6 text-center font-mono text-xs text-cyan-700">No tasks logged yet.</p>
+              <p className="py-6 text-center text-xs text-cyan-700">No tasks logged yet.</p>
             )}
             {recentTasks.map((task) => (
               <div
                 key={task.id}
-                className="relative flex items-center justify-between gap-2 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] px-3 py-2.5"
+                className="relative flex items-center justify-between gap-2 rounded-md border border-cyan-400/20 bg-[#020813]/40 shadow-glow-subtle px-3 py-2.5"
               >
                 <MicroCorners />
                 <div className="min-w-0">
@@ -919,7 +919,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
         <Panel title="System Diagnostics" icon={Activity} refCode="0048-A">
           <div className="flex flex-col gap-4">
             <div className="text-center">
-              <p className="font-mono text-3xl font-bold tabular-nums tracking-widest text-cyan-300 [text-shadow:0_0_12px_rgba(0,240,255,0.7)]">
+              <p className="font-mono text-3xl font-bold tabular-nums tracking-widest text-cyan-300 [text-shadow:var(--glow-text-subtle)]">
                 {now.toLocaleTimeString('en-GB')}
               </p>
               <p className="text-[10px] uppercase tracking-widest text-cyan-600">
@@ -935,7 +935,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
 
             <div className="flex items-center justify-center gap-2 rounded-md border border-emerald-400/30 bg-emerald-400/10 py-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-              <span className="font-mono text-xs uppercase tracking-widest text-emerald-300">System Status: Nominal</span>
+              <span className="text-xs uppercase tracking-widest text-emerald-300">System Status: Nominal</span>
             </div>
           </div>
         </Panel>
@@ -979,14 +979,14 @@ function WeatherPanel({ weather, status }: { weather: WeatherData | null; status
       {status === 'loading' && (
         <div className="flex flex-col items-center gap-2 py-10 text-cyan-600">
           <RefreshCw className="h-5 w-5 animate-spin" />
-          <p className="font-mono text-xs uppercase tracking-widest">Acquiring feed...</p>
+          <p className="text-xs uppercase tracking-widest">Acquiring feed...</p>
         </div>
       )}
 
       {status === 'error' && (
         <div className="flex flex-col items-center gap-2 py-10 text-amber-400">
           <AlertTriangle className="h-5 w-5" />
-          <p className="text-center font-mono text-xs uppercase tracking-widest">Weather uplink unavailable</p>
+          <p className="text-center text-xs uppercase tracking-widest">Weather uplink unavailable</p>
         </div>
       )}
 
@@ -995,11 +995,11 @@ function WeatherPanel({ weather, status }: { weather: WeatherData | null; status
           <div className="text-center">
             <div className="mb-1 flex items-center justify-center gap-2">
               <WeatherIcon className="h-6 w-6 text-cyan-300" />
-              <span className="font-mono text-3xl font-bold tabular-nums text-cyan-200 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">
+              <span className="font-mono text-3xl font-bold tabular-nums text-cyan-200 [text-shadow:var(--glow-text-subtle)]">
                 {weather.temperatureC}°C
               </span>
             </div>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-cyan-600">{info.label} · Margate, UK</p>
+            <p className="text-[10px] uppercase tracking-widest text-cyan-600">{info.label} · Margate, UK</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2 border-t border-cyan-500/15 pt-4 text-center">
@@ -1041,7 +1041,7 @@ function SunScene() {
   return (
     <div className="relative flex h-full w-full items-center justify-center">
       <div className="absolute h-16 w-16 rounded-full bg-amber-300/20 blur-xl animate-pulse" />
-      <Sun className="relative h-12 w-12 text-amber-300 drop-shadow-[0_0_16px_rgba(251,191,36,0.8)] animate-[spin_18s_linear_infinite]" />
+      <Sun className="relative h-12 w-12 text-amber-300 drop-shadow-[0_0_5px_rgba(251,191,36,0.3)] animate-[spin_18s_linear_infinite]" />
       {sparkles.map((_, i) => (
         <span
           key={i}
@@ -1061,10 +1061,10 @@ function CloudScene({ withSun = false }: { withSun?: boolean }) {
   return (
     <div className="relative h-full w-full">
       {withSun && (
-        <Sun className="absolute left-[30%] top-[22%] h-9 w-9 text-amber-300/80 drop-shadow-[0_0_12px_rgba(251,191,36,0.6)] animate-[spin_22s_linear_infinite]" />
+        <Sun className="absolute left-[30%] top-[22%] h-9 w-9 text-amber-300/80 drop-shadow-[0_0_4px_rgba(251,191,36,0.25)] animate-[spin_22s_linear_infinite]" />
       )}
       <Cloud
-        className="absolute top-1/2 h-12 w-12 -translate-y-1/2 text-cyan-200 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)] animate-cloud-drift"
+        className="absolute top-1/2 h-12 w-12 -translate-y-1/2 text-cyan-200 drop-shadow-[0_0_4px_rgba(0,240,255,0.18)] animate-cloud-drift"
         style={{ left: '22%' }}
       />
       <Cloud
@@ -1079,7 +1079,7 @@ function FogScene() {
   const bands = Array.from({ length: 3 });
   return (
     <div className="relative flex h-full w-full flex-col items-center justify-center gap-2.5">
-      <CloudFog className="mb-1 h-9 w-9 text-cyan-200/80 drop-shadow-[0_0_10px_rgba(0,240,255,0.35)]" />
+      <CloudFog className="mb-1 h-9 w-9 text-cyan-200/80 drop-shadow-[0_0_4px_rgba(0,240,255,0.15)]" />
       {bands.map((_, i) => (
         <span
           key={i}
@@ -1095,7 +1095,7 @@ function RainScene() {
   const drops = Array.from({ length: 10 });
   return (
     <div className="relative h-full w-full">
-      <CloudRain className="absolute left-1/2 top-[18%] h-11 w-11 -translate-x-1/2 text-cyan-200 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]" />
+      <CloudRain className="absolute left-1/2 top-[18%] h-11 w-11 -translate-x-1/2 text-cyan-200 drop-shadow-[0_0_4px_rgba(0,240,255,0.18)]" />
       {drops.map((_, i) => (
         <span
           key={i}
@@ -1115,7 +1115,7 @@ function SnowScene() {
   const flakes = Array.from({ length: 9 });
   return (
     <div className="relative h-full w-full">
-      <CloudSnow className="absolute left-1/2 top-[16%] h-11 w-11 -translate-x-1/2 text-cyan-100 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]" />
+      <CloudSnow className="absolute left-1/2 top-[16%] h-11 w-11 -translate-x-1/2 text-cyan-100 drop-shadow-[0_0_4px_rgba(0,240,255,0.18)]" />
       {flakes.map((_, i) => (
         <span
           key={i}
@@ -1136,7 +1136,7 @@ function StormScene() {
   return (
     <div className="relative h-full w-full">
       <Cloud className="absolute left-1/2 top-[14%] h-11 w-11 -translate-x-1/2 text-cyan-200/90" />
-      <CloudLightning className="absolute left-1/2 top-[34%] h-8 w-8 -translate-x-1/2 text-amber-300 drop-shadow-[0_0_14px_rgba(251,191,36,0.9)] animate-bolt-flash" />
+      <CloudLightning className="absolute left-1/2 top-[34%] h-8 w-8 -translate-x-1/2 text-amber-300 drop-shadow-glow-strong-amber animate-bolt-flash" />
       {drops.map((_, i) => (
         <span
           key={i}
@@ -1169,25 +1169,25 @@ function NewsPanel({
     <Panel title={title} icon={icon} refCode={refCode}>
       <div className="flex items-center gap-1.5 pb-3">
         <Radio className="h-3 w-3 text-red-400" />
-        <span className="font-mono text-[10px] uppercase tracking-widest text-red-400">Live</span>
+        <span className="text-[10px] uppercase tracking-widest text-red-400 [text-shadow:var(--glow-text-strong-red)]">Live</span>
       </div>
 
       {status === 'loading' && (
         <div className="flex flex-col items-center gap-2 py-10 text-cyan-600">
           <RefreshCw className="h-5 w-5 animate-spin" />
-          <p className="font-mono text-xs uppercase tracking-widest">Acquiring feed...</p>
+          <p className="text-xs uppercase tracking-widest">Acquiring feed...</p>
         </div>
       )}
 
       {status === 'error' && (
         <div className="flex flex-col items-center gap-2 py-10 text-amber-400">
           <AlertTriangle className="h-5 w-5" />
-          <p className="text-center font-mono text-xs uppercase tracking-widest">Feed uplink unavailable</p>
+          <p className="text-center text-xs uppercase tracking-widest">Feed uplink unavailable</p>
         </div>
       )}
 
       {status === 'ready' && items.length === 0 && (
-        <p className="py-10 text-center font-mono text-xs text-cyan-700">No headlines returned.</p>
+        <p className="py-10 text-center text-xs text-cyan-700">No headlines returned.</p>
       )}
 
       {status === 'ready' && items.length > 0 && (
@@ -1210,7 +1210,7 @@ function NewsCard({ item }: { item: NewsItem }) {
       href={item.link}
       target="_blank"
       rel="noopener noreferrer"
-      className="group relative flex gap-2 rounded-md border border-cyan-400/25 bg-[#020813]/40 p-2 shadow-[0_0_12px_rgba(0,102,255,0.08)] transition-colors hover:border-cyan-400/60 hover:bg-cyan-400/5"
+      className="group relative flex gap-2 rounded-md border border-cyan-400/20 bg-[#020813]/40 p-2 shadow-glow-subtle transition-all hover:border-cyan-400/60 hover:bg-cyan-400/5 hover:shadow-glow-strong-blue"
     >
       <MicroCorners />
       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-cyan-400/20 bg-[#01060f]">
@@ -1282,12 +1282,12 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex flex-col border border-cyan-400/40 bg-[#020813]/50 p-4 shadow-[0_0_25px_rgba(0,102,255,0.12)] backdrop-blur-xl">
+    <div className="relative flex flex-col border border-cyan-400/20 bg-[#020813]/50 p-4 shadow-glow-subtle backdrop-blur-xl">
       <HudCorners />
-      <div className="mb-4 flex items-center justify-between gap-2 border-b border-cyan-400/25 pb-3">
+      <div className="mb-4 flex items-center justify-between gap-2 border-b border-cyan-400/15 pb-3">
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_6px_rgba(0,240,255,0.7)]" />
-          <h2 className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">
+          <Icon className="h-4 w-4 text-cyan-300 drop-shadow-glow-subtle" />
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300 [text-shadow:var(--glow-text-subtle)]">
             {title}
           </h2>
         </div>
@@ -1395,18 +1395,18 @@ function CalendarPage({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Ansul Meeting"
-            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50 sm:col-span-2 lg:col-span-2"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50 sm:col-span-2 lg:col-span-2"
           />
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           />
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as Priority)}
-            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           >
             <option>High</option>
             <option>Medium</option>
@@ -1416,11 +1416,11 @@ function CalendarPage({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Notes, e.g. it is with Paul A"
-            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           />
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-colors hover:bg-[#0066ff]/20 sm:col-span-2 lg:col-span-5"
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-glow-subtle transition-all hover:bg-[#0066ff]/20 hover:shadow-glow-strong-blue sm:col-span-2 lg:col-span-5"
           >
             <Plus className="h-4 w-4" /> Add to Diary
           </button>
@@ -1438,7 +1438,7 @@ function CalendarPage({
           </button>
           <button
             onClick={goToToday}
-            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-cyan-300 transition-colors hover:bg-cyan-400/10"
+            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-cyan-300 transition-colors hover:bg-cyan-400/10"
           >
             Today
           </button>
@@ -1453,7 +1453,7 @@ function CalendarPage({
 
         <div className="grid grid-cols-7 gap-1.5">
           {WEEKDAY_LABELS.map((label) => (
-            <div key={label} className="px-1 pb-1 text-center font-mono text-[10px] font-semibold uppercase tracking-wide text-cyan-500">
+            <div key={label} className="px-1 pb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-cyan-500">
               {label}
             </div>
           ))}
@@ -1469,8 +1469,8 @@ function CalendarPage({
                 key={cellDate}
                 className={`relative flex min-h-[5.5rem] flex-col gap-1 rounded-md border p-1.5 ${
                   isToday
-                    ? 'border-cyan-300 bg-cyan-400/10 shadow-[0_0_12px_rgba(0,240,255,0.3)]'
-                    : 'border-cyan-400/20 bg-[#020813]/40'
+                    ? 'border-cyan-300 bg-cyan-400/10 shadow-glow-strong'
+                    : 'border-cyan-400/15 bg-[#020813]/40'
                 }`}
               >
                 <span className={`font-mono text-[11px] ${isToday ? 'font-bold text-cyan-200' : 'text-cyan-500'}`}>{dayNum}</span>
@@ -1508,7 +1508,7 @@ function CalendarPage({
           onClick={() => setSelectedEvent(null)}
         >
           <div
-            className="relative w-full max-w-sm border border-cyan-400/40 bg-[#020813]/95 p-5 shadow-[0_0_30px_rgba(0,102,255,0.3)]"
+            className="relative w-full max-w-sm border border-cyan-400/40 bg-[#020813]/95 p-5 shadow-glow-strong-blue"
             onClick={(e) => e.stopPropagation()}
           >
             <HudCorners />
@@ -1540,7 +1540,7 @@ function CalendarPage({
                 onDelete(selectedEvent.id);
                 setSelectedEvent(null);
               }}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-red-300 transition-colors hover:bg-red-500/20"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 py-2 text-xs font-semibold uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/20 hover:shadow-glow-strong-red"
             >
               <Trash2 className="h-3.5 w-3.5" /> Delete Entry
             </button>
@@ -1590,12 +1590,12 @@ function TaskManager({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Task name"
-            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50 sm:col-span-2 lg:col-span-2"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50 sm:col-span-2 lg:col-span-2"
           />
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as Priority)}
-            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           >
             <option>High</option>
             <option>Medium</option>
@@ -1605,12 +1605,12 @@ function TaskManager({
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           />
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value as TaskStatus)}
-            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="w-full min-w-0 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           >
             <option>Not Started</option>
             <option>In Progress</option>
@@ -1618,7 +1618,7 @@ function TaskManager({
           </select>
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-colors hover:bg-[#0066ff]/20 sm:col-span-2 lg:col-span-5"
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-glow-subtle transition-all hover:bg-[#0066ff]/20 hover:shadow-glow-strong-blue sm:col-span-2 lg:col-span-5"
           >
             <Plus className="h-4 w-4" /> Add Task
           </button>
@@ -1628,12 +1628,12 @@ function TaskManager({
       <Panel title={`Active Tasks (${tasks.length})`} icon={ListChecks} refCode="0104-T">
         <div className="space-y-2">
           {tasks.length === 0 && (
-            <p className="py-8 text-center font-mono text-xs text-cyan-700">No tasks in queue.</p>
+            <p className="py-8 text-center text-xs text-cyan-700">No tasks in queue.</p>
           )}
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="relative flex flex-col gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] p-3 md:flex-row md:items-center md:justify-between"
+              className="relative flex flex-col gap-3 rounded-md border border-cyan-400/20 bg-[#020813]/40 shadow-glow-subtle p-3 md:flex-row md:items-center md:justify-between"
             >
               <MicroCorners />
               <div className="min-w-0 flex-1">
@@ -1655,7 +1655,7 @@ function TaskManager({
                 </select>
                 <button
                   onClick={() => onDelete(task.id)}
-                  className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 transition-colors hover:bg-red-500/20"
+                  className="rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 transition-all hover:bg-red-500/20 hover:shadow-glow-strong-red"
                   title="Delete task"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -1714,7 +1714,7 @@ function ComplianceTracker({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Compliance item name"
-            className="md:col-span-2 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="md:col-span-2 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           />
           <div className="flex flex-col gap-1">
             <label className="text-[9px] uppercase tracking-widest text-cyan-600">Last Completed</label>
@@ -1722,7 +1722,7 @@ function ComplianceTracker({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+              className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -1731,18 +1731,18 @@ function ComplianceTracker({
               type="date"
               value={nextDueDate}
               onChange={(e) => setNextDueDate(e.target.value)}
-              className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+              className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
             />
           </div>
           <input
             value={comments}
             onChange={(e) => setComments(e.target.value)}
             placeholder="Comments..."
-            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+            className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-2 text-sm text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
           />
           <button
             type="submit"
-            className="md:col-span-5 flex items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-colors hover:bg-[#0066ff]/20"
+            className="md:col-span-5 flex items-center justify-center gap-2 rounded-md border border-[#0066ff]/60 bg-[#0066ff]/10 py-2 text-xs font-semibold uppercase tracking-widest text-cyan-200 shadow-glow-subtle transition-all hover:bg-[#0066ff]/20 hover:shadow-glow-strong-blue"
           >
             <Plus className="h-4 w-4" /> Add Compliance Item
           </button>
@@ -1760,12 +1760,12 @@ function ComplianceTracker({
         </div>
         <div className="space-y-2">
           {compliances.length === 0 && (
-            <p className="py-8 text-center font-mono text-xs text-cyan-700">No compliance items logged.</p>
+            <p className="py-8 text-center text-xs text-cyan-700">No compliance items logged.</p>
           )}
           {compliances.map((item) => (
             <div
               key={item.id}
-              className="relative grid grid-cols-1 items-center gap-3 rounded-md border border-cyan-400/25 bg-[#020813]/40 shadow-[0_0_12px_rgba(0,102,255,0.08)] p-3 md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.3fr_auto]"
+              className="relative grid grid-cols-1 items-center gap-3 rounded-md border border-cyan-400/20 bg-[#020813]/40 shadow-glow-subtle p-3 md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.3fr_auto]"
             >
               <MicroCorners />
               <button
@@ -1777,7 +1777,7 @@ function ComplianceTracker({
                 title={item.completed ? 'Mark incomplete' : 'Mark complete'}
               >
                 {item.completed ? (
-                  <CheckCircle2 className="h-6 w-6 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.7)]" />
+                  <CheckCircle2 className="h-6 w-6 text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.45)]" />
                 ) : (
                   <Circle className="h-6 w-6 text-cyan-700" />
                 )}
@@ -1789,26 +1789,26 @@ function ComplianceTracker({
                 type="date"
                 value={item.date}
                 onChange={(e) => onChangeDate(item.id, e.target.value)}
-                className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-2 py-1.5 text-xs text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+                className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-2 py-1.5 text-xs text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
               />
 
               <input
                 type="date"
                 value={item.nextDueDate}
                 onChange={(e) => onChangeNextDueDate(item.id, e.target.value)}
-                className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-2 py-1.5 text-xs text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+                className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-2 py-1.5 text-xs text-cyan-100 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
               />
 
               <input
                 value={item.comments}
                 onChange={(e) => onChangeComments(item.id, e.target.value)}
                 placeholder="Comments..."
-                className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-2 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+                className="rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-2 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
               />
 
               <button
                 onClick={() => onDelete(item.id)}
-                className="flex items-center justify-center rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 transition-colors hover:bg-red-500/20"
+                className="flex items-center justify-center rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 transition-all hover:bg-red-500/20 hover:shadow-glow-strong-red"
                 title="Delete compliance item"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -2037,7 +2037,7 @@ function JarvisChatbox({
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end">
       {open && (
-        <div className="relative mb-3 flex h-96 w-80 flex-col overflow-hidden border border-cyan-400/40 bg-[#020813]/70 shadow-[0_0_30px_rgba(0,102,255,0.25)] backdrop-blur-xl">
+        <div className="relative mb-3 flex h-96 w-80 flex-col overflow-hidden border border-cyan-400/30 bg-[#020813]/70 shadow-glow-subtle backdrop-blur-xl">
           <HudCorners />
           <div className="flex items-center justify-between border-b border-cyan-400/25 bg-cyan-500/5 px-3 py-2.5">
             <div className="flex items-center gap-2">
@@ -2046,7 +2046,7 @@ function JarvisChatbox({
                 <ConcentricPulse />
               </div>
               <div>
-                <p className="font-mono text-xs font-semibold tracking-widest text-cyan-300 [text-shadow:0_0_8px_rgba(0,240,255,0.5)]">J.A.R.V.I.S.</p>
+                <p className="text-xs font-semibold tracking-widest text-cyan-300 [text-shadow:var(--glow-text-subtle)]">J.A.R.V.I.S.</p>
                 <p className="text-[9px] uppercase tracking-widest text-emerald-400">Online</p>
               </div>
             </div>
@@ -2064,8 +2064,8 @@ function JarvisChatbox({
                 key={m.id}
                 className={`max-w-[85%] rounded-md px-3 py-2 text-xs leading-relaxed ${
                   m.sender === 'jarvis'
-                    ? 'border border-cyan-400/35 bg-cyan-500/10 text-cyan-100 shadow-[0_0_10px_rgba(0,240,255,0.12)]'
-                    : 'ml-auto border border-[#0066ff]/40 bg-[#0066ff]/10 text-right text-cyan-50 shadow-[0_0_10px_rgba(0,102,255,0.18)]'
+                    ? 'border border-cyan-400/25 bg-cyan-500/10 text-cyan-100 shadow-glow-subtle'
+                    : 'ml-auto border border-[#0066ff]/30 bg-[#0066ff]/10 text-right text-cyan-50 shadow-glow-subtle'
                 }`}
               >
                 {m.text}
@@ -2079,7 +2079,7 @@ function JarvisChatbox({
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Message J.A.R.V.I.S..."
-              className="flex-1 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-[0_0_10px_rgba(0,102,255,0.35)] px-3 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
+              className="flex-1 rounded-md border border-cyan-400/30 bg-[#020813]/60 focus:shadow-glow-strong-blue px-3 py-1.5 text-xs text-cyan-100 placeholder:text-cyan-700 focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-[#0066ff]/50"
             />
             <button
               onClick={handleSend}
@@ -2093,7 +2093,7 @@ function JarvisChatbox({
 
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-14 w-14 items-center justify-center rounded-full border border-cyan-400/50 bg-[#020813]/90 shadow-[0_0_20px_rgba(0,102,255,0.4)] backdrop-blur-xl transition-transform hover:scale-105"
+        className="relative flex h-14 w-14 items-center justify-center rounded-full border border-cyan-400/50 bg-[#020813]/90 shadow-glow-subtle backdrop-blur-xl transition-all hover:scale-105 hover:shadow-glow-strong-blue"
       >
         <ConcentricPulse />
         {open ? <X className="h-5 w-5 text-cyan-300" /> : <Bot className="h-6 w-6 text-cyan-300" />}
@@ -2192,7 +2192,7 @@ export default function JarvisTrackerPage() {
   const handleDeleteEvent = (id: string) => setEvents((prev) => prev.filter((e) => e.id !== id));
 
   return (
-    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#020813] font-mono text-cyan-100">
+    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#020813] font-sans text-cyan-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-[#0066ff]/10 blur-3xl" />
       <div
