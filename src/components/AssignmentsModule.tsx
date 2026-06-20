@@ -95,7 +95,7 @@ enum OperationType {
 // --- Component ---
 
 export default function AssignmentsModule() {
-  const { user, loading: authLoading, login } = useAuth();
+  const { user, loading: authLoading, login, authError } = useAuth();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -272,6 +272,9 @@ export default function AssignmentsModule() {
           <LogIn className="h-5 w-5" />
           Sign in with Google
         </Button>
+        {authError && (
+          <p className="mt-4 text-sm text-destructive">{authError}</p>
+        )}
       </div>
     );
   }
