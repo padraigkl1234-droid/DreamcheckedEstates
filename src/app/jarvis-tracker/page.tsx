@@ -880,13 +880,13 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
     .slice(0, 4);
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Panel title="Estates & Maintenance Overall" icon={Gauge} refCode="0012-A" tier="primary">
           <div className="flex flex-1 items-center justify-center py-2">
             <CircularProgress percentage={completionPct} />
           </div>
-          <div className="grid grid-cols-2 gap-3 border-t border-cyan-500/15 pt-4 text-center">
+          <div className="grid grid-cols-2 gap-4 border-t border-cyan-500/15 pt-4 text-center">
             <div>
               <p className="font-mono text-xl font-bold tabular-nums text-emerald-300">{completedItems}</p>
               <Kicker className="justify-center">Completed</Kicker>
@@ -945,7 +945,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
         </Panel>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <Panel title="System Diagnostics" icon={Activity} refCode="0048-A" tier="ambient">
           <div className="flex flex-col gap-4">
             <div className="text-center">
@@ -973,7 +973,7 @@ function Dashboard({ tasks, compliances }: { tasks: Task[]; compliances: Complia
         <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <NewsPanel
           title="BBC News Feed"
           icon={Newspaper}
@@ -1331,16 +1331,16 @@ function Panel({
     <div
       className={
         isAmbient
-          ? 'relative flex flex-col border border-cyan-400/10 bg-[#020813]/50 p-4 shadow-glow-none backdrop-blur-xl'
-          : 'relative flex flex-col border border-cyan-400/30 bg-[#020813]/50 p-5 shadow-glow-subtle backdrop-blur-xl'
+          ? 'relative flex h-full flex-col border border-cyan-400/10 bg-[#020813]/50 p-6 shadow-glow-none backdrop-blur-xl'
+          : 'relative flex h-full flex-col border border-cyan-400/30 bg-[#020813]/50 p-6 shadow-glow-subtle backdrop-blur-xl'
       }
     >
       <HudCorners />
       <div
         className={
           isAmbient
-            ? 'mb-4 flex items-center justify-between gap-2 border-b border-cyan-400/15 pb-3'
-            : 'mb-4 flex items-center justify-between gap-2 border-b border-cyan-400/20 pb-3'
+            ? 'mb-4 flex items-center justify-between gap-2 border-b border-cyan-400/15 pb-4'
+            : 'mb-4 flex items-center justify-between gap-2 border-b border-cyan-400/20 pb-4'
         }
       >
         <div className="flex items-center gap-2">
