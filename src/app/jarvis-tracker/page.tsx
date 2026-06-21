@@ -1981,6 +1981,7 @@ function ComplianceTracker({
   onChangeNextDueDate,
   onChangeComments,
   onDelete,
+  onAddMissingStandard,
 }: {
   compliances: ComplianceItem[];
   onAdd: (item: ComplianceItem) => void;
@@ -1989,7 +1990,11 @@ function ComplianceTracker({
   onChangeNextDueDate: (id: string, date: string) => void;
   onChangeComments: (id: string, comments: string) => void;
   onDelete: (id: string) => void;
+  onAddMissingStandard: () => void;
 }) {
+  const missingStandardCount = SEED_COMPLIANCES.filter(
+    (seed) => !compliances.some((c) => c.name.trim().toLowerCase() === seed.name.trim().toLowerCase())
+  ).length;
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
   const [nextDueDate, setNextDueDate] = useState('');
@@ -2048,6 +2053,14 @@ function ComplianceTracker({
             <Plus className="h-4 w-4" /> Add Compliance Item
           </button>
         </form>
+        {missingStandardCount > 0 && (
+          <button
+            onClick={onAddMissingStandard}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" /> Add {missingStandardCount} Missing Standard Item{missingStandardCount === 1 ? '' : 's'}
+          </button>
+        )}
       </Panel>
 
       <Panel title="Estate Compliance Tracker" icon={ShieldCheck} refCode="0200-C">
@@ -2249,6 +2262,14 @@ export default function InvictusTrackerPage() {
   const handleChangeComments = (id: string, comments: string) =>
     setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, comments } : c)));
   const handleDeleteCompliance = (id: string) => setCompliances((prev) => prev.filter((c) => c.id !== id));
+  const handleAddMissingStandardCompliances = () => {
+    setCompliances((prev) => {
+      const missing = SEED_COMPLIANCES.filter(
+        (seed) => !prev.some((c) => c.name.trim().toLowerCase() === seed.name.trim().toLowerCase())
+      );
+      return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
+    });
+  };
 
   const handleAddEvent = (event: CalendarEvent) => setEvents((prev) => [...prev, event]);
   const handleDeleteEvent = (id: string) => setEvents((prev) => prev.filter((e) => e.id !== id));
@@ -2318,6 +2339,7 @@ export default function InvictusTrackerPage() {
                 onChangeNextDueDate={handleChangeNextDueDate}
                 onChangeComments={handleChangeComments}
                 onDelete={handleDeleteCompliance}
+                onAddMissingStandard={handleAddMissingStandardCompliances}
               />
             )}
           </main>
