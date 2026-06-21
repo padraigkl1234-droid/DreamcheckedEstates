@@ -51,6 +51,8 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -59,7 +61,7 @@ import {
 
 type Priority = 'High' | 'Medium' | 'Low';
 type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
-type PageKey = 'dashboard' | 'calendar' | 'tasks' | 'compliance';
+type PageKey = 'dashboard' | 'calendar' | 'tasks' | 'archive' | 'compliance';
 
 interface Task {
   id: string;
@@ -67,6 +69,7 @@ interface Task {
   priority: Priority;
   dueDate: string;
   status: TaskStatus;
+  archivedAt?: number;
 }
 
 interface CalendarEvent {
@@ -159,6 +162,7 @@ const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard }[]
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'calendar', label: 'Calendar', icon: CalendarDays },
   { key: 'tasks', label: 'Task Manager', icon: ListChecks },
+  { key: 'archive', label: 'Archive', icon: Archive },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
 ];
 
@@ -1752,12 +1756,17 @@ function TaskManager({
   onAdd,
   onUpdateStatus,
   onDelete,
+  onArchive,
+  onArchiveAllCompleted,
 }: {
   tasks: Task[];
   onAdd: (task: Task) => void;
   onUpdateStatus: (id: string, status: TaskStatus) => void;
   onDelete: (id: string) => void;
+  onArchive: (id: string) => void;
+  onArchiveAllCompleted: () => void;
 }) {
+  const completedCount = tasks.filter((t) => t.status === 'Completed').length;
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
@@ -1820,6 +1829,14 @@ function TaskManager({
 
       <Panel title={`Active Tasks (${tasks.length})`} icon={ListChecks} refCode="0104-T">
         <div className="space-y-2">
+          {completedCount > 0 && (
+            <button
+              onClick={onArchiveAllCompleted}
+              className="mb-1 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+            >
+              <Archive className="h-3.5 w-3.5" /> Archive {completedCount} Completed
+            </button>
+          )}
           {tasks.length === 0 && (
             <p className="py-8 text-center text-xs text-neutral-600">No tasks in queue.</p>
           )}
@@ -1846,10 +1863,82 @@ function TaskManager({
                   <option>In Progress</option>
                   <option>Completed</option>
                 </select>
+                {task.status === 'Completed' && (
+                  <button
+                    onClick={() => onArchive(task.id)}
+                    className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+                    title="Archive task"
+                  >
+                    <Archive className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 <button
                   onClick={() => onDelete(task.id)}
                   className="rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
                   title="Delete task"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Task Archive
+// ---------------------------------------------------------------------------
+
+function TaskArchive({
+  archivedTasks,
+  onRestore,
+  onDelete,
+}: {
+  archivedTasks: Task[];
+  onRestore: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const sorted = [...archivedTasks].sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+
+  return (
+    <div className="space-y-5">
+      <Panel title={`Archived Tasks (${archivedTasks.length})`} icon={Archive} refCode="0105-T">
+        <div className="space-y-2">
+          {sorted.length === 0 && (
+            <p className="py-8 text-center text-xs text-neutral-600">
+              No archived tasks yet — completed tasks you archive from Task Manager will show up here.
+            </p>
+          )}
+          {sorted.map((task) => (
+            <div
+              key={task.id}
+              className="relative flex flex-col gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:flex-row md:items-center md:justify-between"
+            >
+              <MicroCorners />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-neutral-400">{task.name}</p>
+                <Kicker>
+                  Archived {task.archivedAt ? new Date(task.archivedAt).toLocaleDateString() : '—'}
+                </Kicker>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
+                  {task.priority}
+                </span>
+                <button
+                  onClick={() => onRestore(task.id)}
+                  className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+                  title="Restore to active tasks"
+                >
+                  <ArchiveRestore className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onDelete(task.id)}
+                  className="rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
+                  title="Delete permanently"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -2033,6 +2122,7 @@ export default function InvictusTrackerPage() {
   const cardsRevealedRef = useRef(false);
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [tasks, setTasks] = useState<Task[]>(SEED_TASKS);
+  const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
   const [compliances, setCompliances] = useState<ComplianceItem[]>(SEED_COMPLIANCES);
   const [events, setEvents] = useState<CalendarEvent[]>(SEED_EVENTS);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'synced' | 'error'>('idle');
@@ -2066,6 +2156,7 @@ export default function InvictusTrackerPage() {
         const data = snap.data();
         if (data) {
           if (Array.isArray(data.tasks)) setTasks(data.tasks as Task[]);
+          if (Array.isArray(data.archivedTasks)) setArchivedTasks(data.archivedTasks as Task[]);
           if (Array.isArray(data.compliances)) setCompliances(data.compliances as ComplianceItem[]);
           if (Array.isArray(data.events)) setEvents(data.events as CalendarEvent[]);
         }
@@ -2085,6 +2176,7 @@ export default function InvictusTrackerPage() {
     const timeout = setTimeout(() => {
       setDoc(doc(db, 'jarvisState', user.uid), {
         tasks,
+        archivedTasks,
         compliances,
         events,
         updatedAt: Date.now(),
@@ -2096,7 +2188,7 @@ export default function InvictusTrackerPage() {
         });
     }, 600);
     return () => clearTimeout(timeout);
-  }, [tasks, compliances, events, user]);
+  }, [tasks, archivedTasks, compliances, events, user]);
 
   const totalItems = tasks.length + compliances.length;
   const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
@@ -2106,6 +2198,28 @@ export default function InvictusTrackerPage() {
   const handleUpdateStatus = (id: string, status: TaskStatus) =>
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
   const handleDeleteTask = (id: string) => setTasks((prev) => prev.filter((t) => t.id !== id));
+
+  const handleArchiveTask = (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    setArchivedTasks((archived) => [...archived, { ...task, archivedAt: Date.now() }]);
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  };
+  const handleArchiveAllCompleted = () => {
+    const completed = tasks.filter((t) => t.status === 'Completed');
+    if (completed.length === 0) return;
+    const now = Date.now();
+    setArchivedTasks((archived) => [...archived, ...completed.map((t) => ({ ...t, archivedAt: now }))]);
+    setTasks((prev) => prev.filter((t) => t.status !== 'Completed'));
+  };
+  const handleRestoreTask = (id: string) => {
+    const task = archivedTasks.find((t) => t.id === id);
+    if (!task) return;
+    const { archivedAt, ...rest } = task;
+    setTasks((prev) => [...prev, rest]);
+    setArchivedTasks((prev) => prev.filter((t) => t.id !== id));
+  };
+  const handleDeleteArchivedTask = (id: string) => setArchivedTasks((prev) => prev.filter((t) => t.id !== id));
 
   const handleAddCompliance = (item: ComplianceItem) => setCompliances((prev) => [...prev, item]);
   const handleToggleCompliance = (id: string) =>
@@ -2166,6 +2280,15 @@ export default function InvictusTrackerPage() {
                 onAdd={handleAddTask}
                 onUpdateStatus={handleUpdateStatus}
                 onDelete={handleDeleteTask}
+                onArchive={handleArchiveTask}
+                onArchiveAllCompleted={handleArchiveAllCompleted}
+              />
+            )}
+            {activePage === 'archive' && (
+              <TaskArchive
+                archivedTasks={archivedTasks}
+                onRestore={handleRestoreTask}
+                onDelete={handleDeleteArchivedTask}
               />
             )}
             {activePage === 'compliance' && (
