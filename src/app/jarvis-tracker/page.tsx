@@ -296,7 +296,7 @@ function Crosshair({ className = '' }: { className?: string }) {
 
 function SysRef({ code, className = '' }: { code: string; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap font-mono text-[9px] tracking-widest text-neutral-500/70 ${className}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap font-mono text-[10px] tracking-widest text-neutral-500/70 ${className}`}>
       <Crosshair className="text-invictus-crimson-bright/50" />
       SYS_REF: {code}
     </span>
@@ -411,7 +411,7 @@ function SignalBars({ level }: { level: number }) {
 function MiniMeter({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex-1">
-      <div className="mb-1 flex items-center justify-between text-[9px] uppercase tracking-widest text-neutral-500">
+      <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-widest text-neutral-500">
         <span>{label}</span>
         <span className="font-mono tabular-nums text-neutral-300">{value}%</span>
       </div>
@@ -489,17 +489,17 @@ function EnvironmentPanel() {
         <div>
           <Droplets className="mx-auto mb-1 h-3.5 w-3.5 text-neutral-500" />
           <p className="font-mono text-xs text-neutral-200">64%</p>
-          <p className="text-[8px] uppercase tracking-widest text-neutral-600">Humid</p>
+          <p className="text-[10px] uppercase tracking-widest text-neutral-600">Humid</p>
         </div>
         <div>
           <Eye className="mx-auto mb-1 h-3.5 w-3.5 text-neutral-500" />
           <p className="font-mono text-xs text-neutral-200">9km</p>
-          <p className="text-[8px] uppercase tracking-widest text-neutral-600">Visib</p>
+          <p className="text-[10px] uppercase tracking-widest text-neutral-600">Visib</p>
         </div>
         <div>
           <Wind className="mx-auto mb-1 h-3.5 w-3.5 text-neutral-500" />
           <p className="font-mono text-xs text-neutral-200">14kt</p>
-          <p className="text-[8px] uppercase tracking-widest text-neutral-600">Wind</p>
+          <p className="text-[10px] uppercase tracking-widest text-neutral-600">Wind</p>
         </div>
       </div>
 
@@ -508,7 +508,7 @@ function EnvironmentPanel() {
           <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-500">
             <Music2 className="h-3 w-3" /> Ambient Feed
           </span>
-          <span className="text-[9px] uppercase tracking-widest text-emerald-400 [text-shadow:0_0_8px_rgba(52,211,153,0.8)]">Live</span>
+          <span className="text-[10px] uppercase tracking-widest text-emerald-400 [text-shadow:0_0_8px_rgba(52,211,153,0.8)]">Live</span>
         </div>
         <Waveform />
       </div>
@@ -1168,12 +1168,12 @@ function WeatherPanel({
             <div>
               <Droplets className="mx-auto mb-1 h-3.5 w-3.5 text-neutral-500" />
               <p className="font-mono text-xs text-neutral-200">{weather.humidity}%</p>
-              <p className="text-[8px] uppercase tracking-widest text-neutral-600">Humidity</p>
+              <p className="text-[10px] uppercase tracking-widest text-neutral-600">Humidity</p>
             </div>
             <div>
               <Wind className="mx-auto mb-1 h-3.5 w-3.5 text-neutral-500" />
               <p className="font-mono text-xs text-neutral-200">{weather.windSpeedKmh}km/h</p>
-              <p className="text-[8px] uppercase tracking-widest text-neutral-600">Wind</p>
+              <p className="text-[10px] uppercase tracking-widest text-neutral-600">Wind</p>
             </div>
           </div>
 
@@ -1391,7 +1391,7 @@ function NewsCard({ item }: { item: NewsItem }) {
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
         <p className="line-clamp-2 text-xs text-neutral-100 group-hover:text-neutral-50">{item.title}</p>
-        <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-neutral-600">
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-600">
           {item.pubDate && <span>{formatRelativeTime(item.pubDate)}</span>}
           <ExternalLink className="h-2.5 w-2.5" />
         </div>
@@ -1427,7 +1427,7 @@ function RadialGauge({ icon: Icon, label, value }: { icon: typeof Cpu; label: st
         </svg>
         <span className="font-mono text-[11px] font-bold tabular-nums text-neutral-200">{value}%</span>
       </div>
-      <span className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-neutral-500">
+      <span className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-neutral-500">
         <Icon className="h-3 w-3" /> {label}
       </span>
     </div>
@@ -1911,7 +1911,7 @@ function ComplianceTracker({
             className="md:col-span-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
           />
           <div className="flex flex-col gap-1">
-            <label className="text-[9px] uppercase tracking-widest text-neutral-600">Last Completed</label>
+            <label className="text-[10px] uppercase tracking-widest text-neutral-600">Last Completed</label>
             <input
               type="date"
               value={date}
@@ -1920,7 +1920,7 @@ function ComplianceTracker({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[9px] uppercase tracking-widest text-neutral-600">Next Due Date</label>
+            <label className="text-[10px] uppercase tracking-widest text-neutral-600">Next Due Date</label>
             <input
               type="date"
               value={nextDueDate}
@@ -1944,7 +1944,7 @@ function ComplianceTracker({
       </Panel>
 
       <Panel title="Estate Compliance Tracker" icon={ShieldCheck} refCode="0200-C">
-        <div className="mb-2 hidden gap-3 px-3 text-[9px] uppercase tracking-widest text-neutral-600 md:grid md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.3fr_auto]">
+        <div className="mb-2 hidden gap-3 px-3 text-[10px] uppercase tracking-widest text-neutral-600 md:grid md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.3fr_auto]">
           <span>Status</span>
           <span>Item</span>
           <span>Last Completed</span>
