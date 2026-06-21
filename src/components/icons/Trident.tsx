@@ -4,8 +4,9 @@ import React from 'react';
 // same stroke conventions (24x24 viewBox, round caps/joins) as the rest of
 // the icon set, wrapped in forwardRef so it structurally matches lucide's
 // component shape and drops in anywhere a lucide icon would.
-// Each prong is drawn twice: a thicker white pass underneath gives the red
-// linework a thin halo so it stays legible against dark or busy backgrounds.
+// Each prong is drawn twice: a thicker dark red pass underneath gives the
+// bright red linework a thin outline so it stays legible against dark or
+// busy backgrounds.
 const PRONGS = (
   <>
     <path d="M12 20V10" />
@@ -27,7 +28,7 @@ export const Trident = React.forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElem
         strokeLinejoin="round"
         {...props}
       >
-        <g stroke="white" strokeWidth={3.4}>
+        <g stroke="#5C1420" strokeWidth={3.4}>
           {PRONGS}
         </g>
         <g stroke="currentColor" strokeWidth={2}>
