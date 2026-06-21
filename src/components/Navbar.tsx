@@ -12,7 +12,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { Trident } from '@/components/icons/Trident';
+import { Pinwheel } from '@/components/icons/Pinwheel';
 import { InstallPwaButton } from '@/components/InstallPwaButton';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,7 +30,7 @@ import { BRAND_NAME } from '@/lib/brand';
 
 const NAV_ITEMS = [
   { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
-  { name: BRAND_NAME, href: '/jarvis-tracker', icon: Trident },
+  { name: BRAND_NAME, href: '/jarvis-tracker', icon: Pinwheel },
 ];
 
 export function Navbar() {
