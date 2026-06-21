@@ -14,7 +14,7 @@ export default {
         headline: ['Poppins', 'sans-serif'],
         code: ['monospace'],
         display: [
-          'Morgenta',
+          'var(--font-orbitron)',
           'ui-sans-serif',
           'sans-serif',
         ],

@@ -86,16 +86,6 @@
   --glow-text-strong-red: 0 0 10px rgba(255, 59, 78, 0.9);
 }
 
-@font-face {
-  font-family: 'Morgenta';
-  src:
-    url('/fonts/Morgenta.woff2') format('woff2'),
-    url('/fonts/Morgenta.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
 @layer base {
   * {
     @apply border-border;
