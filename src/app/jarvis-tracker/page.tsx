@@ -365,35 +365,200 @@ function ConcentricPulse() {
 }
 
 // ---------------------------------------------------------------------------
-// Boot dial — slim glowing ring, rotating clockwise
+// Boot dial — layered sci-fi HUD reactor ring, rotating clockwise
 // ---------------------------------------------------------------------------
 
+// All geometry below is centered on a 200x200 viewBox. Angles are degrees
+// clockwise from 12 o'clock so the "letter port" placements below read the
+// same way a clock face does.
+function polarPoint(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+// Closed cog outline: alternates outer/inner radius around the circle to
+// produce square-toothed gear teeth, matching the blocky HUD aesthetic.
+function gearPath(cx: number, cy: number, teeth: number, outerR: number, innerR: number, toothRatio = 0.5) {
+  const step = 360 / teeth;
+  let d = '';
+  for (let i = 0; i < teeth; i++) {
+    const a0 = i * step;
+    const a1 = a0 + step * toothRatio;
+    const a2 = a0 + step;
+    const p0 = polarPoint(cx, cy, outerR, a0);
+    const p1 = polarPoint(cx, cy, outerR, a1);
+    const p2 = polarPoint(cx, cy, innerR, a1);
+    const p3 = polarPoint(cx, cy, innerR, a2);
+    d += `${i === 0 ? 'M' : 'L'} ${p0.x.toFixed(2)} ${p0.y.toFixed(2)} `;
+    d += `L ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} L ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} L ${p3.x.toFixed(2)} ${p3.y.toFixed(2)} `;
+  }
+  return `${d}Z`;
+}
+
+// A ring of short radial tick marks; every `longEvery`-th tick is drawn taller
+// to read as an instrument bezel rather than a perfectly uniform dial.
+function TickRing({ cx, cy, count, rInner, rOuter, longEvery = 5, longExtra = 5, color, opacity = 0.8 }: {
+  cx: number;
+  cy: number;
+  count: number;
+  rInner: number;
+  rOuter: number;
+  longEvery?: number;
+  longExtra?: number;
+  color: string;
+  opacity?: number;
+}) {
+  const ticks = Array.from({ length: count });
+  return (
+    <g>
+      {ticks.map((_, i) => {
+        const angle = (360 / count) * i;
+        const isLong = i % longEvery === 0;
+        const p0 = polarPoint(cx, cy, rInner - (isLong ? longExtra : 0), angle);
+        const p1 = polarPoint(cx, cy, rOuter, angle);
+        return (
+          <line
+            key={i}
+            x1={p0.x}
+            y1={p0.y}
+            x2={p1.x}
+            y2={p1.y}
+            stroke={color}
+            strokeWidth={isLong ? 1.6 : 0.8}
+            strokeOpacity={opacity}
+            strokeLinecap="round"
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+// Fixed (non-rotating) outer frame: lettered ports + small rect glyphs, so
+// labels stay upright while the dials beneath them spin.
+function HudFrame({ cx, cy, r }: { cx: number; cy: number; r: number }) {
+  const ports: { angle: number; label?: string }[] = [
+    { angle: 0 },
+    { angle: 60, label: 'D' },
+    { angle: 135, label: 'C' },
+    { angle: 180 },
+    { angle: 300, label: 'D' },
+  ];
+  const glyphAngles = [25, 95, 170, 245, 320];
+
+  return (
+    <g>
+      {ports.map(({ angle, label }) => {
+        const p = polarPoint(cx, cy, r, angle);
+        return (
+          <g key={angle}>
+            <circle cx={p.x} cy={p.y} r={5} fill="rgba(10,4,6,0.85)" stroke="rgba(194,48,74,0.85)" strokeWidth={1.1} />
+            {label && (
+              <text
+                x={p.x}
+                y={p.y + 2.6}
+                textAnchor="middle"
+                fontSize="5.5"
+                fontFamily="var(--font-orbitron), sans-serif"
+                fill="rgba(244,160,170,0.95)"
+              >
+                {label}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      {glyphAngles.map((angle) => {
+        const p = polarPoint(cx, cy, r - 9, angle);
+        return (
+          <rect
+            key={angle}
+            x={p.x - 3}
+            y={p.y - 1.5}
+            width={6}
+            height={3}
+            fill="rgba(194,48,74,0.5)"
+            transform={`rotate(${angle} ${p.x} ${p.y})`}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
 function BootDial({ onIgnite }: { onIgnite: () => void }) {
+  const cx = 100;
+  const cy = 100;
+
   return (
     <div className="relative h-[240px] w-[240px] shrink-0 sm:h-[300px] sm:w-[300px] lg:h-[360px] lg:w-[360px]">
-      <svg viewBox="0 0 200 200" className="absolute h-full w-full">
-        <circle cx="100" cy="100" r="94" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" />
-      </svg>
-      <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_5s_linear_infinite]">
-        <circle
-          cx="100"
-          cy="100"
-          r="94"
-          fill="none"
-          stroke="rgba(194,48,74,0.9)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeDasharray="110 480"
-          style={{ filter: 'drop-shadow(0 0 10px rgba(194,48,74,0.9))' }}
-        />
-      </svg>
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{ filter: 'drop-shadow(0 0 22px rgba(194,48,74,0.45))' }}
+      >
+        {/* Outer static bezel ring + lettered ports — fixed, does not rotate */}
+        <svg viewBox="0 0 200 200" className="absolute h-full w-full">
+          <circle cx={cx} cy={cy} r={96} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
+          <HudFrame cx={cx} cy={cy} r={96} />
+        </svg>
+
+        {/* Sparse outer tick ring, slow clockwise drift */}
+        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_40s_linear_infinite]">
+          <TickRing cx={cx} cy={cy} count={48} rInner={88} rOuter={92} color="rgba(194,48,74,0.7)" />
+        </svg>
+
+        {/* Segmented arc ring (the original highlight sweep), mid speed */}
+        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_5s_linear_infinite]">
+          <circle
+            cx={cx}
+            cy={cy}
+            r={82}
+            fill="none"
+            stroke="rgba(194,48,74,0.9)"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeDasharray="50 18 22 26 14 380"
+            style={{ filter: 'drop-shadow(0 0 8px rgba(194,48,74,0.9))' }}
+          />
+        </svg>
+
+        {/* Dense barcode-style tick ring, clockwise */}
+        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_22s_linear_infinite]">
+          <TickRing cx={cx} cy={cy} count={80} rInner={68} rOuter={74} longEvery={4} longExtra={2} color="rgba(244,160,170,0.55)" opacity={0.7} />
+        </svg>
+
+        {/* Outer cog ring, slow mechanical clockwise turn */}
+        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_30s_linear_infinite]">
+          <path
+            d={gearPath(cx, cy, 28, 60, 53, 0.55)}
+            fill="rgba(154,34,54,0.28)"
+            stroke="rgba(194,48,74,0.85)"
+            strokeWidth={1}
+          />
+        </svg>
+
+        {/* Inner cog ring, nested, faster clockwise turn */}
+        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_16s_linear_infinite]">
+          <path
+            d={gearPath(cx, cy, 20, 44, 38, 0.55)}
+            fill="rgba(154,34,54,0.32)"
+            stroke="rgba(194,48,74,0.9)"
+            strokeWidth={1}
+          />
+        </svg>
+
+        {/* Innermost fine tick ring hugging the power button, fastest clockwise turn */}
+        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_8s_linear_infinite]">
+          <TickRing cx={cx} cy={cy} count={36} rInner={28} rOuter={32} longEvery={3} longExtra={1.5} color="rgba(194,48,74,0.8)" />
+        </svg>
+      </div>
 
       <button
         onClick={(e) => {
           e.stopPropagation();
           onIgnite();
         }}
-        className="group absolute inset-[32%] flex items-center justify-center rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/5 shadow-glow-subtle transition-all duration-300 hover:scale-105 hover:shadow-glow-strong"
+        className="group absolute inset-[36%] flex items-center justify-center rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/5 shadow-glow-subtle transition-all duration-300 hover:scale-105 hover:shadow-glow-strong"
       >
         <span className="absolute inset-0 rounded-full border border-invictus-crimson-bright/30 animate-pulse" />
         <Power className="relative z-10 h-7 w-7 text-invictus-crimson-bright drop-shadow-glow-subtle transition-all group-hover:text-white group-hover:drop-shadow-glow-strong" />
