@@ -129,6 +129,16 @@ const SEED_TASKS: Task[] = [
   { id: 't4', name: 'Audit fire extinguisher inventory', priority: 'High', dueDate: '2026-06-19', status: 'Completed' },
 ];
 
+// One-off tasks dictated ahead of a return from leave — surfaced via a
+// quick-add button on Task Manager so they land in the user's saved list
+// the next time they're signed in, rather than overwriting it outright.
+const PENDING_RETURN_TASKS: Task[] = [
+  { id: 'pt1', name: 'Sort the PO for welding', priority: 'Medium', dueDate: '2026-06-23', status: 'Not Started' },
+  { id: 'pt2', name: 'Do a meter reading', priority: 'Medium', dueDate: '', status: 'Not Started' },
+  { id: 'pt3', name: 'Catch up with Holly', priority: 'Low', dueDate: '', status: 'Not Started' },
+  { id: 'pt4', name: 'Double check all contractor requirements since being off', priority: 'High', dueDate: '', status: 'Not Started' },
+];
+
 const SEED_EVENTS: CalendarEvent[] = [
   { id: 'e1', title: 'Ansul Meeting', date: '2026-06-20', priority: 'High', notes: 'It is with Paul A.' },
 ];
@@ -1893,6 +1903,7 @@ function TaskManager({
   onDelete,
   onArchive,
   onArchiveAllCompleted,
+  onAddPendingReturn,
 }: {
   tasks: Task[];
   onAdd: (task: Task) => void;
@@ -1900,8 +1911,12 @@ function TaskManager({
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
   onArchiveAllCompleted: () => void;
+  onAddPendingReturn: () => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
+  const pendingReturnCount = PENDING_RETURN_TASKS.filter(
+    (pending) => !tasks.some((t) => t.name.trim().toLowerCase() === pending.name.trim().toLowerCase())
+  ).length;
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
@@ -1960,6 +1975,14 @@ function TaskManager({
             <Plus className="h-4 w-4" /> Add Task
           </button>
         </form>
+        {pendingReturnCount > 0 && (
+          <button
+            onClick={onAddPendingReturn}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+          >
+            <ListChecks className="h-3.5 w-3.5" /> Add {pendingReturnCount} Pending Task{pendingReturnCount === 1 ? '' : 's'}
+          </button>
+        )}
       </Panel>
 
       <Panel title={`Active Tasks (${tasks.length})`} icon={ListChecks} refCode="0104-T">
@@ -2346,6 +2369,14 @@ export default function InvictusTrackerPage() {
   const handleUpdateStatus = (id: string, status: TaskStatus) =>
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
   const handleDeleteTask = (id: string) => setTasks((prev) => prev.filter((t) => t.id !== id));
+  const handleAddPendingReturnTasks = () => {
+    setTasks((prev) => {
+      const missing = PENDING_RETURN_TASKS.filter(
+        (pending) => !prev.some((t) => t.name.trim().toLowerCase() === pending.name.trim().toLowerCase())
+      );
+      return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
+    });
+  };
 
   const handleArchiveTask = (id: string) => {
     const task = tasks.find((t) => t.id === id);
@@ -2438,6 +2469,7 @@ export default function InvictusTrackerPage() {
                 onDelete={handleDeleteTask}
                 onArchive={handleArchiveTask}
                 onArchiveAllCompleted={handleArchiveAllCompleted}
+                onAddPendingReturn={handleAddPendingReturnTasks}
               />
             )}
             {activePage === 'archive' && (
