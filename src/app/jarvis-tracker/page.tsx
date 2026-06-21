@@ -29,7 +29,6 @@ import {
   AlertTriangle,
   X,
   Gauge,
-  Satellite,
   Server,
   Briefcase,
   ImageOff,
@@ -159,14 +158,6 @@ const SEED_COMPLIANCES: ComplianceItem[] = [
   { id: 'c22', name: 'Scaffold Inspections', completed: false, date: '', nextDueDate: '', comments: '' },
   { id: 'c23', name: 'Water Hygiene Testing', completed: false, date: '', nextDueDate: '', comments: '' },
   { id: 'c24', name: 'Workshop machine LEV', completed: false, date: '', nextDueDate: '', comments: '' },
-];
-
-const BOOT_STEPS = [
-  'INITIALIZING CORE...',
-  'ESTATES ONLINE...',
-  'COMPLIANCE SYNCED...',
-  'NEWS & WEATHER UPLINK ESTABLISHED...',
-  'ALL SYSTEMS NOMINAL.',
 ];
 
 // Once-per-browser-session gate: cleared on a new tab/session, untouched by in-app navigation.
@@ -459,29 +450,46 @@ function HudFrame({ cx, cy, r }: { cx: number; cy: number; r: number }) {
   );
 }
 
-function BootDial({ onIgnite }: { onIgnite: () => void }) {
+function BootDial({
+  onIgnite,
+  mode = 'idle',
+}: {
+  onIgnite: () => void;
+  mode?: 'idle' | 'spinup' | 'expand';
+}) {
   const cx = 100;
   const cy = 100;
+  const spinningUp = mode !== 'idle';
 
   return (
-    <div className="relative h-[240px] w-[240px] shrink-0 sm:h-[300px] sm:w-[300px] lg:h-[360px] lg:w-[360px]">
+    <div
+      className={`relative h-[240px] w-[240px] shrink-0 transition-all duration-1000 ease-in sm:h-[300px] sm:w-[300px] lg:h-[360px] lg:w-[360px] ${
+        mode === 'expand' ? 'scale-[2.4] opacity-0' : 'scale-100 opacity-100'
+      }`}
+    >
       <div
         className="absolute inset-0 rounded-full"
         style={{ filter: 'drop-shadow(0 0 22px rgba(194,48,74,0.45))' }}
       >
-        {/* Outer static bezel ring + lettered ports — fixed, does not rotate */}
+        {/* Outer static bezel ring + glyph ports — fixed, does not rotate */}
         <svg viewBox="0 0 200 200" className="absolute h-full w-full">
           <circle cx={cx} cy={cy} r={96} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
           <HudFrame cx={cx} cy={cy} r={96} />
         </svg>
 
-        {/* Sparse outer tick ring, slow clockwise drift */}
-        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_40s_linear_infinite]">
+        {/* Sparse outer tick ring, slow clockwise drift — spins up on ignite */}
+        <svg
+          viewBox="0 0 200 200"
+          className={`absolute h-full w-full ${spinningUp ? 'animate-[spin_1.8s_linear_infinite]' : 'animate-[spin_40s_linear_infinite]'}`}
+        >
           <TickRing cx={cx} cy={cy} count={48} rInner={88} rOuter={92} color="rgba(194,48,74,0.7)" />
         </svg>
 
-        {/* Segmented arc ring (the original highlight sweep), mid speed */}
-        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_5s_linear_infinite]">
+        {/* Segmented arc ring (the original highlight sweep), mid speed — spins up on ignite */}
+        <svg
+          viewBox="0 0 200 200"
+          className={`absolute h-full w-full ${spinningUp ? 'animate-[spin_0.6s_linear_infinite]' : 'animate-[spin_5s_linear_infinite]'}`}
+        >
           <circle
             cx={cx}
             cy={cy}
@@ -495,13 +503,19 @@ function BootDial({ onIgnite }: { onIgnite: () => void }) {
           />
         </svg>
 
-        {/* Dense barcode-style tick ring, clockwise */}
-        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_22s_linear_infinite]">
+        {/* Dense barcode-style tick ring, clockwise — spins up on ignite */}
+        <svg
+          viewBox="0 0 200 200"
+          className={`absolute h-full w-full ${spinningUp ? 'animate-[spin_1.1s_linear_infinite]' : 'animate-[spin_22s_linear_infinite]'}`}
+        >
           <TickRing cx={cx} cy={cy} count={80} rInner={68} rOuter={74} longEvery={4} longExtra={2} color="rgba(244,160,170,0.55)" opacity={0.7} />
         </svg>
 
-        {/* Outer cog ring, slow mechanical clockwise turn */}
-        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_30s_linear_infinite]">
+        {/* Outer cog ring, slow mechanical clockwise turn — spins up on ignite */}
+        <svg
+          viewBox="0 0 200 200"
+          className={`absolute h-full w-full ${spinningUp ? 'animate-[spin_1.4s_linear_infinite]' : 'animate-[spin_30s_linear_infinite]'}`}
+        >
           <path
             d={gearPath(cx, cy, 28, 60, 53, 0.55)}
             fill="rgba(154,34,54,0.28)"
@@ -510,8 +524,11 @@ function BootDial({ onIgnite }: { onIgnite: () => void }) {
           />
         </svg>
 
-        {/* Inner cog ring, nested, faster clockwise turn */}
-        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_16s_linear_infinite]">
+        {/* Inner cog ring, nested, faster clockwise turn — spins up on ignite */}
+        <svg
+          viewBox="0 0 200 200"
+          className={`absolute h-full w-full ${spinningUp ? 'animate-[spin_0.8s_linear_infinite]' : 'animate-[spin_16s_linear_infinite]'}`}
+        >
           <path
             d={gearPath(cx, cy, 20, 44, 38, 0.55)}
             fill="rgba(154,34,54,0.32)"
@@ -520,8 +537,11 @@ function BootDial({ onIgnite }: { onIgnite: () => void }) {
           />
         </svg>
 
-        {/* Innermost fine tick ring hugging the power button, fastest clockwise turn */}
-        <svg viewBox="0 0 200 200" className="absolute h-full w-full animate-[spin_8s_linear_infinite]">
+        {/* Innermost fine tick ring hugging the power button, fastest clockwise turn — spins up on ignite */}
+        <svg
+          viewBox="0 0 200 200"
+          className={`absolute h-full w-full ${spinningUp ? 'animate-[spin_0.4s_linear_infinite]' : 'animate-[spin_8s_linear_infinite]'}`}
+        >
           <TickRing cx={cx} cy={cy} count={36} rInner={28} rOuter={32} longEvery={3} longExtra={1.5} color="rgba(194,48,74,0.8)" />
         </svg>
       </div>
@@ -531,6 +551,7 @@ function BootDial({ onIgnite }: { onIgnite: () => void }) {
           e.stopPropagation();
           onIgnite();
         }}
+        disabled={spinningUp}
         className="group absolute inset-[36%] flex items-center justify-center rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/5 shadow-glow-subtle transition-all duration-300 hover:scale-105 hover:shadow-glow-strong"
       >
         <span className="absolute inset-0 rounded-full border border-invictus-crimson-bright/30 animate-pulse" />
@@ -757,9 +778,8 @@ function CircularProgress({ percentage }: { percentage: number }) {
 // ---------------------------------------------------------------------------
 
 function BootSequence({ onComplete }: { onComplete: (skipped: boolean) => void }) {
-  const [stage, setStage] = useState<'idle' | 'booting'>('idle');
-  const [stepIndex, setStepIndex] = useState(0);
-  const { playHover } = useSound();
+  const [stage, setStage] = useState<'idle' | 'opening'>('idle');
+  const [openingPhase, setOpeningPhase] = useState<'spinup' | 'expand'>('spinup');
   const finishedRef = useRef(false);
 
   const finish = useCallback(
@@ -778,88 +798,47 @@ function BootSequence({ onComplete }: { onComplete: (skipped: boolean) => void }
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [finish]);
 
+  // Ignite -> rings spin up to speed, then the dial expands into a full-screen
+  // flash that cuts straight through to the dashboard, Jarvis-reactor style.
   useEffect(() => {
-    if (stage !== 'booting') return;
-    setStepIndex(0);
-    const interval = setInterval(() => {
-      setStepIndex((prev) => {
-        if (prev + 1 >= BOOT_STEPS.length) {
-          clearInterval(interval);
-          setTimeout(() => finish(false), 700);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 480);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage]);
-
-  // Soft blip per readout line as it streams in; respects mute via useSound.
-  useEffect(() => {
-    if (stage !== 'booting') return;
-    playHover();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, stepIndex]);
-
-  const progress = ((stepIndex + 1) / BOOT_STEPS.length) * 100;
+    if (stage !== 'opening') return;
+    const expandTimer = setTimeout(() => setOpeningPhase('expand'), 650);
+    const doneTimer = setTimeout(() => finish(false), 1650);
+    return () => {
+      clearTimeout(expandTimer);
+      clearTimeout(doneTimer);
+    };
+  }, [stage, finish]);
 
   return (
     <div
       className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-invictus-base"
-      onClick={() => finish(true)}
+      onClick={() => stage === 'idle' && finish(true)}
     >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.06),transparent_70%)]" />
 
-      {stage === 'idle' && (
-        <div className="flex w-full max-w-6xl items-center justify-center gap-6 px-6 lg:gap-10">
-          <div className="hidden shrink-0 lg:block">
-            <NetworkPanel />
-          </div>
-          <BootDial
-            onIgnite={() => {
-              playPowerUpHum();
-              setStage('booting');
-            }}
-          />
-          <div className="hidden shrink-0 lg:block">
-            <EnvironmentPanel />
-          </div>
+      <div className="flex w-full max-w-6xl items-center justify-center gap-6 px-6 lg:gap-10">
+        <div className="hidden shrink-0 lg:block">
+          <NetworkPanel />
         </div>
-      )}
+        <BootDial
+          mode={stage === 'idle' ? 'idle' : openingPhase}
+          onIgnite={() => {
+            playPowerUpHum();
+            setOpeningPhase('spinup');
+            setStage('opening');
+          }}
+        />
+        <div className="hidden shrink-0 lg:block">
+          <EnvironmentPanel />
+        </div>
+      </div>
 
-      {stage === 'booting' && (
-        <div className="w-80 max-w-[90vw]">
-          <div className="mb-6 flex items-center justify-center gap-3">
-            <Satellite className="h-8 w-8 animate-pulse text-invictus-crimson-bright drop-shadow-[0_0_10px_rgba(194,48,74,0.8)]" />
-          </div>
-          <div className="space-y-1.5 text-xs">
-            {BOOT_STEPS.map((step, i) => (
-              <p
-                key={step}
-                className={`tracking-wider transition-opacity duration-300 ${
-                  i <= stepIndex ? 'text-neutral-100 opacity-100' : 'text-neutral-700 opacity-30'
-                }`}
-              >
-                {i < stepIndex ? '> ' : i === stepIndex ? '> ' : '  '}
-                {step}
-              </p>
-            ))}
-          </div>
-          <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-neutral-800/60">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-invictus-crimson to-invictus-crimson-bright shadow-[0_0_10px_rgba(194,48,74,0.8)] transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="mt-2 flex items-center justify-between">
-            <SysRef code="0000-BOOT" className="text-neutral-700/60" />
-            <span className="font-mono text-[10px] tabular-nums tracking-widest text-neutral-500/70">
-              {String(Math.round(progress)).padStart(3, '0')}%
-            </span>
-          </div>
-        </div>
-      )}
+      <div
+        className={`pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.9),rgba(194,48,74,0.6)_45%,transparent_75%)] transition-opacity duration-1000 ease-in ${
+          stage === 'opening' && openingPhase === 'expand' ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
     </div>
   );
 }
