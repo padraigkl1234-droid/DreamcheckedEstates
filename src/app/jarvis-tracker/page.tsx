@@ -437,37 +437,10 @@ function TickRing({ cx, cy, count, rInner, rOuter, longEvery = 5, longExtra = 5,
 // Fixed (non-rotating) outer frame: lettered ports + small rect glyphs, so
 // labels stay upright while the dials beneath them spin.
 function HudFrame({ cx, cy, r }: { cx: number; cy: number; r: number }) {
-  const ports: { angle: number; label?: string }[] = [
-    { angle: 0 },
-    { angle: 60, label: 'D' },
-    { angle: 135, label: 'C' },
-    { angle: 180 },
-    { angle: 300, label: 'D' },
-  ];
   const glyphAngles = [25, 95, 170, 245, 320];
 
   return (
     <g>
-      {ports.map(({ angle, label }) => {
-        const p = polarPoint(cx, cy, r, angle);
-        return (
-          <g key={angle}>
-            <circle cx={p.x} cy={p.y} r={5} fill="rgba(10,4,6,0.85)" stroke="rgba(194,48,74,0.85)" strokeWidth={1.1} />
-            {label && (
-              <text
-                x={p.x}
-                y={p.y + 2.6}
-                textAnchor="middle"
-                fontSize="5.5"
-                fontFamily="var(--font-orbitron), sans-serif"
-                fill="rgba(244,160,170,0.95)"
-              >
-                {label}
-              </text>
-            )}
-          </g>
-        );
-      })}
       {glyphAngles.map((angle) => {
         const p = polarPoint(cx, cy, r - 9, angle);
         return (
