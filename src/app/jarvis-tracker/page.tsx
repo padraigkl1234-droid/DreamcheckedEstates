@@ -135,12 +135,30 @@ const SEED_EVENTS: CalendarEvent[] = [
 ];
 
 const SEED_COMPLIANCES: ComplianceItem[] = [
-  { id: 'c1', name: 'Fire Risk Assessment (FRA)', completed: true, date: '2026-04-12', nextDueDate: '2027-04-12', comments: 'Annual review complete, no actions outstanding.' },
-  { id: 'c2', name: 'Legionella Risk Assessment', completed: false, date: '', nextDueDate: '2026-07-01', comments: '' },
-  { id: 'c3', name: 'Gas Safety Certification (CP12)', completed: true, date: '2026-02-03', nextDueDate: '2027-02-03', comments: 'Engineer signed off, certificate filed.' },
-  { id: 'c4', name: 'Fixed Wire Testing (EICR)', completed: false, date: '', nextDueDate: '2026-09-15', comments: 'Booked in for next quarter.' },
-  { id: 'c5', name: 'Emergency Lighting Testing', completed: true, date: '2026-05-30', nextDueDate: '2026-06-30', comments: 'Monthly function test passed.' },
-  { id: 'c6', name: 'Lift Inspections (LOLER)', completed: false, date: '', nextDueDate: '2026-08-01', comments: '' },
+  { id: 'c1', name: 'AC System', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c2', name: 'Ansul fire suppression', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c3', name: 'Asbestos survey', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c4', name: 'Boiler Service', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c5', name: 'Carpentry Machinery Servicing', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c6', name: 'CCTV Maintenance', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c7', name: 'Emergency Lighting Testing', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c8', name: 'Fire Alarm & PAVA', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c9', name: 'Fire Door Inspections', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c10', name: 'Fire extinguishers', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c11', name: 'Fire Shutters', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c12', name: 'Fixed wiring inspection', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c13', name: 'Generator Servicing', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c14', name: 'Kitchen Extract Cleaning', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c15', name: 'Legionella Risk Assessment', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c16', name: 'Lighting Protection', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c17', name: 'LOLER inspections (Cinema roof platform & lifting equipment)', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c18', name: 'Passenger lift & barrel lift Cinque Ports service & LOLER', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c19', name: 'PAT Testing', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c20', name: 'People Counter', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c21', name: 'Pest Control', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c22', name: 'Scaffold Inspections', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c23', name: 'Water Hygiene Testing', completed: false, date: '', nextDueDate: '', comments: '' },
+  { id: 'c24', name: 'Workshop machine LEV', completed: false, date: '', nextDueDate: '', comments: '' },
 ];
 
 const BOOT_STEPS = [
