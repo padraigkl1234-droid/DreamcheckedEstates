@@ -86,6 +86,8 @@ interface Task {
   status: TaskStatus;
   archivedAt?: number;
   completedAt?: number;
+  category?: string;
+  notes?: string;
 }
 
 type RecurrenceFreq = 'weekly' | 'fortnightly' | 'monthly';
@@ -177,6 +179,36 @@ const SEED_TASKS: Task[] = [
   { id: 't2', name: 'Replace lobby lighting fixtures', priority: 'Medium', dueDate: '2026-06-22', status: 'Not Started' },
   { id: 't3', name: 'Service car park barrier system', priority: 'Low', dueDate: '2026-06-25', status: 'Completed', completedAt: Date.now() - 5 * DAY_MS },
   { id: 't4', name: 'Audit fire extinguisher inventory', priority: 'High', dueDate: '2026-06-19', status: 'Completed', completedAt: Date.now() - 2 * DAY_MS },
+  // Inbox triage after annual leave, w/c 22 Jun 2026. Source JSON "Critical" items
+  // mapped to the app's top existing tier (High) since there is no Critical tier.
+  { id: 't5', name: 'Woodchip — decide order for 25–27 Jun shows', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-22', status: 'Not Started', notes: 'Covered for Fri 19 only. Decide if more needed for 3 shows (Thu 25–Sat 27). Confirm to Hollie.' },
+  { id: 't6', name: 'Trader power — The Streets / Obi’s House', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: '4x 16amp must be live by 9am Fri 26 for Twerk N Jerk + Kerb traders (load-in 11am Fri, in situ to end of Obi’s House Sat 27). Confirm with Cary & Craig.' },
+  { id: 't7', name: 'Scenic Railway survey contacts to Jack King', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Send Jack the survey contractor details so identified repairs can be booked. Grade II* listed.' },
+  { id: 't8', name: 'Walk-in freezer part — reply to Hollie', category: 'Procurement & Quotes', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Perfect Services QU-0733 approved. Confirm freezer size and decide on the ~£4k part.' },
+  { id: 't9', name: 'CleanSmart Solutions — overdue invoice', category: 'Finance', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'inv-001866, 83 days overdue and being chased. Get paid / respond.' },
+  { id: 't10', name: 'Quantec — overdue invoice R/30799/5062-01', category: 'Finance', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Second chase from Sharon, no reply yet. Resolve payment.' },
+  { id: 't11', name: 'Confirm RCBO replacement behind Please Sir', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-25', status: 'Not Started', notes: 'Cary booked Richard (electrician) Fri 26 Jun 8am. Confirm Thu 25 he is still attending — needed for Obi’s House Sat 27.' },
+  { id: 't12', name: 'Green room showers — arrange gas safe engineer', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: 'Drain Doctor can’t fix — thermostat behind wall. Affects green rooms for shows. Book gas safe engineer.' },
+  { id: 't13', name: 'Fan replacement (Nitor) — raise/confirm PO', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: 'Only date left is Mon 29 Jun; next month fully booked. Align with Cary and raise/confirm PO to secure before summer holidays.' },
+  { id: 't14', name: 'Kent Water Services — invoice KWS-2764', category: 'Finance', priority: 'High', dueDate: '2026-06-28', status: 'Not Started', notes: '£609.50, due 28 Jun. Approve / pay.' },
+  { id: 't15', name: 'Fire door replacement & remediation quote (HK Safety)', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-30', status: 'Not Started', notes: 'Quote from fire door inspections. Statutory — review and progress to works.' },
+  { id: 't16', name: 'Credit card receipts + coding for Julie', category: 'Finance', priority: 'Medium', dueDate: '2026-06-24', status: 'Not Started', notes: 'Provide receipt + coding: B&Q £24.99 (02/06) and Jewson £236.47 (19/05).' },
+  { id: 't17', name: 'Budget tracker — Drain Doctor cost allocation', category: 'Finance', priority: 'Medium', dueDate: '2026-06-24', status: 'Not Started', notes: 'Unread thread. Advise Kelly/Hollie whether drainage cover is a show cost vs estates cost.' },
+  { id: 't18', name: 'DNA Pest Control — receipt the POs', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Receipt the POs (per Julie) if happy with them.' },
+  { id: 't19', name: 'Check invoices 5616 & 5584', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Review both; existing £70 PO can be used against 5584 (Julie).' },
+  { id: 't20', name: 'James Richards invoice DL002', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Electrical cover 30 May. Arrange payment.' },
+  { id: 't21', name: 'Scenic gate insurance claim — send invoices to Sarah', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Send Sarah Boorman the invoices; she is checking the day rate with Hollie.' },
+  { id: 't22', name: 'Ashford Tarmac PCN — Belgrave Road', category: 'Finance', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'New PCN for Belgrave Road car park. Dispute as with previous fines.' },
+  { id: 't23', name: 'Vape recycling bins + July recycling contract (Countrystyle)', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'Get actual disposal cost from Harry before buying; confirm budget line; Liz to order ~4 bins. Also confirm status of July recycling contract.' },
+  { id: 't24', name: 'Riello UPS service — review RAMS', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'RAMS received for HQ UPS service (SO 222568). Review and confirm schedule.' },
+  { id: 't25', name: 'Quantec open quotes — provide decisions', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'Louisa chasing updates/decisions on all open Dreamland quotes.' },
+  { id: 't26', name: 'Drain Doctor quote 127634 — review', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'Review and decide.' },
+  { id: 't27', name: 'Water contract — review broker offers', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: 'Review 3 offers (Pozitive, Water Plus, Water2Business) and respond to Laurien (Live Nation).' },
+  { id: 't28', name: 'CWST clean & water sampling (Kent Water)', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: 'Quote to disinfect tree tops cold water tank + monthly fountain sampling. Legionella — review and decide.' },
+  { id: 't29', name: 'RiteHite bi-annual service — confirm', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-07-02', status: 'Not Started', notes: 'Provisionally booked 3 Jul. Needs a scissor lift, not a tower — confirm access.' },
+  { id: 't30', name: 'Prins Forklifts — hire agreement + invoices', category: 'Finance', priority: 'Low', dueDate: '2026-06-26', status: 'Not Started', notes: 'Hollie is lead, I’m cc’d. Hire agreement still unsigned + deposit/hire invoices outstanding.' },
+  { id: 't31', name: 'UK Creative Festival EMP V1 — skim', category: 'Events & Ops', priority: 'Low', dueDate: '2026-07-01', status: 'Not Started', notes: 'Review V1 EMP for estates input. Event 2 Jul.' },
+  { id: 't32', name: 'Glass balustrades (decking) — support Cary', category: 'Procurement & Quotes', priority: 'Low', dueDate: '2026-07-01', status: 'Not Started', notes: 'SW Ltd to attend and find a solution; tarmac/concrete around decking makes lifting difficult. Heavy gig calendar.' },
 ];
 
 // One-off tasks dictated ahead of a return from leave — surfaced via a
@@ -275,6 +307,8 @@ const PRIORITY_STYLES: Record<Priority, string> = {
 
 const PRIORITY_RANK: Record<Priority, number> = { High: 0, Medium: 1, Low: 2 };
 
+const CATEGORY_TAG_STYLE = 'text-neutral-400 border-neutral-500/40 bg-neutral-500/10';
+
 const STATUS_STYLES: Record<TaskStatus, string> = {
   'Not Started': 'text-neutral-400 border-neutral-500/40 bg-neutral-500/10',
   'In Progress': 'text-amber-300 border-amber-400/40 bg-amber-400/10',
@@ -295,6 +329,13 @@ function formatDueIn(daysUntilDue: number): string {
   if (daysUntilDue === 0) return 'Due today';
   if (daysUntilDue === 1) return 'Due tomorrow';
   return `Due in ${daysUntilDue}d`;
+}
+
+// Whole-day difference between two YYYY-MM-DD strings, ignoring time of day.
+function daysFromToday(dateStr: string, todayStr: string): number {
+  const [y1, m1, d1] = dateStr.split('-').map(Number);
+  const [y2, m2, d2] = todayStr.split('-').map(Number);
+  return Math.round((new Date(y1, m1 - 1, d1).getTime() - new Date(y2, m2 - 1, d2).getTime()) / DAY_MS);
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -2457,6 +2498,23 @@ function TaskManager({
   const pendingReturnCount = PENDING_RETURN_TASKS.filter(
     (pending) => !tasks.some((t) => t.name.trim().toLowerCase() === pending.name.trim().toLowerCase())
   ).length;
+  const todayStr = toDateInputValue(new Date());
+  const isOverdueOrToday = (t: Task) =>
+    t.status !== 'Completed' && Boolean(t.dueDate) && daysFromToday(t.dueDate, todayStr) <= 0;
+  const sortedTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      const aPinned = isOverdueOrToday(a) ? 0 : 1;
+      const bPinned = isOverdueOrToday(b) ? 0 : 1;
+      if (aPinned !== bPinned) return aPinned - bPinned;
+      if (a.priority !== b.priority) return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+      if (a.dueDate !== b.dueDate) {
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return a.dueDate < b.dueDate ? -1 : 1;
+      }
+      return 0;
+    });
+  }, [tasks, todayStr]);
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
@@ -2538,17 +2596,32 @@ function TaskManager({
           {tasks.length === 0 && (
             <p className="py-8 text-center text-xs text-neutral-600">No tasks in queue.</p>
           )}
-          {tasks.map((task) => (
+          {sortedTasks.map((task) => {
+            const isPinned = isOverdueOrToday(task);
+            return (
             <div
               key={task.id}
-              className="relative flex flex-col gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:flex-row md:items-center md:justify-between"
+              className={`relative flex flex-col gap-3 rounded-md border p-3 shadow-glow-subtle md:flex-row md:items-center md:justify-between ${
+                isPinned ? 'border-alert/50 bg-alert/5 shadow-glow-alert' : 'border-neutral-400/20 bg-invictus-base/40'
+              }`}
             >
               <MicroCorners />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-neutral-100">{task.name}</p>
                 <Kicker>Due {task.dueDate || '—'}</Kicker>
+                {task.notes && <p className="mt-1 line-clamp-2 text-xs text-neutral-500">{task.notes}</p>}
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                {isPinned && (
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${URGENCY_STYLES.red}`}>
+                    {formatDueIn(daysFromToday(task.dueDate, todayStr))}
+                  </span>
+                )}
+                {task.category && (
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${CATEGORY_TAG_STYLE}`}>
+                    {task.category}
+                  </span>
+                )}
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
                   {task.priority}
                 </span>
@@ -2579,7 +2652,8 @@ function TaskManager({
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </Panel>
     </div>
