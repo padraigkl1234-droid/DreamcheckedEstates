@@ -56,9 +56,6 @@ import {
   FileText,
   Search,
   Download,
-  Lightbulb,
-  Sparkles,
-  Loader2,
 } from 'lucide-react';
 import {
   Area,
@@ -76,7 +73,7 @@ import {
 
 type Priority = 'High' | 'Medium' | 'Low';
 type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
-type PageKey = 'dashboard' | 'calendar' | 'tasks' | 'archive' | 'compliance' | 'reports' | 'brainstorm';
+type PageKey = 'dashboard' | 'calendar' | 'tasks' | 'archive' | 'compliance' | 'reports';
 
 interface Task {
   id: string;
@@ -203,7 +200,6 @@ const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard }[]
   { key: 'archive', label: 'Archive', icon: Archive },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
   { key: 'reports', label: 'Reports', icon: FileText },
-  { key: 'brainstorm', label: 'Brainstorm', icon: Lightbulb },
 ];
 
 const PRIORITY_STYLES: Record<Priority, string> = {
@@ -332,92 +328,6 @@ function buildReportLog(tasks: Task[], archivedTasks: Task[], compliances: Compl
   }
 
   return entries.sort((a, b) => b.completedAt - a.completedAt);
-}
-
-interface BrainstormNode {
-  id: string;
-  text: string;
-  parentId: string | null;
-  children: string[];
-  createdAt: number;
-  source: 'manual' | 'ai';
-}
-
-interface BrainstormSession {
-  id: string;
-  title: string;
-  rootId: string;
-  nodes: Record<string, BrainstormNode>;
-  createdAt: number;
-  updatedAt: number;
-}
-
-const BRAINSTORM_RADIUS_STEP = 170;
-const BRAINSTORM_CANVAS_SIZE = 1800;
-
-// Radial tree layout: each node inherits an angular slice from its parent
-// and divides it evenly among its own children, so branches fan outward
-// from the root without overlapping their siblings' subtrees.
-function layoutRadialTree(nodes: Record<string, BrainstormNode>, rootId: string): Map<string, { x: number; y: number }> {
-  const positions = new Map<string, { x: number; y: number }>();
-
-  function place(id: string, depth: number, angleStart: number, angleEnd: number) {
-    const node = nodes[id];
-    if (!node) return;
-    const angle = (angleStart + angleEnd) / 2;
-    const radius = depth * BRAINSTORM_RADIUS_STEP;
-    positions.set(id, { x: radius * Math.cos(angle), y: radius * Math.sin(angle) });
-    const span = angleEnd - angleStart;
-    const step = node.children.length > 0 ? span / node.children.length : 0;
-    node.children.forEach((childId, i) => {
-      place(childId, depth + 1, angleStart + i * step, angleStart + (i + 1) * step);
-    });
-  }
-
-  place(rootId, 0, 0, Math.PI * 2);
-  return positions;
-}
-
-function collectSubtreeIds(nodes: Record<string, BrainstormNode>, id: string): string[] {
-  const node = nodes[id];
-  if (!node) return [id];
-  return [id, ...node.children.flatMap((childId) => collectSubtreeIds(nodes, childId))];
-}
-
-function addBrainstormChild(session: BrainstormSession, parentId: string, text: string, source: 'manual' | 'ai'): BrainstormSession {
-  const parent = session.nodes[parentId];
-  if (!parent) return session;
-  const id = genId();
-  const node: BrainstormNode = { id, text, parentId, children: [], createdAt: Date.now(), source };
-  return {
-    ...session,
-    nodes: {
-      ...session.nodes,
-      [id]: node,
-      [parentId]: { ...parent, children: [...parent.children, id] },
-    },
-  };
-}
-
-function renameBrainstormNode(session: BrainstormSession, nodeId: string, text: string): BrainstormSession {
-  const node = session.nodes[nodeId];
-  if (!node) return session;
-  return { ...session, nodes: { ...session.nodes, [nodeId]: { ...node, text } } };
-}
-
-function deleteBrainstormNode(session: BrainstormSession, nodeId: string): BrainstormSession {
-  const node = session.nodes[nodeId];
-  if (!node || !node.parentId) return session;
-  const idsToRemove = new Set(collectSubtreeIds(session.nodes, nodeId));
-  const newNodes: Record<string, BrainstormNode> = {};
-  for (const [id, n] of Object.entries(session.nodes)) {
-    if (!idsToRemove.has(id)) newNodes[id] = n;
-  }
-  const parent = newNodes[node.parentId];
-  if (parent) {
-    newNodes[node.parentId] = { ...parent, children: parent.children.filter((c) => c !== nodeId) };
-  }
-  return { ...session, nodes: newNodes };
 }
 
 function genId() {
@@ -2794,364 +2704,6 @@ function ComplianceTracker({
 }
 
 // ---------------------------------------------------------------------------
-// Brainstorm
-// ---------------------------------------------------------------------------
-
-function BrainstormPage({
-  sessions,
-  onCreateSession,
-  onDeleteSession,
-  onUpdateSession,
-}: {
-  sessions: BrainstormSession[];
-  onCreateSession: (topic: string) => string;
-  onDeleteSession: (id: string) => void;
-  onUpdateSession: (id: string, updater: (session: BrainstormSession) => BrainstormSession) => void;
-}) {
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [newTopic, setNewTopic] = useState('');
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [childDraft, setChildDraft] = useState('');
-  const [aiSuggestions, setAiSuggestions] = useState<string[] | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const canvasScrollRef = useRef<HTMLDivElement | null>(null);
-
-  const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null;
-
-  useEffect(() => {
-    setSelectedNodeId(activeSession ? activeSession.rootId : null);
-    setAiSuggestions(null);
-    setAiError(null);
-    setChildDraft('');
-  }, [activeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const positions = useMemo(
-    () => (activeSession ? layoutRadialTree(activeSession.nodes, activeSession.rootId) : new Map<string, { x: number; y: number }>()),
-    [activeSession]
-  );
-
-  useEffect(() => {
-    const el = canvasScrollRef.current;
-    if (!activeSession || !el) return;
-    const cx = BRAINSTORM_CANVAS_SIZE / 2;
-    const cy = BRAINSTORM_CANVAS_SIZE / 2;
-    const focus = (selectedNodeId && positions.get(selectedNodeId)) || { x: 0, y: 0 };
-    el.scrollLeft = cx + focus.x - el.clientWidth / 2;
-    el.scrollTop = cy + focus.y - el.clientHeight / 2;
-  }, [activeSessionId, selectedNodeId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const selectedNode = activeSession && selectedNodeId ? activeSession.nodes[selectedNodeId] ?? null : null;
-
-  const breadcrumb = useMemo(() => {
-    if (!activeSession || !selectedNodeId) return [] as string[];
-    const path: string[] = [];
-    let cur: string | null = selectedNodeId;
-    while (cur) {
-      const node: BrainstormNode | undefined = activeSession.nodes[cur];
-      if (!node) break;
-      path.unshift(node.text);
-      cur = node.parentId;
-    }
-    return path;
-  }, [activeSession, selectedNodeId]);
-
-  if (!activeSession) {
-    const handleStartSession = () => {
-      const topic = newTopic.trim();
-      if (!topic) return;
-      const id = onCreateSession(topic);
-      setActiveSessionId(id);
-      setNewTopic('');
-    };
-
-    return (
-      <div className="space-y-5">
-        <Panel title="Brainstorm" icon={Lightbulb} refCode="0112-B">
-          <div className="mb-5 flex flex-col gap-2 border-b border-neutral-400/15 pb-5 sm:flex-row sm:items-center">
-            <input
-              value={newTopic}
-              onChange={(e) => setNewTopic(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleStartSession()}
-              placeholder="Start with a topic or question..."
-              className="flex-1 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-            />
-            <button
-              onClick={handleStartSession}
-              disabled={!newTopic.trim()}
-              className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-invictus-crimson-bright/10"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Start Brainstorm
-            </button>
-          </div>
-
-          {sessions.length === 0 ? (
-            <p className="py-8 text-center text-xs text-neutral-600">
-              No brainstorms yet — start one above and grow it into a mind map.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {sessions
-                .slice()
-                .sort((a, b) => b.updatedAt - a.updatedAt)
-                .map((session) => {
-                  const nodeCount = Object.keys(session.nodes).length;
-                  return (
-                    <div
-                      key={session.id}
-                      className="relative flex flex-col gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <MicroCorners />
-                      <button
-                        onClick={() => setActiveSessionId(session.id)}
-                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                      >
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-violet-400/40 bg-violet-400/10 text-violet-300">
-                          <Lightbulb className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0">
-                          <p className="truncate text-sm text-neutral-100">{session.title}</p>
-                          <Kicker>
-                            {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'} · Updated{' '}
-                            {new Date(session.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </Kicker>
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => onDeleteSession(session.id)}
-                        className="flex shrink-0 items-center justify-center rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
-                        title="Delete brainstorm"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-        </Panel>
-      </div>
-    );
-  }
-
-  const handleAddChild = () => {
-    const text = childDraft.trim();
-    if (!text || !selectedNodeId) return;
-    onUpdateSession(activeSession.id, (s) => addBrainstormChild(s, selectedNodeId, text, 'manual'));
-    setChildDraft('');
-  };
-
-  const handleAddSuggestion = (text: string) => {
-    if (!selectedNodeId) return;
-    onUpdateSession(activeSession.id, (s) => addBrainstormChild(s, selectedNodeId, text, 'ai'));
-    setAiSuggestions((prev) => (prev ? prev.filter((s) => s !== text) : prev));
-  };
-
-  const handleRename = (text: string) => {
-    if (!selectedNodeId) return;
-    onUpdateSession(activeSession.id, (s) => renameBrainstormNode(s, selectedNodeId, text));
-  };
-
-  const handleDeleteSelected = () => {
-    if (!selectedNodeId || selectedNodeId === activeSession.rootId) return;
-    const parentId = activeSession.nodes[selectedNodeId]?.parentId ?? activeSession.rootId;
-    onUpdateSession(activeSession.id, (s) => deleteBrainstormNode(s, selectedNodeId));
-    setSelectedNodeId(parentId);
-  };
-
-  const handleAiSuggest = async () => {
-    if (!selectedNodeId || !selectedNode) return;
-    setAiLoading(true);
-    setAiError(null);
-    setAiSuggestions(null);
-    try {
-      const res = await fetch('/api/brainstorm-suggest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topic: activeSession.title,
-          path: breadcrumb,
-          existing: selectedNode.children.map((id) => activeSession.nodes[id]?.text).filter(Boolean),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !Array.isArray(data.suggestions)) {
-        throw new Error(data.error || 'AI suggestions are unavailable right now.');
-      }
-      setAiSuggestions(data.suggestions);
-    } catch (error) {
-      setAiError(error instanceof Error ? error.message : 'AI suggestions are unavailable right now.');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const cx = BRAINSTORM_CANVAS_SIZE / 2;
-  const cy = BRAINSTORM_CANVAS_SIZE / 2;
-
-  return (
-    <div className="space-y-4">
-      <Panel title="Brainstorm" icon={Lightbulb} refCode="0112-B">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-neutral-400/15 pb-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              onClick={() => setActiveSessionId(null)}
-              className="flex shrink-0 items-center gap-1 rounded-md border border-neutral-400/30 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 transition-colors hover:text-neutral-200"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-              All Brainstorms
-            </button>
-            <h3 className="truncate text-sm text-neutral-100">{activeSession.title}</h3>
-          </div>
-          <button
-            onClick={() => {
-              onDeleteSession(activeSession.id);
-              setActiveSessionId(null);
-            }}
-            className="flex shrink-0 items-center gap-1.5 rounded-md border border-alert/30 bg-alert/10 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-alert transition-all hover:bg-alert/20"
-          >
-            <Trash2 className="h-3 w-3" />
-            Delete Brainstorm
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
-          <div
-            ref={canvasScrollRef}
-            className="relative h-[560px] overflow-auto rounded-md border border-neutral-400/20 bg-invictus-base/30"
-          >
-            <div
-              className="relative"
-              style={{ width: BRAINSTORM_CANVAS_SIZE, height: BRAINSTORM_CANVAS_SIZE }}
-              onClick={() => setSelectedNodeId(activeSession.rootId)}
-            >
-              <svg className="absolute inset-0" width={BRAINSTORM_CANVAS_SIZE} height={BRAINSTORM_CANVAS_SIZE}>
-                {Object.values(activeSession.nodes).map((node) => {
-                  if (!node.parentId) return null;
-                  const from = positions.get(node.parentId);
-                  const to = positions.get(node.id);
-                  if (!from || !to) return null;
-                  return (
-                    <line
-                      key={node.id}
-                      x1={cx + from.x}
-                      y1={cy + from.y}
-                      x2={cx + to.x}
-                      y2={cy + to.y}
-                      stroke={node.source === 'ai' ? 'rgba(167,139,250,0.35)' : 'rgba(163,163,163,0.3)'}
-                      strokeWidth={1.5}
-                    />
-                  );
-                })}
-              </svg>
-
-              {Object.values(activeSession.nodes).map((node) => {
-                const pos = positions.get(node.id);
-                if (!pos) return null;
-                const isRoot = node.id === activeSession.rootId;
-                const isSelected = node.id === selectedNodeId;
-                return (
-                  <button
-                    key={node.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedNodeId(node.id);
-                    }}
-                    style={{ left: cx + pos.x, top: cy + pos.y }}
-                    className={`absolute max-w-[150px] -translate-x-1/2 -translate-y-1/2 rounded-full border px-3 py-1.5 text-center text-[11px] font-medium leading-snug shadow-glow-subtle transition-all ${
-                      isRoot
-                        ? 'border-invictus-crimson-bright bg-invictus-crimson-bright/20 font-display uppercase tracking-wider text-neutral-50'
-                        : node.source === 'ai'
-                        ? 'border-violet-400/50 bg-violet-400/10 text-violet-100'
-                        : 'border-neutral-400/30 bg-invictus-base/80 text-neutral-200'
-                    } ${isSelected ? 'ring-2 ring-invictus-crimson-bright ring-offset-2 ring-offset-invictus-base' : ''}`}
-                  >
-                    {node.text}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="relative space-y-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3">
-            <MicroCorners />
-            <Kicker>Selected Node</Kicker>
-            {selectedNode ? (
-              <>
-                <input
-                  value={selectedNode.text}
-                  onChange={(e) => handleRename(e.target.value)}
-                  className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-                />
-                {selectedNode.id !== activeSession.rootId && (
-                  <button
-                    onClick={handleDeleteSelected}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-md border border-alert/30 bg-alert/10 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-alert transition-all hover:bg-alert/20"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                    Delete Node &amp; Branches
-                  </button>
-                )}
-
-                <div className="border-t border-neutral-400/15 pt-3">
-                  <Kicker>Add a connected idea</Kicker>
-                  <div className="mt-1.5 flex gap-2">
-                    <input
-                      value={childDraft}
-                      onChange={(e) => setChildDraft(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddChild()}
-                      placeholder="Type an idea..."
-                      className="flex-1 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-                    />
-                    <button
-                      onClick={handleAddChild}
-                      disabled={!childDraft.trim()}
-                      className="flex shrink-0 items-center justify-center rounded-md border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 p-1.5 text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="border-t border-neutral-400/15 pt-3">
-                  <button
-                    onClick={handleAiSuggest}
-                    disabled={aiLoading}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-md border border-violet-400/40 bg-violet-400/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-violet-300 transition-colors hover:bg-violet-400/20 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {aiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                    {aiLoading ? 'Thinking...' : 'AI Suggest'}
-                  </button>
-
-                  {aiError && <p className="mt-2 text-[11px] text-amber-300/90">{aiError}</p>}
-
-                  {aiSuggestions && aiSuggestions.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {aiSuggestions.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => handleAddSuggestion(s)}
-                          className="rounded-full border border-violet-400/40 bg-violet-400/10 px-2.5 py-1 text-[11px] text-violet-100 transition-colors hover:bg-violet-400/25"
-                        >
-                          + {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <p className="text-xs text-neutral-600">Click a node on the map to expand it.</p>
-            )}
-          </div>
-        </div>
-      </Panel>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Root page
 // ---------------------------------------------------------------------------
 
@@ -3165,7 +2717,6 @@ export default function InvictusTrackerPage() {
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
   const [compliances, setCompliances] = useState<ComplianceItem[]>(SEED_COMPLIANCES);
   const [events, setEvents] = useState<CalendarEvent[]>(SEED_EVENTS);
-  const [brainstormSessions, setBrainstormSessions] = useState<BrainstormSession[]>([]);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'synced' | 'error'>('idle');
   const loadedForUid = useRef<string | null>(null);
   const readyToSave = useRef(false);
@@ -3200,7 +2751,6 @@ export default function InvictusTrackerPage() {
           if (Array.isArray(data.archivedTasks)) setArchivedTasks(data.archivedTasks as Task[]);
           if (Array.isArray(data.compliances)) setCompliances(data.compliances as ComplianceItem[]);
           if (Array.isArray(data.events)) setEvents(data.events as CalendarEvent[]);
-          if (Array.isArray(data.brainstormSessions)) setBrainstormSessions(data.brainstormSessions as BrainstormSession[]);
         }
         setSyncStatus('synced');
       } catch (error) {
@@ -3221,7 +2771,6 @@ export default function InvictusTrackerPage() {
         archivedTasks,
         compliances,
         events,
-        brainstormSessions,
         updatedAt: Date.now(),
       })
         .then(() => setSyncStatus('synced'))
@@ -3231,7 +2780,7 @@ export default function InvictusTrackerPage() {
         });
     }, 600);
     return () => clearTimeout(timeout);
-  }, [tasks, archivedTasks, compliances, events, brainstormSessions, user]);
+  }, [tasks, archivedTasks, compliances, events, user]);
 
   const totalItems = tasks.length + compliances.length;
   const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
@@ -3299,26 +2848,6 @@ export default function InvictusTrackerPage() {
 
   const handleAddEvent = (event: CalendarEvent) => setEvents((prev) => [...prev, event]);
   const handleDeleteEvent = (id: string) => setEvents((prev) => prev.filter((e) => e.id !== id));
-
-  const handleCreateBrainstormSession = (topic: string): string => {
-    const rootId = genId();
-    const sessionId = genId();
-    const now = Date.now();
-    const session: BrainstormSession = {
-      id: sessionId,
-      title: topic,
-      rootId,
-      nodes: { [rootId]: { id: rootId, text: topic, parentId: null, children: [], createdAt: now, source: 'manual' } },
-      createdAt: now,
-      updatedAt: now,
-    };
-    setBrainstormSessions((prev) => [session, ...prev]);
-    return sessionId;
-  };
-  const handleDeleteBrainstormSession = (id: string) =>
-    setBrainstormSessions((prev) => prev.filter((s) => s.id !== id));
-  const handleUpdateBrainstormSession = (id: string, updater: (session: BrainstormSession) => BrainstormSession) =>
-    setBrainstormSessions((prev) => prev.map((s) => (s.id === id ? { ...updater(s), updatedAt: Date.now() } : s)));
 
   return (
     <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
@@ -3392,14 +2921,6 @@ export default function InvictusTrackerPage() {
             )}
             {activePage === 'reports' && (
               <ReportsPage tasks={tasks} archivedTasks={archivedTasks} compliances={compliances} />
-            )}
-            {activePage === 'brainstorm' && (
-              <BrainstormPage
-                sessions={brainstormSessions}
-                onCreateSession={handleCreateBrainstormSession}
-                onDeleteSession={handleDeleteBrainstormSession}
-                onUpdateSession={handleUpdateBrainstormSession}
-              />
             )}
           </main>
         </div>
