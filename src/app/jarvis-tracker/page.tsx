@@ -2173,7 +2173,9 @@ function CalendarPage({
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1.5">
+        {/* Desktop / wide-screen month grid — collapses to an agenda list below lg, since 7 narrow
+            columns can't fit readable event titles on phone and fold-device widths. */}
+        <div className="hidden grid-cols-7 gap-1.5 lg:grid">
           {WEEKDAY_LABELS.map((label) => (
             <div key={label} className="px-1 pb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
               {label}
@@ -2243,6 +2245,87 @@ function CalendarPage({
                             title={ev.recurrence ? 'Delete entire series' : 'Delete entry'}
                           >
                             <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Agenda list — narrow screens get full-width rows instead of cramped grid chips. */}
+        <div className="flex flex-col gap-3 lg:hidden">
+          {cells.filter((cellDate): cellDate is string => Boolean(cellDate) && (eventsByDate[cellDate!] ?? []).length > 0).length === 0 && (
+            <p className="py-6 text-center text-xs text-neutral-500">No diary entries this month.</p>
+          )}
+          {cells.map((cellDate, i) => {
+            if (!cellDate) return null;
+            const dayEvents = eventsByDate[cellDate] ?? [];
+            if (dayEvents.length === 0) return null;
+            const isToday = cellDate === todayStr;
+            const dayNum = Number(cellDate.slice(-2));
+            const weekdayLabel = WEEKDAY_LABELS[i % 7];
+            return (
+              <div
+                key={cellDate}
+                className={`rounded-md border p-2.5 ${
+                  isToday
+                    ? 'border-invictus-crimson-bright bg-invictus-crimson-bright/10 shadow-glow-strong'
+                    : 'border-neutral-400/15 bg-invictus-base/40'
+                }`}
+              >
+                <div className={`mb-2 font-mono text-xs font-semibold uppercase tracking-wide ${isToday ? 'text-invictus-crimson-bright' : 'text-neutral-400'}`}>
+                  {weekdayLabel} {dayNum}
+                </div>
+                <div className="flex flex-col gap-2">
+                  {dayEvents.map((ev) => (
+                    <div
+                      key={ev.id}
+                      onClick={() => setSelectedEvent({ event: ev, occurrenceDate: cellDate })}
+                      className={`flex cursor-pointer items-start justify-between gap-2 rounded border px-3 py-2.5 font-sans text-sm leading-snug transition-colors active:brightness-125 ${PRIORITY_STYLES[ev.priority]}`}
+                    >
+                      <span className="flex min-w-0 items-start gap-1.5">
+                        {ev.recurrence && <Repeat className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
+                        <span className="min-w-0">{ev.title}</span>
+                      </span>
+                      <div className="shrink-0" data-confirm-delete={ev.id}>
+                        {confirmDeleteId === ev.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(ev.id);
+                                setConfirmDeleteId(null);
+                              }}
+                              className="rounded border border-alert/50 bg-alert/10 p-1.5 text-alert transition-colors active:bg-alert/20"
+                              title={ev.recurrence ? 'Confirm: delete entire series' : 'Confirm delete'}
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeleteId(null);
+                              }}
+                              className="rounded border border-neutral-400/30 p-1.5 text-neutral-400 transition-colors active:text-neutral-200"
+                              title="Cancel"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeleteId(ev.id);
+                            }}
+                            className="rounded p-1.5 text-neutral-400 transition-colors active:text-alert"
+                            title={ev.recurrence ? 'Delete entire series' : 'Delete entry'}
+                          >
+                            <X className="h-4 w-4" />
                           </button>
                         )}
                       </div>
