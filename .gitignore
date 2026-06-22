@@ -43,3 +43,9 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# invictus coach local database
+/data/*.db
+/data/*.db-journal
+/data/*.db-wal
+/data/*.db-shm
