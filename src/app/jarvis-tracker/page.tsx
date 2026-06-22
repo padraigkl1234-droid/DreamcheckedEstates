@@ -273,6 +273,8 @@ const PRIORITY_STYLES: Record<Priority, string> = {
   Low: 'text-neutral-300 border-neutral-400/30 bg-neutral-400/10 shadow-glow-subtle',
 };
 
+const PRIORITY_RANK: Record<Priority, number> = { High: 0, Medium: 1, Low: 2 };
+
 const STATUS_STYLES: Record<TaskStatus, string> = {
   'Not Started': 'text-neutral-400 border-neutral-500/40 bg-neutral-500/10',
   'In Progress': 'text-amber-300 border-amber-400/40 bg-amber-400/10',
@@ -1204,12 +1206,14 @@ function Dashboard({
   tasks,
   archivedTasks,
   compliances,
+  events,
   animateCardsIn = false,
   onCardsRevealed,
 }: {
   tasks: Task[];
   archivedTasks: Task[];
   compliances: ComplianceItem[];
+  events: CalendarEvent[];
   animateCardsIn?: boolean;
   onCardsRevealed?: () => void;
 }) {
@@ -1294,7 +1298,7 @@ function Dashboard({
   // this component later in the same session (switching tabs and back) won't replay it.
   useEffect(() => {
     if (!animateCardsIn) return;
-    const cardCount = 10; // greeting + 9 panels
+    const cardCount = 11; // greeting + 10 panels
     const totalMs = (cardCount - 1) * CARD_REVEAL_STEP_MS + CARD_REVEAL_DURATION_MS;
     const timeout = setTimeout(() => onCardsRevealed?.(), totalMs);
     return () => clearTimeout(timeout);
@@ -1316,14 +1320,47 @@ function Dashboard({
   const timelineTaskTotal = timeline.reduce((sum, p) => sum + p.tasks, 0);
   const timelineComplianceTotal = timeline.reduce((sum, p) => sum + p.compliance, 0);
 
+  const todayStr = toDateInputValue(now);
+  const todaysMeetings = events
+    .filter((ev) => getOccurrencesInRange(ev, todayStr, todayStr).length > 0)
+    .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+
   return (
     <div className="space-y-6">
       <Reveal index={0} animate={animateCardsIn}>
         <InvictusGreeting compliances={compliances} />
       </Reveal>
 
+      <Reveal index={1} animate={animateCardsIn}>
+        <Panel title="Today's Meetings" icon={CalendarDays} refCode="0035-M" tier="primary">
+          <div className="flex flex-col gap-2">
+            {todaysMeetings.length === 0 && (
+              <p className="py-6 text-center text-xs text-neutral-600">No meetings scheduled today.</p>
+            )}
+            {todaysMeetings.map((ev) => (
+              <div
+                key={ev.id}
+                className="relative flex items-start justify-between gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle px-3 py-2.5"
+              >
+                <MicroCorners />
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-sm text-neutral-100">
+                    {ev.recurrence && <Repeat className="h-3 w-3 shrink-0 text-neutral-400" />}
+                    <span className="truncate">{ev.title}</span>
+                  </p>
+                  {ev.notes && <Kicker>{ev.notes}</Kicker>}
+                </div>
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[ev.priority]}`}>
+                  {ev.priority}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </Reveal>
+
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <Reveal index={1} animate={animateCardsIn}>
+        <Reveal index={2} animate={animateCardsIn}>
         <Panel title="Estates & Maintenance Overall" icon={Gauge} refCode="0012-A" tier="primary">
           <div className="flex flex-1 items-center justify-center py-2">
             <CircularProgress percentage={completionPct} />
@@ -1341,7 +1378,7 @@ function Dashboard({
         </Panel>
         </Reveal>
 
-        <Reveal index={2} animate={animateCardsIn}>
+        <Reveal index={3} animate={animateCardsIn}>
         <Panel title="Recently Added Tasks" icon={ListChecks} refCode="0027-T" tier="primary">
           <div className="flex flex-col gap-2">
             {recentTasks.length === 0 && (
@@ -1366,7 +1403,7 @@ function Dashboard({
         </Panel>
         </Reveal>
 
-        <Reveal index={3} animate={animateCardsIn}>
+        <Reveal index={4} animate={animateCardsIn}>
         <Panel title="Compliance Countdown" icon={ShieldCheck} refCode="0030-C" tier="primary">
           <div className="flex flex-col gap-2">
             {upcomingCompliances.length === 0 && (
@@ -1392,7 +1429,7 @@ function Dashboard({
         </Reveal>
       </div>
 
-      <Reveal index={4} animate={animateCardsIn}>
+      <Reveal index={5} animate={animateCardsIn}>
         <CompletionTimelinePanel
           timeline={timeline}
           taskTotal={timelineTaskTotal}
@@ -1401,7 +1438,7 @@ function Dashboard({
       </Reveal>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <Reveal index={5} animate={animateCardsIn}>
+        <Reveal index={6} animate={animateCardsIn}>
         <Panel title="System Diagnostics" icon={Activity} refCode="0048-A" tier="ambient">
           <div className="flex flex-col gap-4">
             <div className="text-center">
@@ -1427,13 +1464,13 @@ function Dashboard({
         </Panel>
         </Reveal>
 
-        <Reveal index={6} animate={animateCardsIn}>
+        <Reveal index={7} animate={animateCardsIn}>
           <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
         </Reveal>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <Reveal index={7} animate={animateCardsIn}>
+        <Reveal index={8} animate={animateCardsIn}>
           <NewsPanel
             title="BBC News Feed"
             icon={Newspaper}
@@ -1443,7 +1480,7 @@ function Dashboard({
             tier="ambient"
           />
         </Reveal>
-        <Reveal index={8} animate={animateCardsIn}>
+        <Reveal index={9} animate={animateCardsIn}>
           <NewsPanel
             title="Business & Economics"
             icon={Briefcase}
@@ -1453,7 +1490,7 @@ function Dashboard({
             tier="ambient"
           />
         </Reveal>
-        <Reveal index={9} animate={animateCardsIn}>
+        <Reveal index={10} animate={animateCardsIn}>
           <NewsPanel
             title="Football News"
             icon={Trophy}
@@ -3158,6 +3195,7 @@ export default function InvictusTrackerPage() {
                 tasks={tasks}
                 archivedTasks={archivedTasks}
                 compliances={compliances}
+                events={events}
                 animateCardsIn={animateCardsIn && !cardsRevealedRef.current}
                 onCardsRevealed={() => {
                   cardsRevealedRef.current = true;
