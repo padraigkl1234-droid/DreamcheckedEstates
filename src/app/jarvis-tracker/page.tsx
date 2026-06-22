@@ -52,7 +52,17 @@ import {
   ChevronRight,
   Archive,
   ArchiveRestore,
+  TrendingUp,
 } from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,6 +79,7 @@ interface Task {
   dueDate: string;
   status: TaskStatus;
   archivedAt?: number;
+  completedAt?: number;
 }
 
 interface CalendarEvent {
@@ -122,11 +133,13 @@ function getWeatherCategory(code: number): WeatherCategory {
 // Seed data
 // ---------------------------------------------------------------------------
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const SEED_TASKS: Task[] = [
   { id: 't1', name: 'Inspect rooftop HVAC unit 4', priority: 'High', dueDate: '2026-06-20', status: 'In Progress' },
   { id: 't2', name: 'Replace lobby lighting fixtures', priority: 'Medium', dueDate: '2026-06-22', status: 'Not Started' },
-  { id: 't3', name: 'Service car park barrier system', priority: 'Low', dueDate: '2026-06-25', status: 'Completed' },
-  { id: 't4', name: 'Audit fire extinguisher inventory', priority: 'High', dueDate: '2026-06-19', status: 'Completed' },
+  { id: 't3', name: 'Service car park barrier system', priority: 'Low', dueDate: '2026-06-25', status: 'Completed', completedAt: Date.now() - 5 * DAY_MS },
+  { id: 't4', name: 'Audit fire extinguisher inventory', priority: 'High', dueDate: '2026-06-19', status: 'Completed', completedAt: Date.now() - 2 * DAY_MS },
 ];
 
 // One-off tasks dictated ahead of a return from leave — surfaced via a
@@ -215,6 +228,50 @@ function formatDueIn(daysUntilDue: number): string {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+interface TimelinePoint {
+  label: string;
+  iso: string;
+  tasks: number;
+  compliance: number;
+}
+
+const TIMELINE_DAYS = 14;
+
+// Buckets completions into a rolling N-day window for the dashboard chart.
+// Tasks use their completedAt timestamp; compliance items reuse the
+// existing "Last Completed" date field already entered in the tracker.
+function buildCompletionTimeline(tasks: Task[], compliances: ComplianceItem[]): TimelinePoint[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const days: TimelinePoint[] = Array.from({ length: TIMELINE_DAYS }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (TIMELINE_DAYS - 1 - i));
+    return {
+      label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      iso: toDateInputValue(d),
+      tasks: 0,
+      compliance: 0,
+    };
+  });
+
+  const indexByIso = new Map(days.map((p, idx) => [p.iso, idx]));
+
+  for (const task of tasks) {
+    if (task.status !== 'Completed' || !task.completedAt) continue;
+    const idx = indexByIso.get(toDateInputValue(new Date(task.completedAt)));
+    if (idx !== undefined) days[idx].tasks += 1;
+  }
+
+  for (const item of compliances) {
+    if (!item.completed || !item.date) continue;
+    const idx = indexByIso.get(item.date);
+    if (idx !== undefined) days[idx].compliance += 1;
+  }
+
+  return days;
 }
 
 function genId() {
@@ -1114,7 +1171,7 @@ function Dashboard({
   // this component later in the same session (switching tabs and back) won't replay it.
   useEffect(() => {
     if (!animateCardsIn) return;
-    const cardCount = 9; // greeting + 8 panels
+    const cardCount = 10; // greeting + 9 panels
     const totalMs = (cardCount - 1) * CARD_REVEAL_STEP_MS + CARD_REVEAL_DURATION_MS;
     const timeout = setTimeout(() => onCardsRevealed?.(), totalMs);
     return () => clearTimeout(timeout);
@@ -1128,6 +1185,10 @@ function Dashboard({
   const recentTasks = [...tasks].slice(-4).reverse();
 
   const upcomingCompliances = getOutstandingCompliances(compliances).slice(0, 4);
+
+  const timeline = useMemo(() => buildCompletionTimeline(tasks, compliances), [tasks, compliances]);
+  const timelineTaskTotal = timeline.reduce((sum, p) => sum + p.tasks, 0);
+  const timelineComplianceTotal = timeline.reduce((sum, p) => sum + p.compliance, 0);
 
   return (
     <div className="space-y-6">
@@ -1205,8 +1266,16 @@ function Dashboard({
         </Reveal>
       </div>
 
+      <Reveal index={4} animate={animateCardsIn}>
+        <CompletionTimelinePanel
+          timeline={timeline}
+          taskTotal={timelineTaskTotal}
+          complianceTotal={timelineComplianceTotal}
+        />
+      </Reveal>
+
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <Reveal index={4} animate={animateCardsIn}>
+        <Reveal index={5} animate={animateCardsIn}>
         <Panel title="System Diagnostics" icon={Activity} refCode="0048-A" tier="ambient">
           <div className="flex flex-col gap-4">
             <div className="text-center">
@@ -1232,13 +1301,13 @@ function Dashboard({
         </Panel>
         </Reveal>
 
-        <Reveal index={5} animate={animateCardsIn}>
+        <Reveal index={6} animate={animateCardsIn}>
           <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
         </Reveal>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <Reveal index={6} animate={animateCardsIn}>
+        <Reveal index={7} animate={animateCardsIn}>
           <NewsPanel
             title="BBC News Feed"
             icon={Newspaper}
@@ -1248,7 +1317,7 @@ function Dashboard({
             tier="ambient"
           />
         </Reveal>
-        <Reveal index={7} animate={animateCardsIn}>
+        <Reveal index={8} animate={animateCardsIn}>
           <NewsPanel
             title="Business & Economics"
             icon={Briefcase}
@@ -1258,7 +1327,7 @@ function Dashboard({
             tier="ambient"
           />
         </Reveal>
-        <Reveal index={8} animate={animateCardsIn}>
+        <Reveal index={9} animate={animateCardsIn}>
           <NewsPanel
             title="Football News"
             icon={Trophy}
@@ -1270,6 +1339,107 @@ function Dashboard({
         </Reveal>
       </div>
     </div>
+  );
+}
+
+function CompletionTimelineTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: { value: number; dataKey: string }[];
+  label?: string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const tasks = payload.find((p) => p.dataKey === 'tasks')?.value ?? 0;
+  const compliance = payload.find((p) => p.dataKey === 'compliance')?.value ?? 0;
+  return (
+    <div className="rounded-md border border-neutral-400/30 bg-invictus-base/95 px-3 py-2 shadow-glow-subtle backdrop-blur-xl">
+      <p className="mb-1 text-[10px] uppercase tracking-widest text-neutral-500">{label}</p>
+      <p className="flex items-center gap-2 text-xs text-neutral-100">
+        <span className="h-2 w-2 rounded-full bg-invictus-crimson-bright" /> Tasks: {tasks}
+      </p>
+      <p className="flex items-center gap-2 text-xs text-neutral-100">
+        <span className="h-2 w-2 rounded-full bg-emerald-400" /> Compliance: {compliance}
+      </p>
+    </div>
+  );
+}
+
+function CompletionTimelinePanel({
+  timeline,
+  taskTotal,
+  complianceTotal,
+}: {
+  timeline: TimelinePoint[];
+  taskTotal: number;
+  complianceTotal: number;
+}) {
+  return (
+    <Panel title="Completion Timeline" icon={TrendingUp} refCode="0040-X" tier="primary">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <Kicker>Last {TIMELINE_DAYS} days</Kicker>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5 text-xs text-neutral-300">
+            <span className="h-2 w-2 rounded-full bg-invictus-crimson-bright shadow-glow-subtle" />
+            <span className="font-mono font-bold tabular-nums">{taskTotal}</span> Tasks
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-neutral-300">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-glow-subtle" />
+            <span className="font-mono font-bold tabular-nums">{complianceTotal}</span> Compliance
+          </span>
+        </div>
+      </div>
+      <div className="h-56 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={timeline} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+            <defs>
+              <linearGradient id="timelineTasksGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#C2304A" stopOpacity={0.45} />
+                <stop offset="100%" stopColor="#C2304A" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="timelineComplianceGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#34D399" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#34D399" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: 'rgba(163,163,163,0.7)', fontSize: 10 }}
+              axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+              tickLine={false}
+              interval={Math.ceil(TIMELINE_DAYS / 7) - 1}
+            />
+            <YAxis
+              allowDecimals={false}
+              tick={{ fill: 'rgba(163,163,163,0.7)', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={24}
+            />
+            <Tooltip content={<CompletionTimelineTooltip />} cursor={{ stroke: 'rgba(194,48,74,0.3)' }} />
+            <Area
+              type="monotone"
+              dataKey="tasks"
+              stroke="#C2304A"
+              strokeWidth={2}
+              fill="url(#timelineTasksGradient)"
+              activeDot={{ r: 4, fill: '#C2304A' }}
+            />
+            <Area
+              type="monotone"
+              dataKey="compliance"
+              stroke="#34D399"
+              strokeWidth={2}
+              fill="url(#timelineComplianceGradient)"
+              activeDot={{ r: 4, fill: '#34D399' }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </Panel>
   );
 }
 
@@ -2367,7 +2537,13 @@ export default function InvictusTrackerPage() {
 
   const handleAddTask = (task: Task) => setTasks((prev) => [...prev, task]);
   const handleUpdateStatus = (id: string, status: TaskStatus) =>
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === id
+          ? { ...t, status, completedAt: status === 'Completed' ? t.completedAt ?? Date.now() : undefined }
+          : t
+      )
+    );
   const handleDeleteTask = (id: string) => setTasks((prev) => prev.filter((t) => t.id !== id));
   const handleAddPendingReturnTasks = () => {
     setTasks((prev) => {
