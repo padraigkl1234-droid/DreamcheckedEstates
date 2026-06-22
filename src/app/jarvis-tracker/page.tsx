@@ -56,6 +56,8 @@ import {
   FileText,
   Search,
   Download,
+  Repeat,
+  Upload,
 } from 'lucide-react';
 import {
   Area,
@@ -85,12 +87,43 @@ interface Task {
   completedAt?: number;
 }
 
+type RecurrenceFreq = 'weekly' | 'fortnightly' | 'monthly';
+
+interface EventRecurrence {
+  freq: RecurrenceFreq;
+  until: string; // ISO date, inclusive
+}
+
 interface CalendarEvent {
   id: string;
   title: string;
-  date: string;
+  date: string; // first occurrence
   priority: Priority;
   notes: string;
+  recurrence?: EventRecurrence;
+}
+
+function addRecurrenceStep(d: Date, freq: RecurrenceFreq): Date {
+  if (freq === 'weekly') return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7);
+  if (freq === 'fortnightly') return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 14);
+  return new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+// Expands a (possibly recurring) event into every occurrence date that falls within [rangeStart, rangeEnd].
+function getOccurrencesInRange(event: CalendarEvent, rangeStart: string, rangeEnd: string): string[] {
+  if (!event.recurrence) {
+    return event.date >= rangeStart && event.date <= rangeEnd ? [event.date] : [];
+  }
+  const occurrences: string[] = [];
+  const until = event.recurrence.until && event.recurrence.until < rangeEnd ? event.recurrence.until : rangeEnd;
+  const [y, m, d] = event.date.split('-').map(Number);
+  let cur = new Date(y, m - 1, d);
+  while (toDateInputValue(cur) <= until) {
+    const curStr = toDateInputValue(cur);
+    if (curStr >= rangeStart && curStr >= event.date) occurrences.push(curStr);
+    cur = addRecurrenceStep(cur, event.recurrence.freq);
+  }
+  return occurrences;
 }
 
 interface NewsItem {
@@ -157,6 +190,37 @@ const PENDING_RETURN_TASKS: Task[] = [
 
 const SEED_EVENTS: CalendarEvent[] = [
   { id: 'e1', title: 'Ansul Meeting', date: '2026-06-20', priority: 'High', notes: 'It is with Paul A.' },
+];
+
+// One-click import of the user's external Jun-Dec 2026 calendar, transcribed from screenshots.
+// Recurring entries use the recurrence feature; titles/dates flagged "verify" were partially
+// cut off or hard to read in the source screenshots and should be double-checked.
+const IMPORT_SCHEDULE: CalendarEvent[] = [
+  { id: 'imp-r1', title: 'Estates & Maintenance Team', date: '2026-06-02', priority: 'Medium', notes: 'Weekly team check-in.', recurrence: { freq: 'weekly', until: '2026-12-29' } },
+  { id: 'imp-r2', title: 'Virtual Global Meditation', date: '2026-06-09', priority: 'Low', notes: '', recurrence: { freq: 'weekly', until: '2026-09-29' } },
+  { id: 'imp-r3', title: 'Site Safety Walk', date: '2026-06-10', priority: 'Medium', notes: 'Rotates between Cinque Ports, Poppenhame, 4DXB A and KERB A — verify which site each week.', recurrence: { freq: 'weekly', until: '2026-12-30' } },
+  { id: 'imp-r4', title: 'Live and Commercial Events', date: '2026-06-10', priority: 'Low', notes: '', recurrence: { freq: 'weekly', until: '2026-09-30' } },
+  { id: 'imp-r5', title: 'Live and Commercial Events', date: '2026-06-11', priority: 'Low', notes: '', recurrence: { freq: 'weekly', until: '2026-09-30' } },
+  { id: 'imp-r6', title: 'H&S Fire Safety Committee', date: '2026-07-02', priority: 'High', notes: '', recurrence: { freq: 'monthly', until: '2026-12-31' } },
+  { id: 'imp-r7', title: 'PKL 1-2-1', date: '2026-07-02', priority: 'Medium', notes: '', recurrence: { freq: 'monthly', until: '2026-12-31' } },
+  { id: 'imp-r8', title: 'Meter Readings & Fire Doors', date: '2026-06-26', priority: 'Medium', notes: '', recurrence: { freq: 'monthly', until: '2026-12-31' } },
+  { id: 'imp-r9', title: 'Water Meter Reading', date: '2026-06-01', priority: 'Low', notes: 'High-frequency reading task — add extra ad hoc dates manually if it occurs more than twice a week.', recurrence: { freq: 'weekly', until: '2026-12-28' } },
+  { id: 'imp-r10', title: 'Water Meter Reading', date: '2026-06-04', priority: 'Low', notes: '', recurrence: { freq: 'weekly', until: '2026-12-31' } },
+  { id: 'imp-o1', title: 'Event Operations Meeting', date: '2026-06-03', priority: 'Medium', notes: '' },
+  { id: 'imp-o2', title: '1st Interview', date: '2026-06-05', priority: 'Medium', notes: 'Transcribed from "Collo Day - 1st Interview" — verify exact title.' },
+  { id: 'imp-o3', title: 'Fire Dampers Service', date: '2026-06-12', priority: 'Medium', notes: '' },
+  { id: 'imp-o4', title: 'Operational Fire and Safety', date: '2026-06-16', priority: 'Medium', notes: '' },
+  { id: 'imp-o5', title: 'Live Nation Global Employee Event', date: '2026-06-17', priority: 'Low', notes: 'Best-effort read from screenshot — verify exact title.' },
+  { id: 'imp-o6', title: 'REPLAY: Live Nation Global Employee Event', date: '2026-06-18', priority: 'Low', notes: 'Best-effort read from screenshot — verify exact title.' },
+  { id: 'imp-o7', title: 'Triangle', date: '2026-06-23', priority: 'Medium', notes: 'Site name only in source screenshot — verify what this refers to.' },
+  { id: 'imp-o8', title: 'Arlington Car Park Safety', date: '2026-06-24', priority: 'Medium', notes: '' },
+  { id: 'imp-o9', title: 'Profile UPS Service Visit', date: '2026-07-07', priority: 'Medium', notes: '' },
+  { id: 'imp-o10', title: 'Cinema Maintenance Check', date: '2026-07-08', priority: 'Medium', notes: '' },
+  { id: 'imp-o11', title: 'FRA Review - 50 Marine Terrace', date: '2026-07-09', priority: 'Medium', notes: 'Site name truncated in source — verify exact address.' },
+  { id: 'imp-o12', title: '2027 Estates Budget Review', date: '2026-08-03', priority: 'High', notes: '' },
+  { id: 'imp-o13', title: 'Operational Fire and Safety', date: '2026-08-19', priority: 'Medium', notes: '' },
+  { id: 'imp-o14', title: 'FRA Review - Cinema', date: '2026-10-13', priority: 'Medium', notes: '' },
+  { id: 'imp-o15', title: 'Cinema Maintenance Check', date: '2026-11-10', priority: 'Medium', notes: '' },
 ];
 
 const SEED_COMPLIANCES: ComplianceItem[] = [
@@ -1889,10 +1953,12 @@ function CalendarPage({
   events,
   onAdd,
   onDelete,
+  onImport,
 }: {
   events: CalendarEvent[];
   onAdd: (event: CalendarEvent) => void;
   onDelete: (id: string) => void;
+  onImport: (events: CalendarEvent[]) => number;
 }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -1902,25 +1968,37 @@ function CalendarPage({
   const [date, setDate] = useState(toDateInputValue(today));
   const [priority, setPriority] = useState<Priority>('Medium');
   const [notes, setNotes] = useState('');
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [repeatFreq, setRepeatFreq] = useState<RecurrenceFreq | 'none'>('none');
+  const [repeatUntil, setRepeatUntil] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState<{ event: CalendarEvent; occurrenceDate: string } | null>(null);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
   const { playConfirm } = useSound();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !date) return;
-    onAdd({ id: genId(), title: title.trim(), date, priority, notes: notes.trim() });
+    if (repeatFreq !== 'none' && !repeatUntil) return;
+    onAdd({
+      id: genId(),
+      title: title.trim(),
+      date,
+      priority,
+      notes: notes.trim(),
+      recurrence: repeatFreq !== 'none' ? { freq: repeatFreq, until: repeatUntil } : undefined,
+    });
     playConfirm();
     setTitle('');
     setPriority('Medium');
     setNotes('');
+    setRepeatFreq('none');
+    setRepeatUntil('');
   };
 
-  const eventsByDate = useMemo(() => {
-    return events.reduce<Record<string, CalendarEvent[]>>((acc, ev) => {
-      (acc[ev.date] ??= []).push(ev);
-      return acc;
-    }, {});
-  }, [events]);
+  const handleImportClick = () => {
+    const added = onImport(IMPORT_SCHEDULE);
+    setImportMessage(added > 0 ? `Imported ${added} entries from your 2026 schedule.` : 'Your 2026 schedule is already imported.');
+    playConfirm();
+  };
 
   const cells = useMemo(() => {
     const firstOfMonth = new Date(viewYear, viewMonth, 1);
@@ -1933,6 +2011,20 @@ function CalendarPage({
       return toDateInputValue(new Date(viewYear, viewMonth, dayNum));
     });
   }, [viewYear, viewMonth]);
+
+  const eventsByDate = useMemo(() => {
+    const visibleDates = cells.filter((c): c is string => !!c);
+    if (visibleDates.length === 0) return {};
+    const rangeStart = visibleDates[0];
+    const rangeEnd = visibleDates[visibleDates.length - 1];
+    const map: Record<string, CalendarEvent[]> = {};
+    for (const ev of events) {
+      for (const occurrenceDate of getOccurrencesInRange(ev, rangeStart, rangeEnd)) {
+        (map[occurrenceDate] ??= []).push(ev);
+      }
+    }
+    return map;
+  }, [events, cells]);
 
   const goToPrevMonth = () => {
     if (viewMonth === 0) {
@@ -1990,6 +2082,28 @@ function CalendarPage({
             placeholder="Notes, e.g. it is with Paul A"
             className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
           />
+          <select
+            value={repeatFreq}
+            onChange={(e) => setRepeatFreq(e.target.value as RecurrenceFreq | 'none')}
+            className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+            title="Repeats"
+          >
+            <option value="none">Does not repeat</option>
+            <option value="weekly">Repeats weekly</option>
+            <option value="fortnightly">Repeats fortnightly</option>
+            <option value="monthly">Repeats monthly</option>
+          </select>
+          {repeatFreq !== 'none' && (
+            <input
+              type="date"
+              value={repeatUntil}
+              min={date}
+              onChange={(e) => setRepeatUntil(e.target.value)}
+              required
+              title="Repeat until"
+              className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+            />
+          )}
           <button
             type="submit"
             className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong sm:col-span-2 lg:col-span-5"
@@ -1997,6 +2111,22 @@ function CalendarPage({
             <Plus className="h-4 w-4" /> Add to Diary
           </button>
         </form>
+      </Panel>
+
+      <Panel title="Bulk Import" icon={Upload} refCode="0102-D">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-neutral-400">
+            One-click import of your estate schedule (water meter readings, site safety walks, H&amp;S committee, PKL 1-2-1s and more) for Jun–Dec 2026.
+            Safe to click more than once — already-imported entries are skipped.
+          </p>
+          <button
+            onClick={handleImportClick}
+            className="flex shrink-0 items-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
+          >
+            <Upload className="h-4 w-4" /> Import 2026 Schedule
+          </button>
+        </div>
+        {importMessage && <p className="mt-3 text-xs text-emerald-400">{importMessage}</p>}
       </Panel>
 
       <Panel title={`${MONTH_LABELS[viewMonth]} ${viewYear}`} icon={CalendarDays} refCode="0103-C">
@@ -2050,18 +2180,21 @@ function CalendarPage({
                   {dayEvents.map((ev) => (
                     <div
                       key={ev.id}
-                      onClick={() => setSelectedEvent(ev)}
+                      onClick={() => setSelectedEvent({ event: ev, occurrenceDate: cellDate })}
                       title={ev.notes ? `${ev.title} — ${ev.notes}` : ev.title}
                       className={`group flex cursor-pointer items-center justify-between gap-1 rounded border px-1.5 py-0.5 text-[10px] transition-colors hover:brightness-125 ${PRIORITY_STYLES[ev.priority]}`}
                     >
-                      <span className="truncate">{ev.title}</span>
+                      <span className="flex min-w-0 items-center gap-1 truncate">
+                        {ev.recurrence && <Repeat className="h-2.5 w-2.5 shrink-0" />}
+                        <span className="truncate">{ev.title}</span>
+                      </span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onDelete(ev.id);
                         }}
                         className="shrink-0 opacity-60 hover:opacity-100"
-                        title="Delete entry"
+                        title={ev.recurrence ? 'Delete entire series' : 'Delete entry'}
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -2092,29 +2225,37 @@ function CalendarPage({
               <X className="h-4 w-4" />
             </button>
             <Kicker>Diary Entry</Kicker>
-            <h3 className="mt-1 pr-6 text-base font-semibold text-neutral-100">{selectedEvent.title}</h3>
+            <h3 className="mt-1 flex items-center gap-1.5 pr-6 text-base font-semibold text-neutral-100">
+              {selectedEvent.event.recurrence && <Repeat className="h-3.5 w-3.5 shrink-0 text-neutral-400" />}
+              {selectedEvent.event.title}
+            </h3>
             <div className="mt-3 space-y-2.5 text-sm">
               <div className="flex items-center gap-2 text-neutral-300">
                 <CalendarDays className="h-3.5 w-3.5" />
-                <span>{formatDisplayDate(selectedEvent.date)}</span>
+                <span>{formatDisplayDate(selectedEvent.occurrenceDate)}</span>
               </div>
               <span
-                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[selectedEvent.priority]}`}
+                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[selectedEvent.event.priority]}`}
               >
-                {selectedEvent.priority} Priority
+                {selectedEvent.event.priority} Priority
               </span>
+              {selectedEvent.event.recurrence && (
+                <p className="text-[11px] uppercase tracking-wide text-neutral-500">
+                  Repeats {selectedEvent.event.recurrence.freq} until {formatDisplayDate(selectedEvent.event.recurrence.until)}
+                </p>
+              )}
               <p className="rounded-md border border-neutral-400/20 bg-invictus-base/60 p-2 text-xs text-neutral-200">
-                {selectedEvent.notes || 'No notes added.'}
+                {selectedEvent.event.notes || 'No notes added.'}
               </p>
             </div>
             <button
               onClick={() => {
-                onDelete(selectedEvent.id);
+                onDelete(selectedEvent.event.id);
                 setSelectedEvent(null);
               }}
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-alert/40 bg-alert/10 py-2 text-xs font-semibold uppercase tracking-widest text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
             >
-              <Trash2 className="h-3.5 w-3.5" /> Delete Entry
+              <Trash2 className="h-3.5 w-3.5" /> {selectedEvent.event.recurrence ? 'Delete Entire Series' : 'Delete Entry'}
             </button>
           </div>
         </div>
@@ -2848,6 +2989,12 @@ export default function InvictusTrackerPage() {
 
   const handleAddEvent = (event: CalendarEvent) => setEvents((prev) => [...prev, event]);
   const handleDeleteEvent = (id: string) => setEvents((prev) => prev.filter((e) => e.id !== id));
+  const handleImportEvents = (importEvents: CalendarEvent[]) => {
+    const existingIds = new Set(events.map((e) => e.id));
+    const toAdd = importEvents.filter((e) => !existingIds.has(e.id));
+    if (toAdd.length > 0) setEvents((prev) => [...prev, ...toAdd]);
+    return toAdd.length;
+  };
 
   return (
     <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
@@ -2887,7 +3034,7 @@ export default function InvictusTrackerPage() {
               />
             )}
             {activePage === 'calendar' && (
-              <CalendarPage events={events} onAdd={handleAddEvent} onDelete={handleDeleteEvent} />
+              <CalendarPage events={events} onAdd={handleAddEvent} onDelete={handleDeleteEvent} onImport={handleImportEvents} />
             )}
             {activePage === 'tasks' && (
               <TaskManager
