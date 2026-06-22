@@ -240,9 +240,11 @@ interface TimelinePoint {
 const TIMELINE_DAYS = 14;
 
 // Buckets completions into a rolling N-day window for the dashboard chart.
-// Tasks use their completedAt timestamp; compliance items reuse the
-// existing "Last Completed" date field already entered in the tracker.
-function buildCompletionTimeline(tasks: Task[], compliances: ComplianceItem[]): TimelinePoint[] {
+// Tasks use their completedAt timestamp (active and archived alike, since
+// archiving only hides a task from the active list — it doesn't undo the
+// completion); compliance items reuse the existing "Last Completed" date
+// field already entered in the tracker.
+function buildCompletionTimeline(tasks: Task[], archivedTasks: Task[], compliances: ComplianceItem[]): TimelinePoint[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -259,7 +261,7 @@ function buildCompletionTimeline(tasks: Task[], compliances: ComplianceItem[]): 
 
   const indexByIso = new Map(days.map((p, idx) => [p.iso, idx]));
 
-  for (const task of tasks) {
+  for (const task of [...tasks, ...archivedTasks]) {
     if (task.status !== 'Completed' || !task.completedAt) continue;
     const idx = indexByIso.get(toDateInputValue(new Date(task.completedAt)));
     if (idx !== undefined) days[idx].tasks += 1;
@@ -1081,11 +1083,13 @@ function Reveal({ index, animate, children }: { index: number; animate: boolean;
 
 function Dashboard({
   tasks,
+  archivedTasks,
   compliances,
   animateCardsIn = false,
   onCardsRevealed,
 }: {
   tasks: Task[];
+  archivedTasks: Task[];
   compliances: ComplianceItem[];
   animateCardsIn?: boolean;
   onCardsRevealed?: () => void;
@@ -1186,7 +1190,10 @@ function Dashboard({
 
   const upcomingCompliances = getOutstandingCompliances(compliances).slice(0, 4);
 
-  const timeline = useMemo(() => buildCompletionTimeline(tasks, compliances), [tasks, compliances]);
+  const timeline = useMemo(
+    () => buildCompletionTimeline(tasks, archivedTasks, compliances),
+    [tasks, archivedTasks, compliances]
+  );
   const timelineTaskTotal = timeline.reduce((sum, p) => sum + p.tasks, 0);
   const timelineComplianceTotal = timeline.reduce((sum, p) => sum + p.compliance, 0);
 
@@ -2627,6 +2634,7 @@ export default function InvictusTrackerPage() {
             {activePage === 'dashboard' && (
               <Dashboard
                 tasks={tasks}
+                archivedTasks={archivedTasks}
                 compliances={compliances}
                 animateCardsIn={animateCardsIn && !cardsRevealedRef.current}
                 onCardsRevealed={() => {
