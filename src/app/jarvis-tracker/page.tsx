@@ -53,6 +53,8 @@ import {
   Archive,
   ArchiveRestore,
   TrendingUp,
+  FileText,
+  Search,
 } from 'lucide-react';
 import {
   Area,
@@ -70,7 +72,7 @@ import {
 
 type Priority = 'High' | 'Medium' | 'Low';
 type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
-type PageKey = 'dashboard' | 'calendar' | 'tasks' | 'archive' | 'compliance';
+type PageKey = 'dashboard' | 'calendar' | 'tasks' | 'archive' | 'compliance' | 'reports';
 
 interface Task {
   id: string;
@@ -196,6 +198,7 @@ const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard }[]
   { key: 'tasks', label: 'Task Manager', icon: ListChecks },
   { key: 'archive', label: 'Archive', icon: Archive },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
+  { key: 'reports', label: 'Reports', icon: FileText },
 ];
 
 const PRIORITY_STYLES: Record<Priority, string> = {
@@ -274,6 +277,56 @@ function buildCompletionTimeline(tasks: Task[], archivedTasks: Task[], complianc
   }
 
   return days;
+}
+
+interface ReportEntry {
+  id: string;
+  kind: 'task' | 'compliance';
+  name: string;
+  completedAt: number;
+  hasTimeOfDay: boolean;
+  priority?: Priority;
+  dueDate?: string;
+  nextDueDate?: string;
+  comments?: string;
+}
+
+// A chronological completion log — one entry per completed task (active or
+// archived) and per compliance item marked complete. Compliance items only
+// carry a date (no time-of-day), so those entries are flagged accordingly
+// rather than implying a precision the source data doesn't have.
+function buildReportLog(tasks: Task[], archivedTasks: Task[], compliances: ComplianceItem[]): ReportEntry[] {
+  const entries: ReportEntry[] = [];
+
+  for (const task of [...tasks, ...archivedTasks]) {
+    if (task.status !== 'Completed' || !task.completedAt) continue;
+    entries.push({
+      id: `task-${task.id}`,
+      kind: 'task',
+      name: task.name,
+      completedAt: task.completedAt,
+      hasTimeOfDay: true,
+      priority: task.priority,
+      dueDate: task.dueDate,
+    });
+  }
+
+  for (const item of compliances) {
+    if (!item.completed || !item.date) continue;
+    const parsed = new Date(`${item.date}T00:00:00`).getTime();
+    if (Number.isNaN(parsed)) continue;
+    entries.push({
+      id: `compliance-${item.id}`,
+      kind: 'compliance',
+      name: item.name,
+      completedAt: parsed,
+      hasTimeOfDay: false,
+      nextDueDate: item.nextDueDate,
+      comments: item.comments,
+    });
+  }
+
+  return entries.sort((a, b) => b.completedAt - a.completedAt);
 }
 
 function genId() {
@@ -2287,6 +2340,148 @@ function TaskArchive({
 }
 
 // ---------------------------------------------------------------------------
+// Reports
+// ---------------------------------------------------------------------------
+
+const REPORT_KIND_STYLES: Record<ReportEntry['kind'], string> = {
+  task: 'text-invictus-crimson-bright border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10',
+  compliance: 'text-emerald-300 border-emerald-400/40 bg-emerald-400/10',
+};
+
+function formatCompletedStamp(entry: ReportEntry): string {
+  const d = new Date(entry.completedAt);
+  const datePart = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (!entry.hasTimeOfDay) return datePart;
+  const timePart = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return `${datePart} · ${timePart}`;
+}
+
+function ReportsPage({
+  tasks,
+  archivedTasks,
+  compliances,
+}: {
+  tasks: Task[];
+  archivedTasks: Task[];
+  compliances: ComplianceItem[];
+}) {
+  const [filter, setFilter] = useState<'all' | 'task' | 'compliance'>('all');
+  const [query, setQuery] = useState('');
+
+  const allEntries = useMemo(
+    () => buildReportLog(tasks, archivedTasks, compliances),
+    [tasks, archivedTasks, compliances]
+  );
+
+  const entries = allEntries.filter((entry) => {
+    if (filter !== 'all' && entry.kind !== filter) return false;
+    if (query.trim() && !entry.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
+    return true;
+  });
+
+  const taskCount = allEntries.filter((e) => e.kind === 'task').length;
+  const complianceCount = allEntries.filter((e) => e.kind === 'compliance').length;
+
+  return (
+    <div className="space-y-5">
+      <Panel title="Completion Reports" icon={FileText} refCode="0110-R">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-neutral-400/15 pb-4">
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5 text-xs text-neutral-300">
+              <span className="h-2 w-2 rounded-full bg-invictus-crimson-bright shadow-glow-subtle" />
+              <span className="font-mono font-bold tabular-nums">{taskCount}</span> Tasks
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-neutral-300">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-glow-subtle" />
+              <span className="font-mono font-bold tabular-nums">{complianceCount}</span> Compliance
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-600" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search reports..."
+                className="w-44 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-1.5 pl-8 pr-3 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+              />
+            </div>
+            <div className="flex overflow-hidden rounded-md border border-neutral-400/30">
+              {(['all', 'task', 'compliance'] as const).map((key) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest transition-colors ${
+                    filter === key
+                      ? 'bg-invictus-crimson-bright/20 text-invictus-crimson-bright'
+                      : 'bg-invictus-base/60 text-neutral-500 hover:text-neutral-300'
+                  }`}
+                >
+                  {key === 'all' ? 'All' : key === 'task' ? 'Tasks' : 'Compliance'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {entries.length === 0 && (
+            <p className="py-8 text-center text-xs text-neutral-600">
+              {allEntries.length === 0
+                ? 'No completions logged yet — completed tasks and compliance items will show up here.'
+                : 'No reports match your filters.'}
+            </p>
+          )}
+          {entries.map((entry) => {
+            const Icon = entry.kind === 'task' ? ListChecks : ShieldCheck;
+            return (
+              <div
+                key={entry.id}
+                className="relative flex flex-col gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:flex-row md:items-start md:justify-between"
+              >
+                <MicroCorners />
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${REPORT_KIND_STYLES[entry.kind]}`}>
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-neutral-100">{entry.name}</p>
+                    <Kicker>
+                      Completed {formatCompletedStamp(entry)}
+                      {!entry.hasTimeOfDay ? ' (date only)' : ''}
+                    </Kicker>
+                    {entry.kind === 'compliance' && entry.comments && (
+                      <p className="mt-1 text-xs text-neutral-500">{entry.comments}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 md:shrink-0">
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${REPORT_KIND_STYLES[entry.kind]}`}>
+                    {entry.kind === 'task' ? 'Task' : 'Compliance'}
+                  </span>
+                  {entry.kind === 'task' && entry.priority && (
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[entry.priority]}`}>
+                      {entry.priority}
+                    </span>
+                  )}
+                  {entry.kind === 'task' && entry.dueDate && (
+                    <Kicker>Due {entry.dueDate}</Kicker>
+                  )}
+                  {entry.kind === 'compliance' && entry.nextDueDate && (
+                    <Kicker>Next due {entry.nextDueDate}</Kicker>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Compliance Tracker
 // ---------------------------------------------------------------------------
 
@@ -2674,6 +2869,9 @@ export default function InvictusTrackerPage() {
                 onDelete={handleDeleteCompliance}
                 onAddMissingStandard={handleAddMissingStandardCompliances}
               />
+            )}
+            {activePage === 'reports' && (
+              <ReportsPage tasks={tasks} archivedTasks={archivedTasks} compliances={compliances} />
             )}
           </main>
         </div>
