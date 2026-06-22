@@ -58,6 +58,7 @@ import {
   Download,
   Repeat,
   Upload,
+  Check,
 } from 'lucide-react';
 import {
   Area,
@@ -1972,7 +1973,26 @@ function CalendarPage({
   const [repeatUntil, setRepeatUntil] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<{ event: CalendarEvent; occurrenceDate: string } | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { playConfirm } = useSound();
+
+  useEffect(() => {
+    if (!confirmDeleteId) return;
+    const cancel = () => setConfirmDeleteId(null);
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') cancel();
+    };
+    const handlePointerDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`[data-confirm-delete="${confirmDeleteId}"]`)) cancel();
+    };
+    document.addEventListener('keydown', handleKey);
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [confirmDeleteId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2161,7 +2181,7 @@ function CalendarPage({
           ))}
           {cells.map((cellDate, i) => {
             if (!cellDate) {
-              return <div key={`blank-${i}`} className="min-h-[5.5rem] rounded-md border border-transparent" />;
+              return <div key={`blank-${i}`} className="min-h-[6.5rem] rounded-md border border-transparent" />;
             }
             const dayEvents = eventsByDate[cellDate] ?? [];
             const isToday = cellDate === todayStr;
@@ -2169,7 +2189,7 @@ function CalendarPage({
             return (
               <div
                 key={cellDate}
-                className={`relative flex min-h-[5.5rem] flex-col gap-1 rounded-md border p-1.5 ${
+                className={`relative flex min-h-[6.5rem] flex-col gap-1 rounded-md border p-1.5 ${
                   isToday
                     ? 'border-invictus-crimson-bright bg-invictus-crimson-bright/10 shadow-glow-strong'
                     : 'border-neutral-400/15 bg-invictus-base/40'
@@ -2182,22 +2202,50 @@ function CalendarPage({
                       key={ev.id}
                       onClick={() => setSelectedEvent({ event: ev, occurrenceDate: cellDate })}
                       title={ev.notes ? `${ev.title} — ${ev.notes}` : ev.title}
-                      className={`group flex cursor-pointer items-center justify-between gap-1 rounded border px-1.5 py-0.5 text-[10px] transition-colors hover:brightness-125 ${PRIORITY_STYLES[ev.priority]}`}
+                      className={`group flex cursor-pointer items-start justify-between gap-1.5 rounded border px-1.5 py-1 font-sans text-[11px] leading-snug transition-colors hover:brightness-125 ${PRIORITY_STYLES[ev.priority]}`}
                     >
-                      <span className="flex min-w-0 items-center gap-1 truncate">
-                        {ev.recurrence && <Repeat className="h-2.5 w-2.5 shrink-0" />}
-                        <span className="truncate">{ev.title}</span>
+                      <span className="flex min-w-0 items-start gap-1">
+                        {ev.recurrence && <Repeat className="mt-0.5 h-2.5 w-2.5 shrink-0" />}
+                        <span className="line-clamp-2 min-w-0">{ev.title}</span>
                       </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(ev.id);
-                        }}
-                        className="shrink-0 opacity-60 hover:opacity-100"
-                        title={ev.recurrence ? 'Delete entire series' : 'Delete entry'}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                      <div className="shrink-0" data-confirm-delete={ev.id}>
+                        {confirmDeleteId === ev.id ? (
+                          <div className="flex items-center gap-1 pl-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(ev.id);
+                                setConfirmDeleteId(null);
+                              }}
+                              className="rounded border border-alert/50 bg-alert/10 p-0.5 text-alert transition-colors hover:bg-alert/20"
+                              title={ev.recurrence ? 'Confirm: delete entire series' : 'Confirm delete'}
+                            >
+                              <Check className="h-2.5 w-2.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeleteId(null);
+                              }}
+                              className="rounded border border-neutral-400/30 p-0.5 text-neutral-400 transition-colors hover:text-neutral-200"
+                              title="Cancel"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeleteId(ev.id);
+                            }}
+                            className="rounded p-1 pl-1.5 text-neutral-400 opacity-0 transition-opacity hover:text-alert focus:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+                            title={ev.recurrence ? 'Delete entire series' : 'Delete entry'}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
