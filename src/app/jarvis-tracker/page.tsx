@@ -179,36 +179,6 @@ const SEED_TASKS: Task[] = [
   { id: 't2', name: 'Replace lobby lighting fixtures', priority: 'Medium', dueDate: '2026-06-22', status: 'Not Started' },
   { id: 't3', name: 'Service car park barrier system', priority: 'Low', dueDate: '2026-06-25', status: 'Completed', completedAt: Date.now() - 5 * DAY_MS },
   { id: 't4', name: 'Audit fire extinguisher inventory', priority: 'High', dueDate: '2026-06-19', status: 'Completed', completedAt: Date.now() - 2 * DAY_MS },
-  // Inbox triage after annual leave, w/c 22 Jun 2026. Source JSON "Critical" items
-  // mapped to the app's top existing tier (High) since there is no Critical tier.
-  { id: 't5', name: 'Woodchip — decide order for 25–27 Jun shows', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-22', status: 'Not Started', notes: 'Covered for Fri 19 only. Decide if more needed for 3 shows (Thu 25–Sat 27). Confirm to Hollie.' },
-  { id: 't6', name: 'Trader power — The Streets / Obi’s House', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: '4x 16amp must be live by 9am Fri 26 for Twerk N Jerk + Kerb traders (load-in 11am Fri, in situ to end of Obi’s House Sat 27). Confirm with Cary & Craig.' },
-  { id: 't7', name: 'Scenic Railway survey contacts to Jack King', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Send Jack the survey contractor details so identified repairs can be booked. Grade II* listed.' },
-  { id: 't8', name: 'Walk-in freezer part — reply to Hollie', category: 'Procurement & Quotes', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Perfect Services QU-0733 approved. Confirm freezer size and decide on the ~£4k part.' },
-  { id: 't9', name: 'CleanSmart Solutions — overdue invoice', category: 'Finance', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'inv-001866, 83 days overdue and being chased. Get paid / respond.' },
-  { id: 't10', name: 'Quantec — overdue invoice R/30799/5062-01', category: 'Finance', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Second chase from Sharon, no reply yet. Resolve payment.' },
-  { id: 't11', name: 'Confirm RCBO replacement behind Please Sir', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-25', status: 'Not Started', notes: 'Cary booked Richard (electrician) Fri 26 Jun 8am. Confirm Thu 25 he is still attending — needed for Obi’s House Sat 27.' },
-  { id: 't12', name: 'Green room showers — arrange gas safe engineer', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: 'Drain Doctor can’t fix — thermostat behind wall. Affects green rooms for shows. Book gas safe engineer.' },
-  { id: 't13', name: 'Fan replacement (Nitor) — raise/confirm PO', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: 'Only date left is Mon 29 Jun; next month fully booked. Align with Cary and raise/confirm PO to secure before summer holidays.' },
-  { id: 't14', name: 'Kent Water Services — invoice KWS-2764', category: 'Finance', priority: 'High', dueDate: '2026-06-28', status: 'Not Started', notes: '£609.50, due 28 Jun. Approve / pay.' },
-  { id: 't15', name: 'Fire door replacement & remediation quote (HK Safety)', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-30', status: 'Not Started', notes: 'Quote from fire door inspections. Statutory — review and progress to works.' },
-  { id: 't16', name: 'Credit card receipts + coding for Julie', category: 'Finance', priority: 'Medium', dueDate: '2026-06-24', status: 'Not Started', notes: 'Provide receipt + coding: B&Q £24.99 (02/06) and Jewson £236.47 (19/05).' },
-  { id: 't17', name: 'Budget tracker — Drain Doctor cost allocation', category: 'Finance', priority: 'Medium', dueDate: '2026-06-24', status: 'Not Started', notes: 'Unread thread. Advise Kelly/Hollie whether drainage cover is a show cost vs estates cost.' },
-  { id: 't18', name: 'DNA Pest Control — receipt the POs', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Receipt the POs (per Julie) if happy with them.' },
-  { id: 't19', name: 'Check invoices 5616 & 5584', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Review both; existing £70 PO can be used against 5584 (Julie).' },
-  { id: 't20', name: 'James Richards invoice DL002', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Electrical cover 30 May. Arrange payment.' },
-  { id: 't21', name: 'Scenic gate insurance claim — send invoices to Sarah', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Send Sarah Boorman the invoices; she is checking the day rate with Hollie.' },
-  { id: 't22', name: 'Ashford Tarmac PCN — Belgrave Road', category: 'Finance', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'New PCN for Belgrave Road car park. Dispute as with previous fines.' },
-  { id: 't23', name: 'Vape recycling bins + July recycling contract (Countrystyle)', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'Get actual disposal cost from Harry before buying; confirm budget line; Liz to order ~4 bins. Also confirm status of July recycling contract.' },
-  { id: 't24', name: 'Riello UPS service — review RAMS', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'RAMS received for HQ UPS service (SO 222568). Review and confirm schedule.' },
-  { id: 't25', name: 'Quantec open quotes — provide decisions', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'Louisa chasing updates/decisions on all open Dreamland quotes.' },
-  { id: 't26', name: 'Drain Doctor quote 127634 — review', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'Review and decide.' },
-  { id: 't27', name: 'Water contract — review broker offers', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: 'Review 3 offers (Pozitive, Water Plus, Water2Business) and respond to Laurien (Live Nation).' },
-  { id: 't28', name: 'CWST clean & water sampling (Kent Water)', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: 'Quote to disinfect tree tops cold water tank + monthly fountain sampling. Legionella — review and decide.' },
-  { id: 't29', name: 'RiteHite bi-annual service — confirm', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-07-02', status: 'Not Started', notes: 'Provisionally booked 3 Jul. Needs a scissor lift, not a tower — confirm access.' },
-  { id: 't30', name: 'Prins Forklifts — hire agreement + invoices', category: 'Finance', priority: 'Low', dueDate: '2026-06-26', status: 'Not Started', notes: 'Hollie is lead, I’m cc’d. Hire agreement still unsigned + deposit/hire invoices outstanding.' },
-  { id: 't31', name: 'UK Creative Festival EMP V1 — skim', category: 'Events & Ops', priority: 'Low', dueDate: '2026-07-01', status: 'Not Started', notes: 'Review V1 EMP for estates input. Event 2 Jul.' },
-  { id: 't32', name: 'Glass balustrades (decking) — support Cary', category: 'Procurement & Quotes', priority: 'Low', dueDate: '2026-07-01', status: 'Not Started', notes: 'SW Ltd to attend and find a solution; tarmac/concrete around decking makes lifting difficult. Heavy gig calendar.' },
 ];
 
 // One-off tasks dictated ahead of a return from leave — surfaced via a
@@ -219,6 +189,42 @@ const PENDING_RETURN_TASKS: Task[] = [
   { id: 'pt2', name: 'Do a meter reading', priority: 'Medium', dueDate: '', status: 'Not Started' },
   { id: 'pt3', name: 'Catch up with Holly', priority: 'Low', dueDate: '', status: 'Not Started' },
   { id: 'pt4', name: 'Double check all contractor requirements since being off', priority: 'High', dueDate: '', status: 'Not Started' },
+];
+
+// Inbox triage after annual leave, w/c 22 Jun 2026. Source JSON "Critical" items
+// mapped to the app's top existing tier (High) since there is no Critical tier.
+// Surfaced via a quick-add button (same mechanism as PENDING_RETURN_TASKS) so
+// these land in the user's real saved task list instead of a seed default that
+// gets overwritten on sign-in.
+const INBOX_TASKS: Task[] = [
+  { id: 'it1', name: 'Woodchip — decide order for 25–27 Jun shows', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-22', status: 'Not Started', notes: 'Covered for Fri 19 only. Decide if more needed for 3 shows (Thu 25–Sat 27). Confirm to Hollie.' },
+  { id: 'it2', name: 'Trader power — The Streets / Obi’s House', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: '4x 16amp must be live by 9am Fri 26 for Twerk N Jerk + Kerb traders (load-in 11am Fri, in situ to end of Obi’s House Sat 27). Confirm with Cary & Craig.' },
+  { id: 'it3', name: 'Scenic Railway survey contacts to Jack King', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Send Jack the survey contractor details so identified repairs can be booked. Grade II* listed.' },
+  { id: 'it4', name: 'Walk-in freezer part — reply to Hollie', category: 'Procurement & Quotes', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Perfect Services QU-0733 approved. Confirm freezer size and decide on the ~£4k part.' },
+  { id: 'it5', name: 'CleanSmart Solutions — overdue invoice', category: 'Finance', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'inv-001866, 83 days overdue and being chased. Get paid / respond.' },
+  { id: 'it6', name: 'Quantec — overdue invoice R/30799/5062-01', category: 'Finance', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Second chase from Sharon, no reply yet. Resolve payment.' },
+  { id: 'it7', name: 'Confirm RCBO replacement behind Please Sir', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-25', status: 'Not Started', notes: 'Cary booked Richard (electrician) Fri 26 Jun 8am. Confirm Thu 25 he is still attending — needed for Obi’s House Sat 27.' },
+  { id: 'it8', name: 'Green room showers — arrange gas safe engineer', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: 'Drain Doctor can’t fix — thermostat behind wall. Affects green rooms for shows. Book gas safe engineer.' },
+  { id: 'it9', name: 'Fan replacement (Nitor) — raise/confirm PO', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: 'Only date left is Mon 29 Jun; next month fully booked. Align with Cary and raise/confirm PO to secure before summer holidays.' },
+  { id: 'it10', name: 'Kent Water Services — invoice KWS-2764', category: 'Finance', priority: 'High', dueDate: '2026-06-28', status: 'Not Started', notes: '£609.50, due 28 Jun. Approve / pay.' },
+  { id: 'it11', name: 'Fire door replacement & remediation quote (HK Safety)', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-30', status: 'Not Started', notes: 'Quote from fire door inspections. Statutory — review and progress to works.' },
+  { id: 'it12', name: 'Credit card receipts + coding for Julie', category: 'Finance', priority: 'Medium', dueDate: '2026-06-24', status: 'Not Started', notes: 'Provide receipt + coding: B&Q £24.99 (02/06) and Jewson £236.47 (19/05).' },
+  { id: 'it13', name: 'Budget tracker — Drain Doctor cost allocation', category: 'Finance', priority: 'Medium', dueDate: '2026-06-24', status: 'Not Started', notes: 'Unread thread. Advise Kelly/Hollie whether drainage cover is a show cost vs estates cost.' },
+  { id: 'it14', name: 'DNA Pest Control — receipt the POs', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Receipt the POs (per Julie) if happy with them.' },
+  { id: 'it15', name: 'Check invoices 5616 & 5584', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Review both; existing £70 PO can be used against 5584 (Julie).' },
+  { id: 'it16', name: 'James Richards invoice DL002', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Electrical cover 30 May. Arrange payment.' },
+  { id: 'it17', name: 'Scenic gate insurance claim — send invoices to Sarah', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Send Sarah Boorman the invoices; she is checking the day rate with Hollie.' },
+  { id: 'it18', name: 'Ashford Tarmac PCN — Belgrave Road', category: 'Finance', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'New PCN for Belgrave Road car park. Dispute as with previous fines.' },
+  { id: 'it19', name: 'Vape recycling bins + July recycling contract (Countrystyle)', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'Get actual disposal cost from Harry before buying; confirm budget line; Liz to order ~4 bins. Also confirm status of July recycling contract.' },
+  { id: 'it20', name: 'Riello UPS service — review RAMS', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'RAMS received for HQ UPS service (SO 222568). Review and confirm schedule.' },
+  { id: 'it21', name: 'Quantec open quotes — provide decisions', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'Louisa chasing updates/decisions on all open Dreamland quotes.' },
+  { id: 'it22', name: 'Drain Doctor quote 127634 — review', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'Review and decide.' },
+  { id: 'it23', name: 'Water contract — review broker offers', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: 'Review 3 offers (Pozitive, Water Plus, Water2Business) and respond to Laurien (Live Nation).' },
+  { id: 'it24', name: 'CWST clean & water sampling (Kent Water)', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: 'Quote to disinfect tree tops cold water tank + monthly fountain sampling. Legionella — review and decide.' },
+  { id: 'it25', name: 'RiteHite bi-annual service — confirm', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-07-02', status: 'Not Started', notes: 'Provisionally booked 3 Jul. Needs a scissor lift, not a tower — confirm access.' },
+  { id: 'it26', name: 'Prins Forklifts — hire agreement + invoices', category: 'Finance', priority: 'Low', dueDate: '2026-06-26', status: 'Not Started', notes: 'Hollie is lead, I’m cc’d. Hire agreement still unsigned + deposit/hire invoices outstanding.' },
+  { id: 'it27', name: 'UK Creative Festival EMP V1 — skim', category: 'Events & Ops', priority: 'Low', dueDate: '2026-07-01', status: 'Not Started', notes: 'Review V1 EMP for estates input. Event 2 Jul.' },
+  { id: 'it28', name: 'Glass balustrades (decking) — support Cary', category: 'Procurement & Quotes', priority: 'Low', dueDate: '2026-07-01', status: 'Not Started', notes: 'SW Ltd to attend and find a solution; tarmac/concrete around decking makes lifting difficult. Heavy gig calendar.' },
 ];
 
 const SEED_EVENTS: CalendarEvent[] = [
@@ -2485,6 +2491,7 @@ function TaskManager({
   onArchive,
   onArchiveAllCompleted,
   onAddPendingReturn,
+  onAddInboxTasks,
 }: {
   tasks: Task[];
   onAdd: (task: Task) => void;
@@ -2493,10 +2500,14 @@ function TaskManager({
   onArchive: (id: string) => void;
   onArchiveAllCompleted: () => void;
   onAddPendingReturn: () => void;
+  onAddInboxTasks: () => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
   const pendingReturnCount = PENDING_RETURN_TASKS.filter(
     (pending) => !tasks.some((t) => t.name.trim().toLowerCase() === pending.name.trim().toLowerCase())
+  ).length;
+  const inboxTaskCount = INBOX_TASKS.filter(
+    (inbox) => !tasks.some((t) => t.name.trim().toLowerCase() === inbox.name.trim().toLowerCase())
   ).length;
   const todayStr = toDateInputValue(new Date());
   const isOverdueOrToday = (t: Task) =>
@@ -2579,6 +2590,14 @@ function TaskManager({
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
           >
             <ListChecks className="h-3.5 w-3.5" /> Add {pendingReturnCount} Pending Task{pendingReturnCount === 1 ? '' : 's'}
+          </button>
+        )}
+        {inboxTaskCount > 0 && (
+          <button
+            onClick={onAddInboxTasks}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+          >
+            <ListChecks className="h-3.5 w-3.5" /> Add {inboxTaskCount} Inbox Task{inboxTaskCount === 1 ? '' : 's'}
           </button>
         )}
       </Panel>
@@ -3187,6 +3206,14 @@ export default function InvictusTrackerPage() {
       return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
     });
   };
+  const handleAddInboxTasks = () => {
+    setTasks((prev) => {
+      const missing = INBOX_TASKS.filter(
+        (inbox) => !prev.some((t) => t.name.trim().toLowerCase() === inbox.name.trim().toLowerCase())
+      );
+      return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
+    });
+  };
 
   const handleArchiveTask = (id: string) => {
     const task = tasks.find((t) => t.id === id);
@@ -3288,6 +3315,7 @@ export default function InvictusTrackerPage() {
                 onArchive={handleArchiveTask}
                 onArchiveAllCompleted={handleArchiveAllCompleted}
                 onAddPendingReturn={handleAddPendingReturnTasks}
+                onAddInboxTasks={handleAddInboxTasks}
               />
             )}
             {activePage === 'archive' && (
