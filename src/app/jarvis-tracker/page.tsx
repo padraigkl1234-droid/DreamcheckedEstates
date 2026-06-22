@@ -1964,7 +1964,7 @@ function Panel({
             {title}
           </h2>
         </div>
-        {refCode && <SysRef code={refCode} className="hidden sm:inline-flex" />}
+        {refCode && <SysRef code={refCode} className="hidden lg:inline-flex" />}
       </div>
       {children}
     </div>
