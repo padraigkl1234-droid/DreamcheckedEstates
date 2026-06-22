@@ -55,6 +55,7 @@ import {
   TrendingUp,
   FileText,
   Search,
+  Download,
 } from 'lucide-react';
 import {
   Area,
@@ -2356,6 +2357,46 @@ function formatCompletedStamp(entry: ReportEntry): string {
   return `${datePart} · ${timePart}`;
 }
 
+async function exportReportsToPdf(entries: ReportEntry[]) {
+  const { jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const crimson: [number, number, number] = [194, 48, 74];
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(...crimson);
+  doc.text('I.N.V.I.C.T.U.S. — Completion Reports', 40, 44);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  doc.text(`Generated ${new Date().toLocaleString('en-GB')} · ${entries.length} entries`, 40, 60);
+
+  autoTable(doc, {
+    startY: 76,
+    head: [['Type', 'Name', 'Completed', 'Priority / Status', 'Details']],
+    body: entries.map((entry) => [
+      entry.kind === 'task' ? 'Task' : 'Compliance',
+      entry.name,
+      `${formatCompletedStamp(entry)}${!entry.hasTimeOfDay ? ' (date only)' : ''}`,
+      entry.kind === 'task' ? entry.priority ?? '—' : 'Completed',
+      entry.kind === 'task'
+        ? entry.dueDate ? `Due ${entry.dueDate}` : '—'
+        : [entry.nextDueDate ? `Next due ${entry.nextDueDate}` : null, entry.comments]
+            .filter(Boolean)
+            .join(' · ') || '—',
+    ]),
+    headStyles: { fillColor: crimson, textColor: 255, fontSize: 8.5 },
+    bodyStyles: { fontSize: 8.5, textColor: [40, 40, 40] },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+    margin: { left: 40, right: 40 },
+  });
+
+  doc.save(`invictus-completion-reports-${toDateInputValue(new Date())}.pdf`);
+}
+
 function ReportsPage({
   tasks,
   archivedTasks,
@@ -2422,6 +2463,14 @@ function ReportsPage({
                 </button>
               ))}
             </div>
+            <button
+              onClick={() => exportReportsToPdf(entries)}
+              disabled={entries.length === 0}
+              className="flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-invictus-crimson-bright/10"
+            >
+              <Download className="h-3 w-3" />
+              Export PDF
+            </button>
           </div>
         </div>
 
