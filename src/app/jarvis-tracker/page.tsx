@@ -1246,6 +1246,59 @@ function Reveal({ index, animate, children }: { index: number; animate: boolean;
 }
 
 // ---------------------------------------------------------------------------
+// SystemDiagnosticsPanel — owns its own 1s clock tick and fake load-metric
+// tick in isolation, so the rest of the dashboard (chart, news, panels) isn't
+// forced to re-render every second.
+// ---------------------------------------------------------------------------
+
+function SystemDiagnosticsPanel() {
+  const [now, setNow] = useState(new Date());
+  const [load, setLoad] = useState({ cpu: 38, mem: 52, net: 24 });
+
+  useEffect(() => {
+    const clockId = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(clockId);
+  }, []);
+
+  useEffect(() => {
+    const loadId = setInterval(() => {
+      setLoad((prev) => ({
+        cpu: clamp(prev.cpu + Math.round((Math.random() - 0.5) * 16), 12, 96),
+        mem: clamp(prev.mem + Math.round((Math.random() - 0.5) * 10), 20, 90),
+        net: clamp(prev.net + Math.round((Math.random() - 0.5) * 20), 5, 99),
+      }));
+    }, 2200);
+    return () => clearInterval(loadId);
+  }, []);
+
+  return (
+    <Panel title="System Diagnostics" icon={Activity} refCode="0048-A" tier="ambient">
+      <div className="flex flex-col gap-4">
+        <div className="text-center">
+          <p className="font-mono text-2xl font-bold tabular-nums tracking-widest text-neutral-200 [text-shadow:var(--glow-text-subtle)]">
+            {now.toLocaleTimeString('en-GB')}
+          </p>
+          <p className="text-[10px] uppercase tracking-widest text-neutral-600">
+            {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <RadialGauge icon={Cpu} label="CPU" value={load.cpu} />
+          <RadialGauge icon={Server} label="Server" value={load.mem} />
+          <RadialGauge icon={Wifi} label="Network" value={load.net} />
+        </div>
+
+        <div className="flex items-center justify-center gap-2 rounded-md border border-emerald-400/30 bg-emerald-400/10 py-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+          <span className="text-xs uppercase tracking-widest text-emerald-300">System Status: Nominal</span>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
 
@@ -1264,8 +1317,6 @@ function Dashboard({
   animateCardsIn?: boolean;
   onCardsRevealed?: () => void;
 }) {
-  const [now, setNow] = useState(new Date());
-  const [load, setLoad] = useState({ cpu: 38, mem: 52, net: 24 });
   const [news, setNews] = useState<{ general: NewsItem[]; business: NewsItem[]; football: NewsItem[] }>({
     general: [],
     business: [],
@@ -1325,22 +1376,6 @@ function Dashboard({
     };
   }, []);
 
-  useEffect(() => {
-    const clockId = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(clockId);
-  }, []);
-
-  useEffect(() => {
-    const loadId = setInterval(() => {
-      setLoad((prev) => ({
-        cpu: clamp(prev.cpu + Math.round((Math.random() - 0.5) * 16), 12, 96),
-        mem: clamp(prev.mem + Math.round((Math.random() - 0.5) * 10), 20, 90),
-        net: clamp(prev.net + Math.round((Math.random() - 0.5) * 20), 5, 99),
-      }));
-    }, 2200);
-    return () => clearInterval(loadId);
-  }, []);
-
   // Tell the parent once the staggered reveal has finished so re-mounting
   // this component later in the same session (switching tabs and back) won't replay it.
   useEffect(() => {
@@ -1367,7 +1402,7 @@ function Dashboard({
   const timelineTaskTotal = timeline.reduce((sum, p) => sum + p.tasks, 0);
   const timelineComplianceTotal = timeline.reduce((sum, p) => sum + p.compliance, 0);
 
-  const todayStr = toDateInputValue(now);
+  const todayStr = useMemo(() => toDateInputValue(new Date()), []);
   const todaysMeetings = events
     .filter((ev) => getOccurrencesInRange(ev, todayStr, todayStr).length > 0)
     .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
@@ -1486,29 +1521,7 @@ function Dashboard({
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <Reveal index={6} animate={animateCardsIn}>
-        <Panel title="System Diagnostics" icon={Activity} refCode="0048-A" tier="ambient">
-          <div className="flex flex-col gap-4">
-            <div className="text-center">
-              <p className="font-mono text-2xl font-bold tabular-nums tracking-widest text-neutral-200 [text-shadow:var(--glow-text-subtle)]">
-                {now.toLocaleTimeString('en-GB')}
-              </p>
-              <p className="text-[10px] uppercase tracking-widest text-neutral-600">
-                {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between gap-2">
-              <RadialGauge icon={Cpu} label="CPU" value={load.cpu} />
-              <RadialGauge icon={Server} label="Server" value={load.mem} />
-              <RadialGauge icon={Wifi} label="Network" value={load.net} />
-            </div>
-
-            <div className="flex items-center justify-center gap-2 rounded-md border border-emerald-400/30 bg-emerald-400/10 py-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-              <span className="text-xs uppercase tracking-widest text-emerald-300">System Status: Nominal</span>
-            </div>
-          </div>
-        </Panel>
+          <SystemDiagnosticsPanel />
         </Reveal>
 
         <Reveal index={7} animate={animateCardsIn}>
