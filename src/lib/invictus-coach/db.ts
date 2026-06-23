@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = process.env.VERCEL ? path.join('/tmp', 'invictus-coach-data') : path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'invictus-coach.db');
 
 const DEFAULT_SPLIT: { weekday: number; label: string; focus: string; exercises: string[] }[] = [
