@@ -104,6 +104,7 @@ interface CalendarEvent {
   priority: Priority;
   notes: string;
   recurrence?: EventRecurrence;
+  completedDates?: string[]; // occurrence dates (YYYY-MM-DD) ticked off as done
 }
 
 function addRecurrenceStep(d: Date, freq: RecurrenceFreq): Date {
@@ -1309,6 +1310,7 @@ function Dashboard({
   events,
   animateCardsIn = false,
   onCardsRevealed,
+  onToggleMeeting,
 }: {
   tasks: Task[];
   archivedTasks: Task[];
@@ -1316,6 +1318,7 @@ function Dashboard({
   events: CalendarEvent[];
   animateCardsIn?: boolean;
   onCardsRevealed?: () => void;
+  onToggleMeeting: (id: string, date: string) => void;
 }) {
   const [news, setNews] = useState<{ general: NewsItem[]; business: NewsItem[]; football: NewsItem[] }>({
     general: [],
@@ -1419,14 +1422,28 @@ function Dashboard({
             {todaysMeetings.length === 0 && (
               <p className="py-6 text-center text-xs text-neutral-600">No meetings scheduled today.</p>
             )}
-            {todaysMeetings.map((ev) => (
+            {todaysMeetings.map((ev) => {
+              const done = ev.completedDates?.includes(todayStr) ?? false;
+              return (
               <div
                 key={ev.id}
-                className="relative flex items-start justify-between gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle px-3 py-2.5"
+                className={`relative flex items-start gap-3 rounded-md border shadow-glow-subtle px-3 py-2.5 ${
+                  done ? 'border-emerald-400/30 bg-emerald-400/5' : 'border-neutral-400/20 bg-invictus-base/40'
+                }`}
               >
                 <MicroCorners />
-                <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 text-sm text-neutral-100">
+                <button
+                  onClick={() => onToggleMeeting(ev.id, todayStr)}
+                  className={`mt-0.5 shrink-0 transition-colors ${
+                    done ? 'text-emerald-300' : 'text-neutral-500 hover:text-invictus-crimson-bright'
+                  }`}
+                  title={done ? 'Mark as not done' : 'Mark as done'}
+                  aria-pressed={done}
+                >
+                  {done ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p className={`flex items-center gap-1.5 text-sm ${done ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>
                     {ev.recurrence && <Repeat className="h-3 w-3 shrink-0 text-neutral-400" />}
                     <span className="truncate">{ev.title}</span>
                   </p>
@@ -1436,7 +1453,8 @@ function Dashboard({
                   {ev.priority}
                 </span>
               </div>
-            ))}
+              );
+            })}
           </div>
         </Panel>
       </Reveal>
@@ -3271,6 +3289,16 @@ export default function InvictusTrackerPage() {
 
   const handleAddEvent = (event: CalendarEvent) => setEvents((prev) => [...prev, event]);
   const handleDeleteEvent = (id: string) => setEvents((prev) => prev.filter((e) => e.id !== id));
+  const handleToggleMeeting = (id: string, date: string) =>
+    setEvents((prev) =>
+      prev.map((e) => {
+        if (e.id !== id) return e;
+        const completedDates = e.completedDates ?? [];
+        return completedDates.includes(date)
+          ? { ...e, completedDates: completedDates.filter((d) => d !== date) }
+          : { ...e, completedDates: [...completedDates, date] };
+      })
+    );
   const handleImportEvents = (importEvents: CalendarEvent[]) => {
     const existingIds = new Set(events.map((e) => e.id));
     const toAdd = importEvents.filter((e) => !existingIds.has(e.id));
@@ -3314,6 +3342,7 @@ export default function InvictusTrackerPage() {
                 onCardsRevealed={() => {
                   cardsRevealedRef.current = true;
                 }}
+                onToggleMeeting={handleToggleMeeting}
               />
             )}
             {activePage === 'calendar' && (
