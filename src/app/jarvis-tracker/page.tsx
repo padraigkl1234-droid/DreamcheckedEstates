@@ -228,6 +228,25 @@ const INBOX_TASKS: Task[] = [
   { id: 'it28', name: 'Glass balustrades (decking) — support Cary', category: 'Procurement & Quotes', priority: 'Low', dueDate: '2026-07-01', status: 'Not Started', notes: 'SW Ltd to attend and find a solution; tarmac/concrete around decking makes lifting difficult. Heavy gig calendar.' },
 ];
 
+// Outlook inbox triage, w/c 22 Jun 2026 (post-leave catch-up). Genuinely new actionable
+// items found by scanning recent emails — excludes anything that's just an update/confirmation
+// on an already-tracked item (e.g. Nitor fan booking, Prins Forklifts PO, Dreamland Collections,
+// invoice 5584). Surfaced via the same quick-add mechanism as INBOX_TASKS.
+const OUTLOOK_TASKS: Task[] = [
+  { id: 'ot1', name: 'Approve Inspyrus invoice 1578105513 — Live Nation (Music) UK Ltd', category: 'Finance', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: 'Julie: now part of Operations, needs to go on the tracker. Approve via Inspyrus.' },
+  { id: 'ot2', name: 'Approve Inspyrus invoice INV-11541 — VR Sani-Co Ltd', category: 'Finance', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'Awaiting your approval in Inspyrus.' },
+  { id: 'ot3', name: 'Approve Inspyrus invoice 49490 — Total Supplies Ltd', category: 'Finance', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'Awaiting your approval in Inspyrus.' },
+  { id: 'ot4', name: 'Invoice S58509 — confirm for tracker', category: 'Finance', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'Julie flagged this needs to go on the tracker if not already there — check with Hollie or Kelly; will be processed via Inspyrus.' },
+  { id: 'ot5', name: 'Overheating external network cabinets — arrange fix', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: "David Rigley (Live Nation IT) reports cabinet temps over 55°C against a 45°C hardware max — risk to CCTV, park screens & lighting. Perfect Services' extractor fans aren't enough. Arrange a meeting to agree a solution before peak summer heat." },
+  { id: 'ot6', name: 'Review Arlington Car Park Audit findings (street sweeper)', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: 'Craig Ellis sent audit findings + suggestions for Arlington Car Park, incl. a pushable street sweeper option. Review PDF and respond with decisions.' },
+  { id: 'ot7', name: 'Confirm on-site contact for KERB Sunday power setup', category: 'Events & Ops', priority: 'Medium', dueDate: '2026-06-27', status: 'Not Started', notes: "Kelsey (KERB) asked who their electrician should liaise with on-site this Sunday morning." },
+  { id: 'ot8', name: 'Complete Action Counters Terrorism 2026-2027 course', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-07-15', status: 'Not Started', notes: 'Mandatory Workday Learning Hub course — complete within 21 days of 24 Jun.' },
+  { id: 'ot9', name: 'Canterbury Lifts — arrange callout for lift issue', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: "Engineer believes the current fault is unrelated to the Feb works; they've offered to arrange a callout to investigate." },
+  { id: 'ot10', name: "Decide on Stark's MHHS offer — reply to Laurien", category: 'Finance', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: "Laurien (Live Nation) needs a final yes/no on Stark's Market-wide Half-Hourly Settlement reform offer." },
+  { id: 'ot11', name: 'DHT container access — confirm for 30 Jun ~9am', category: 'Events & Ops', priority: 'Low', dueDate: '2026-06-29', status: 'Not Started', notes: 'Tamara (Dreamland Heritage Trust) asked for container access early morning 30 Jun so they can sort items inside.' },
+  { id: 'ot12', name: 'Order Screwfix parts for Cary', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'McAlpine basin waste x3, Flomasta 15mm pipe, M9x20 socket countersunk screws.' },
+];
+
 const SEED_EVENTS: CalendarEvent[] = [
   { id: 'e1', title: 'Ansul Meeting', date: '2026-06-20', priority: 'High', notes: 'It is with Paul A.' },
 ];
@@ -261,6 +280,16 @@ const IMPORT_SCHEDULE: CalendarEvent[] = [
   { id: 'imp-o13', title: 'Operational Fire and Safety', date: '2026-08-19', priority: 'Medium', notes: '' },
   { id: 'imp-o14', title: 'FRA Review - Cinema', date: '2026-10-13', priority: 'Medium', notes: '' },
   { id: 'imp-o15', title: 'Cinema Maintenance Check', date: '2026-11-10', priority: 'Medium', notes: '' },
+];
+
+// New calendar invites found in Outlook since 22 Jun 2026 that aren't already covered by
+// SEED_EVENTS/IMPORT_SCHEDULE (most other invites in that window — meditation, water meter
+// reading, site safety walks, 1-2-1s etc. — are recurring entries already imported above).
+const OUTLOOK_EVENTS: CalendarEvent[] = [
+  { id: 'oe1', title: 'Insurance visit - Affilifest', date: '2026-06-25', priority: 'Medium', notes: 'Organised by Sarah Boorman, w/ James Penfold, Craig Ellis, Hollie Taylor. Tentative, 09:30-10:30.' },
+  { id: 'oe2', title: 'Fire Dampers Testing', date: '2026-06-29', priority: 'Medium', notes: 'All-day, with Cary Phipps.' },
+  { id: 'oe3', title: 'Meter Readings', date: '2026-06-29', priority: 'Low', notes: '08:00-09:30.' },
+  { id: 'oe4', title: 'Visit for the Glass Balustrade', date: '2026-07-01', priority: 'Medium', notes: '10:00-11:00, with Cary Phipps — relates to the glass balustrades (decking) task.' },
 ];
 
 const SEED_COMPLIANCES: ComplianceItem[] = [
@@ -2088,6 +2117,7 @@ function CalendarPage({
   const [repeatUntil, setRepeatUntil] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<{ event: CalendarEvent; occurrenceDate: string } | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [outlookImportMessage, setOutlookImportMessage] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { playConfirm } = useSound();
 
@@ -2132,6 +2162,12 @@ function CalendarPage({
   const handleImportClick = () => {
     const added = onImport(IMPORT_SCHEDULE);
     setImportMessage(added > 0 ? `Imported ${added} entries from your 2026 schedule.` : 'Your 2026 schedule is already imported.');
+    playConfirm();
+  };
+
+  const handleImportOutlookClick = () => {
+    const added = onImport(OUTLOOK_EVENTS);
+    setOutlookImportMessage(added > 0 ? `Imported ${added} new invite${added === 1 ? '' : 's'} from Outlook.` : 'No new Outlook invites to import.');
     playConfirm();
   };
 
@@ -2262,6 +2298,18 @@ function CalendarPage({
           </button>
         </div>
         {importMessage && <p className="mt-3 text-xs text-emerald-400">{importMessage}</p>}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-400/10 pt-4">
+          <p className="text-xs text-neutral-400">
+            New meeting invites picked up from your Outlook inbox since 22 Jun 2026 that aren&apos;t already on this calendar.
+          </p>
+          <button
+            onClick={handleImportOutlookClick}
+            className="flex shrink-0 items-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
+          >
+            <Upload className="h-4 w-4" /> Import Outlook Invites
+          </button>
+        </div>
+        {outlookImportMessage && <p className="mt-3 text-xs text-emerald-400">{outlookImportMessage}</p>}
       </Panel>
 
       <Panel title={`${MONTH_LABELS[viewMonth]} ${viewYear}`} icon={CalendarDays} refCode="0103-C">
@@ -2523,6 +2571,7 @@ function TaskManager({
   onArchiveAllCompleted,
   onAddPendingReturn,
   onAddInboxTasks,
+  onAddOutlookTasks,
 }: {
   tasks: Task[];
   onAdd: (task: Task) => void;
@@ -2532,6 +2581,7 @@ function TaskManager({
   onArchiveAllCompleted: () => void;
   onAddPendingReturn: () => void;
   onAddInboxTasks: () => void;
+  onAddOutlookTasks: () => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
   const pendingReturnCount = PENDING_RETURN_TASKS.filter(
@@ -2539,6 +2589,9 @@ function TaskManager({
   ).length;
   const inboxTaskCount = INBOX_TASKS.filter(
     (inbox) => !tasks.some((t) => t.name.trim().toLowerCase() === inbox.name.trim().toLowerCase())
+  ).length;
+  const outlookTaskCount = OUTLOOK_TASKS.filter(
+    (outlook) => !tasks.some((t) => t.name.trim().toLowerCase() === outlook.name.trim().toLowerCase())
   ).length;
   const todayStr = toDateInputValue(new Date());
   const isOverdueOrToday = (t: Task) =>
@@ -2629,6 +2682,14 @@ function TaskManager({
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
           >
             <ListChecks className="h-3.5 w-3.5" /> Add {inboxTaskCount} Inbox Task{inboxTaskCount === 1 ? '' : 's'}
+          </button>
+        )}
+        {outlookTaskCount > 0 && (
+          <button
+            onClick={onAddOutlookTasks}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+          >
+            <ListChecks className="h-3.5 w-3.5" /> Add {outlookTaskCount} Outlook Task{outlookTaskCount === 1 ? '' : 's'}
           </button>
         )}
       </Panel>
@@ -3245,6 +3306,14 @@ export default function InvictusTrackerPage() {
       return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
     });
   };
+  const handleAddOutlookTasks = () => {
+    setTasks((prev) => {
+      const missing = OUTLOOK_TASKS.filter(
+        (outlook) => !prev.some((t) => t.name.trim().toLowerCase() === outlook.name.trim().toLowerCase())
+      );
+      return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
+    });
+  };
 
   const handleArchiveTask = (id: string) => {
     const task = tasks.find((t) => t.id === id);
@@ -3358,6 +3427,7 @@ export default function InvictusTrackerPage() {
                 onArchiveAllCompleted={handleArchiveAllCompleted}
                 onAddPendingReturn={handleAddPendingReturnTasks}
                 onAddInboxTasks={handleAddInboxTasks}
+                onAddOutlookTasks={handleAddOutlookTasks}
               />
             )}
             {activePage === 'archive' && (
