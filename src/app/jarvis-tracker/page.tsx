@@ -322,6 +322,32 @@ const SEED_COMPLIANCES: ComplianceItem[] = [
   { id: 'c24', name: 'Workshop machine LEV', completed: false, date: '', nextDueDate: '', comments: '' },
 ];
 
+// Compliance divisions, shown in this order in the tracker. Items are sorted into
+// a division by keyword on their name, so seeded, Firestore-loaded and custom
+// items all group consistently without needing a stored field.
+const COMPLIANCE_DIVISION_ORDER = [
+  'Fire Safety',
+  'Electrical',
+  'Mechanical & Plant',
+  'Lifting & Access',
+  'Water Hygiene',
+  'Security & Monitoring',
+  'Site & Hazards',
+  'General',
+] as const;
+
+function classifyComplianceDivision(name: string): string {
+  const n = name.toLowerCase();
+  if (/fire|ansul|pava|extinguisher|sprinkler|suppression|emergency light/.test(n)) return 'Fire Safety';
+  if (/loler|lift|scaffold|hoist|mewp|working at height/.test(n)) return 'Lifting & Access';
+  if (/legionella|water hygiene|water sampl|cwst|tank clean/.test(n)) return 'Water Hygiene';
+  if (/wiring|pat testing|\bpat\b|generator|lightning|lighting protection|electric|rcbo/.test(n)) return 'Electrical';
+  if (/ac system|air con|boiler|hvac|extract|\blev\b|machinery|carpentry|plant|gas safe/.test(n)) return 'Mechanical & Plant';
+  if (/cctv|people counter|security|surveillance/.test(n)) return 'Security & Monitoring';
+  if (/asbestos|pest/.test(n)) return 'Site & Hazards';
+  return 'General';
+}
+
 // Once-per-browser-session gate: cleared on a new tab/session, untouched by in-app navigation.
 const SESSION_BOOTED_KEY = 'invictus:sessionBooted';
 
@@ -3540,6 +3566,20 @@ function ComplianceTracker({
   const missingStandardCount = SEED_COMPLIANCES.filter(
     (seed) => !compliances.some((c) => c.name.trim().toLowerCase() === seed.name.trim().toLowerCase())
   ).length;
+  // Group items by division for display, keeping COMPLIANCE_DIVISION_ORDER first
+  // and appending any unexpected division at the end. Empty divisions are hidden.
+  const divisionGroups = useMemo(() => {
+    const byDivision = new Map<string, ComplianceItem[]>();
+    for (const item of compliances) {
+      const division = classifyComplianceDivision(item.name);
+      const bucket = byDivision.get(division);
+      if (bucket) bucket.push(item);
+      else byDivision.set(division, [item]);
+    }
+    const ordered = COMPLIANCE_DIVISION_ORDER.filter((d) => byDivision.has(d));
+    const extras = [...byDivision.keys()].filter((d) => !COMPLIANCE_DIVISION_ORDER.includes(d as typeof COMPLIANCE_DIVISION_ORDER[number]));
+    return [...ordered, ...extras].map((division) => ({ division, items: byDivision.get(division)! }));
+  }, [compliances]);
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
   const [nextDueDate, setNextDueDate] = useState('');
@@ -3617,63 +3657,80 @@ function ComplianceTracker({
           <span>Comments</span>
           <span />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-4">
           {compliances.length === 0 && (
             <p className="py-8 text-center text-xs text-neutral-600">No compliance items logged.</p>
           )}
-          {compliances.map((item) => (
-            <div
-              key={item.id}
-              className="relative grid grid-cols-1 items-center gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.3fr_auto]"
-            >
-              <MicroCorners />
-              <button
-                onClick={() => {
-                  if (!item.completed) playConfirm();
-                  onToggle(item.id);
-                }}
-                className="flex items-center justify-center"
-                title={item.completed ? 'Mark incomplete' : 'Mark complete'}
-              >
-                {item.completed ? (
-                  <CheckCircle2 className="h-6 w-6 text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.45)]" />
-                ) : (
-                  <Circle className="h-6 w-6 text-neutral-600" />
-                )}
-              </button>
+          {divisionGroups.map(({ division, items }) => {
+            const outstanding = items.filter((i) => !i.completed).length;
+            return (
+              <div key={division} className="space-y-2">
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-100">
+                    {division}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">{items.length}</span>
+                  {outstanding > 0 && (
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-amber-400/80">{outstanding} due</span>
+                  )}
+                  <span className="h-px flex-1 bg-neutral-400/10" />
+                </div>
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="relative grid grid-cols-1 items-center gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.3fr_auto]"
+                  >
+                    <MicroCorners />
+                    <button
+                      onClick={() => {
+                        if (!item.completed) playConfirm();
+                        onToggle(item.id);
+                      }}
+                      className="flex items-center justify-center"
+                      title={item.completed ? 'Mark incomplete' : 'Mark complete'}
+                    >
+                      {item.completed ? (
+                        <CheckCircle2 className="h-6 w-6 text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.45)]" />
+                      ) : (
+                        <Circle className="h-6 w-6 text-neutral-600" />
+                      )}
+                    </button>
 
-              <p className={`text-sm ${item.completed ? 'text-emerald-200' : 'text-neutral-100'}`}>{item.name}</p>
+                    <p className={`text-sm ${item.completed ? 'text-emerald-200' : 'text-neutral-100'}`}>{item.name}</p>
 
-              <input
-                type="date"
-                value={item.date}
-                onChange={(e) => onChangeDate(item.id, e.target.value)}
-                className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-              />
+                    <input
+                      type="date"
+                      value={item.date}
+                      onChange={(e) => onChangeDate(item.id, e.target.value)}
+                      className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                    />
 
-              <input
-                type="date"
-                value={item.nextDueDate}
-                onChange={(e) => onChangeNextDueDate(item.id, e.target.value)}
-                className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-              />
+                    <input
+                      type="date"
+                      value={item.nextDueDate}
+                      onChange={(e) => onChangeNextDueDate(item.id, e.target.value)}
+                      className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                    />
 
-              <input
-                value={item.comments}
-                onChange={(e) => onChangeComments(item.id, e.target.value)}
-                placeholder="Comments..."
-                className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-              />
+                    <input
+                      value={item.comments}
+                      onChange={(e) => onChangeComments(item.id, e.target.value)}
+                      placeholder="Comments..."
+                      className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                    />
 
-              <button
-                onClick={() => onDelete(item.id)}
-                className="flex items-center justify-center rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
-                title="Delete compliance item"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
+                    <button
+                      onClick={() => onDelete(item.id)}
+                      className="flex items-center justify-center rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
+                      title="Delete compliance item"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
 
         <div className="mt-4 flex items-center gap-2 rounded-md border border-amber-400/20 bg-amber-400/5 px-3 py-2">
