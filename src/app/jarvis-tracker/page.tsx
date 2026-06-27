@@ -2651,11 +2651,8 @@ function zoneCorners(z: SiteZone): Pt[] {
   return local.map(([dx, dy]) => [cx + dx * c - dy * s, cy + dx * s + dy * c] as Pt);
 }
 
-const SITE_FEATURES: { label: string; contains: (x: number, y: number) => boolean; cx: number; cy: number }[] =
-  SITE_ZONES.map((z) => {
-    const poly = zoneCorners(z);
-    return { label: z.label, contains: (x: number, y: number) => pointInPolygon(x, y, poly), cx: z.x + z.w / 2, cy: z.y + z.h / 2 };
-  });
+const SITE_FEATURES: { label: string; poly: Pt[]; cx: number; cy: number }[] =
+  SITE_ZONES.map((z) => ({ label: z.label, poly: zoneCorners(z), cx: z.x + z.w / 2, cy: z.y + z.h / 2 }));
 
 const GRID_COLS = 14;
 const GRID_ROWS = 12;
@@ -2676,9 +2673,18 @@ const SITE_CELLS: GridCell[] = (() => {
       const y = row * CELL_H;
       const cx = x + CELL_W / 2;
       const cy = y + CELL_H / 2;
-      // A square is clickable if it's inside the site boundary OR over a named
-      // zone (so frontage buildings like Cinema / Cinque Ports stay assignable).
-      const landmark = SITE_FEATURES.find((f) => f.contains(cx, cy))?.label ?? null;
+      // Resolve which zone a square belongs to. Pass 1: cell centre sits inside
+      // a zone (handles normal-sized zones). Pass 2: the zone's centre or a
+      // corner falls inside this square — this catches thin/small zones (Shed,
+      // Container Toilets, the frontage Cinema / Cinque Ports) whose overlapping
+      // square has its centre just outside the box. Array order breaks ties.
+      const inCell = (px: number, py: number) => px >= x && px <= x + CELL_W && py >= y && py <= y + CELL_H;
+      const landmark =
+        SITE_FEATURES.find((f) => pointInPolygon(cx, cy, f.poly))?.label ??
+        SITE_FEATURES.find((f) => inCell(f.cx, f.cy))?.label ??
+        SITE_FEATURES.find((f) => f.poly.some(([px, py]) => inCell(px, py)))?.label ??
+        null;
+      // A square is clickable if it's inside the site boundary OR over a named zone.
       const inside = pointInPolygon(cx, cy, SITE_BOUNDARY) || landmark !== null;
       const ref = `${COL_LETTERS[col]}${row + 1}`;
       cells.push({ col, row, ref, x, y, cx, cy, inside, landmark, areaKey: landmark ?? `Grid ${ref}` });
