@@ -351,6 +351,9 @@ const STATUS_STYLES: Record<TaskStatus, string> = {
   Completed: 'text-emerald-300 border-emerald-400/40 bg-emerald-400/10',
 };
 
+// Order in which task status groups are shown in the Active Tasks list.
+const STATUS_ORDER: TaskStatus[] = ['Not Started', 'In Progress', 'Completed'];
+
 const URGENCY_STYLES: Record<ComplianceUrgency, string> = {
   red: 'text-alert border-alert/50 bg-alert/10 motion-safe:animate-pulse-alert shadow-glow-alert',
   amber: 'text-amber-300 border-amber-400/40 bg-amber-400/10',
@@ -2564,6 +2567,7 @@ function CalendarPage({
 
 function TaskManager({
   tasks,
+  archivedTasks,
   onAdd,
   onUpdateStatus,
   onDelete,
@@ -2574,6 +2578,7 @@ function TaskManager({
   onAddOutlookTasks,
 }: {
   tasks: Task[];
+  archivedTasks: Task[];
   onAdd: (task: Task) => void;
   onUpdateStatus: (id: string, status: TaskStatus) => void;
   onDelete: (id: string) => void;
@@ -2584,15 +2589,19 @@ function TaskManager({
   onAddOutlookTasks: () => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
-  const pendingReturnCount = PENDING_RETURN_TASKS.filter(
-    (pending) => !tasks.some((t) => t.name.trim().toLowerCase() === pending.name.trim().toLowerCase())
-  ).length;
-  const inboxTaskCount = INBOX_TASKS.filter(
-    (inbox) => !tasks.some((t) => t.name.trim().toLowerCase() === inbox.name.trim().toLowerCase())
-  ).length;
-  const outlookTaskCount = OUTLOOK_TASKS.filter(
-    (outlook) => !tasks.some((t) => t.name.trim().toLowerCase() === outlook.name.trim().toLowerCase())
-  ).length;
+  // A seed item counts as "already handled" if it's in the live list OR sitting in
+  // the archive — otherwise archiving a quick-add task makes its button reappear and
+  // re-adding it resurrects the archived task. Match by name, case-insensitive.
+  const isAlreadyTracked = (seedName: string) => {
+    const key = seedName.trim().toLowerCase();
+    return (
+      tasks.some((t) => t.name.trim().toLowerCase() === key) ||
+      archivedTasks.some((t) => t.name.trim().toLowerCase() === key)
+    );
+  };
+  const pendingReturnCount = PENDING_RETURN_TASKS.filter((p) => !isAlreadyTracked(p.name)).length;
+  const inboxTaskCount = INBOX_TASKS.filter((i) => !isAlreadyTracked(i.name)).length;
+  const outlookTaskCount = OUTLOOK_TASKS.filter((o) => !isAlreadyTracked(o.name)).length;
   const todayStr = toDateInputValue(new Date());
   const isOverdueOrToday = (t: Task) =>
     t.status !== 'Completed' && Boolean(t.dueDate) && daysFromToday(t.dueDate, todayStr) <= 0;
@@ -2610,6 +2619,17 @@ function TaskManager({
       return 0;
     });
   }, [tasks, todayStr]);
+  // Split the sorted list into status groups (Not Started → In Progress → Completed)
+  // so the queue is easier to manage at a glance. Within each group the existing
+  // urgency/priority/due-date sort is preserved.
+  const groupedTasks = useMemo(
+    () =>
+      STATUS_ORDER.map((status) => ({
+        status,
+        items: sortedTasks.filter((t) => t.status === status),
+      })).filter((group) => group.items.length > 0),
+    [sortedTasks]
+  );
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
@@ -2707,9 +2727,20 @@ function TaskManager({
           {tasks.length === 0 && (
             <p className="py-8 text-center text-xs text-neutral-600">No tasks in queue.</p>
           )}
-          {sortedTasks.map((task) => {
-            const isPinned = isOverdueOrToday(task);
-            return (
+          {groupedTasks.map((group) => (
+            <div key={group.status} className="space-y-2 pt-1">
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${STATUS_STYLES[group.status]}`}>
+                  {group.status}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">
+                  {group.items.length}
+                </span>
+                <span className="h-px flex-1 bg-neutral-400/10" />
+              </div>
+              {group.items.map((task) => {
+                const isPinned = isOverdueOrToday(task);
+                return (
             <div
               key={task.id}
               className={`relative flex flex-col gap-3 rounded-md border p-3 shadow-glow-subtle md:flex-row md:items-center md:justify-between ${
@@ -2763,8 +2794,10 @@ function TaskManager({
                 </button>
               </div>
             </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          ))}
         </div>
       </Panel>
     </div>
@@ -3290,27 +3323,30 @@ export default function InvictusTrackerPage() {
       )
     );
   const handleDeleteTask = (id: string) => setTasks((prev) => prev.filter((t) => t.id !== id));
+  // A quick-add seed item is "missing" only if it's absent from BOTH the live list
+  // and the archive — so an archived task is never resurrected by these buttons.
+  const isTaskTracked = (prev: Task[], seedName: string) => {
+    const key = seedName.trim().toLowerCase();
+    return (
+      prev.some((t) => t.name.trim().toLowerCase() === key) ||
+      archivedTasks.some((t) => t.name.trim().toLowerCase() === key)
+    );
+  };
   const handleAddPendingReturnTasks = () => {
     setTasks((prev) => {
-      const missing = PENDING_RETURN_TASKS.filter(
-        (pending) => !prev.some((t) => t.name.trim().toLowerCase() === pending.name.trim().toLowerCase())
-      );
+      const missing = PENDING_RETURN_TASKS.filter((p) => !isTaskTracked(prev, p.name));
       return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
     });
   };
   const handleAddInboxTasks = () => {
     setTasks((prev) => {
-      const missing = INBOX_TASKS.filter(
-        (inbox) => !prev.some((t) => t.name.trim().toLowerCase() === inbox.name.trim().toLowerCase())
-      );
+      const missing = INBOX_TASKS.filter((i) => !isTaskTracked(prev, i.name));
       return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
     });
   };
   const handleAddOutlookTasks = () => {
     setTasks((prev) => {
-      const missing = OUTLOOK_TASKS.filter(
-        (outlook) => !prev.some((t) => t.name.trim().toLowerCase() === outlook.name.trim().toLowerCase())
-      );
+      const missing = OUTLOOK_TASKS.filter((o) => !isTaskTracked(prev, o.name));
       return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
     });
   };
@@ -3420,6 +3456,7 @@ export default function InvictusTrackerPage() {
             {activePage === 'tasks' && (
               <TaskManager
                 tasks={tasks}
+                archivedTasks={archivedTasks}
                 onAdd={handleAddTask}
                 onUpdateStatus={handleUpdateStatus}
                 onDelete={handleDeleteTask}
