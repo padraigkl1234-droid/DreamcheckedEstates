@@ -2598,32 +2598,33 @@ interface SiteZone {
 
 // Working zones, positioned to match the user's marked-up plan.
 const SITE_ZONES: SiteZone[] = [
-  // Frontage / peripheral buildings
+  // Frontage / peripheral buildings (sit north of the boundary, still clickable)
   { label: 'Cinema', x: 30, y: 44, w: 84, h: 34, tone: 'building' },
   { label: 'Cinque Ports', x: 143, y: 57, w: 62, h: 47, tone: 'building' },
-  { label: 'Ballroom', x: 33, y: 136, w: 58, h: 55, tone: 'building' },
+  { label: 'Ballroom', x: 33, y: 146, w: 58, h: 55, tone: 'building' },
   { label: 'Hall by the Sea', x: 71, y: 251, w: 62, h: 89, tone: 'building' },
   // Operational areas
+  { label: 'Concourse', x: 96, y: 150, w: 46, h: 50, tone: 'area' },
   { label: 'Ingress', x: 176, y: 152, w: 152, h: 45, tone: 'area' },
   { label: 'Roller Area', x: 138, y: 205, w: 188, h: 63, tone: 'area' },
   { label: 'Transit Area', x: 170, y: 287, w: 93, h: 57, tone: 'area' },
-  { label: 'Food Court', x: 170, y: 350, w: 126, h: 185, tone: 'area' },
-  { label: 'Scenic Stage', x: 301, y: 350, w: 42, h: 185, tone: 'area', labelRot: -90 },
-  { label: 'Scenic Railway', x: 346, y: 350, w: 59, h: 209, tone: 'area', labelRot: -90 },
+  { label: 'Food Court', x: 198, y: 352, w: 100, h: 183, tone: 'area' },
+  { label: 'Scenic Stage', x: 301, y: 352, w: 42, h: 183, tone: 'area', labelRot: -90 },
+  { label: 'Scenic Railway', x: 346, y: 352, w: 59, h: 185, tone: 'area', labelRot: -90 },
   { label: 'Scenic Railway', x: 341, y: 214, w: 62, h: 89, tone: 'area', labelRot: -90, noBadge: true },
   { label: 'Shed', x: 331, y: 306, w: 84, h: 26, tone: 'area' },
-  { label: 'Teddy & Betty / Ark', x: 416, y: 338, w: 69, h: 157, rot: -32, tone: 'area' },
-  { label: 'VIP', x: 110, y: 356, w: 69, h: 141, rot: -62, tone: 'area' },
-  { label: 'Container Toilets', x: 321, y: 549, w: 102, h: 37, tone: 'area' },
+  { label: 'Teddy & Betty / Ark', x: 442, y: 348, w: 62, h: 148, rot: -28, tone: 'area' },
+  { label: 'VIP', x: 128, y: 375, w: 44, h: 80, rot: -50, tone: 'area' },
+  { label: 'Container Toilets', x: 318, y: 566, w: 100, h: 34, tone: 'area' },
   // Rides (several pitches share the label)
-  { label: 'Rides', x: 423, y: 526, w: 83, h: 47, tone: 'area' },
-  { label: 'Rides', x: 450, y: 591, w: 59, h: 87, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 380, y: 706, w: 96, h: 34, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 244, y: 606, w: 148, h: 57, rot: -40, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 183, y: 575, w: 66, h: 27, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 430, y: 520, w: 80, h: 44, tone: 'area' },
+  { label: 'Rides', x: 458, y: 580, w: 54, h: 80, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 392, y: 700, w: 92, h: 32, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 325, y: 634, w: 128, h: 46, rot: -34, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 250, y: 560, w: 66, h: 27, tone: 'area', noBadge: true },
   // Logistics (SE)
-  { label: 'Boneyard', x: 657, y: 397, w: 217, h: 429, tone: 'storage' },
-  { label: 'Bars storage', x: 573, y: 679, w: 158, h: 169, tone: 'storage' },
+  { label: 'Boneyard', x: 660, y: 405, w: 150, h: 388, tone: 'storage' },
+  { label: 'Bars storage', x: 505, y: 662, w: 148, h: 126, tone: 'storage' },
 ];
 
 function pointInPolygon(x: number, y: number, poly: Pt[]): boolean {
@@ -2675,8 +2676,10 @@ const SITE_CELLS: GridCell[] = (() => {
       const y = row * CELL_H;
       const cx = x + CELL_W / 2;
       const cy = y + CELL_H / 2;
-      const inside = pointInPolygon(cx, cy, SITE_BOUNDARY);
-      const landmark = inside ? SITE_FEATURES.find((f) => f.contains(cx, cy))?.label ?? null : null;
+      // A square is clickable if it's inside the site boundary OR over a named
+      // zone (so frontage buildings like Cinema / Cinque Ports stay assignable).
+      const landmark = SITE_FEATURES.find((f) => f.contains(cx, cy))?.label ?? null;
+      const inside = pointInPolygon(cx, cy, SITE_BOUNDARY) || landmark !== null;
       const ref = `${COL_LETTERS[col]}${row + 1}`;
       cells.push({ col, row, ref, x, y, cx, cy, inside, landmark, areaKey: landmark ?? `Grid ${ref}` });
     }
