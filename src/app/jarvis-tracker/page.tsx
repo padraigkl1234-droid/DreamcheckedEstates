@@ -59,6 +59,8 @@ import {
   Repeat,
   Upload,
   Check,
+  Map as MapIcon,
+  MapPin,
 } from 'lucide-react';
 import {
   Area,
@@ -76,7 +78,7 @@ import {
 
 type Priority = 'High' | 'Medium' | 'Low';
 type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
-type PageKey = 'dashboard' | 'calendar' | 'tasks' | 'archive' | 'compliance' | 'reports';
+type PageKey = 'dashboard' | 'calendar' | 'sitemap' | 'tasks' | 'archive' | 'compliance' | 'reports';
 
 interface Task {
   id: string;
@@ -88,6 +90,7 @@ interface Task {
   completedAt?: number;
   category?: string;
   notes?: string;
+  area?: string; // Dreamland site-map zone this task is pinned to, if any
 }
 
 type RecurrenceFreq = 'weekly' | 'fortnightly' | 'monthly';
@@ -329,6 +332,7 @@ const CARD_REVEAL_DURATION_MS = 420;
 const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { key: 'sitemap', label: 'Site Map', icon: MapIcon },
   { key: 'tasks', label: 'Task Manager', icon: ListChecks },
   { key: 'archive', label: 'Archive', icon: Archive },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
@@ -2562,6 +2566,313 @@ function CalendarPage({
 }
 
 // ---------------------------------------------------------------------------
+// Site Map
+// ---------------------------------------------------------------------------
+
+type ZoneKind =
+  | 'building'
+  | 'stage'
+  | 'ride'
+  | 'amenity'
+  | 'food'
+  | 'entrance'
+  | 'carpark'
+  | 'park'
+  | 'road';
+
+interface SiteZone {
+  id: string;
+  label: string;
+  sublabel?: string;
+  kind: ZoneKind;
+  // Position + size as percentages of the map canvas (north = top).
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+// Schematic of the Dreamland Margate site, laid out to match the official site
+// plan (Ballroom/Roller Room NW, Dreamland Car Park NE, Scenic Stage Arena
+// lower-left, the Scenic Railway loop through the centre, amusement rides to the
+// south and the green Event Space to the SE). Coordinates are hand-placed % so
+// the board reads like a map while still snapping to the grid overlay behind it.
+const SITE_ZONES: SiteZone[] = [
+  // --- Boundary roads (labels only, not assignable) ---
+  { id: 'z-road-hsr', label: 'Hall by the Sea Road', kind: 'road', left: 0, top: 0, width: 62, height: 3 },
+  { id: 'z-road-belgrave', label: 'Belgrave Rd', kind: 'road', left: 95, top: 0, width: 5, height: 60 },
+  // --- NW undercover venues / buildings ---
+  { id: 'z-undercover', label: 'Undercover Venues', sublabel: 'Entrance & Exit', kind: 'entrance', left: 1, top: 3.5, width: 12, height: 2.6 },
+  { id: 'z-ballroom', label: 'Ballroom', kind: 'building', left: 1, top: 6.5, width: 14, height: 11 },
+  { id: 'z-roller-room', label: 'Roller Room', kind: 'building', left: 16, top: 6.5, width: 14, height: 8 },
+  { id: 'z-hall-sea', label: 'Hall by the Sea', sublabel: 'First Floor', kind: 'building', left: 1, top: 18, width: 14, height: 11 },
+  { id: 'z-arcades', label: 'Dreamland Arcades', kind: 'amenity', left: 1, top: 30, width: 14, height: 4 },
+  // --- North-central amenities & top rides ---
+  { id: 'z-dreamland-toilets', label: 'Dreamland Toilets', kind: 'amenity', left: 31, top: 3.5, width: 12, height: 3.4 },
+  { id: 'z-stackd', label: "Stack'd", kind: 'food', left: 31, top: 7.4, width: 9, height: 3.4 },
+  { id: 'z-caterpillar', label: 'Caterpillar', kind: 'ride', left: 41, top: 9, width: 11, height: 7 },
+  { id: 'z-vip-dda', label: 'VIP & DDA Entrance', kind: 'entrance', left: 30, top: 15.5, width: 13, height: 5 },
+  { id: 'z-godessa', label: 'Godessa Jewellery', kind: 'amenity', left: 31, top: 23, width: 12, height: 4 },
+  { id: 'z-naughty-floss', label: 'Naughty Floss', kind: 'amenity', left: 18, top: 30, width: 11, height: 4 },
+  // --- Stages & arena (centre / lower-left) ---
+  { id: 'z-scenic-stage', label: 'Scenic Stage', kind: 'stage', left: 30, top: 39, width: 13, height: 9 },
+  { id: 'z-ga-entrance', label: 'Scenic Stage GA', sublabel: 'General Admission', kind: 'entrance', left: 44, top: 31, width: 12, height: 5 },
+  { id: 'z-arena', label: 'Scenic Stage Arena', kind: 'stage', left: 13, top: 39, width: 16, height: 22 },
+  { id: 'z-food-court', label: 'Food Court', kind: 'food', left: 30, top: 55, width: 9, height: 6 },
+  // --- Scenic Railway + amusement rides (centre / south) ---
+  { id: 'z-scenic-railway', label: 'Scenic Railway', kind: 'ride', left: 44, top: 49, width: 22, height: 25 },
+  { id: 'z-bars-east', label: 'Bars & Food', kind: 'food', left: 56, top: 31, width: 12, height: 4 },
+  { id: 'z-rocknroller', label: "Rock'n'roller", kind: 'ride', left: 52, top: 62, width: 11, height: 7 },
+  { id: 'z-waltzer', label: 'Waltzer', kind: 'ride', left: 29, top: 64, width: 10, height: 7 },
+  { id: 'z-dodgems', label: 'Dodgems', kind: 'ride', left: 40, top: 73, width: 12, height: 8 },
+  { id: 'z-central-toilets', label: 'Toilets', kind: 'amenity', left: 53, top: 75, width: 8, height: 4 },
+  // --- East car park & green space ---
+  { id: 'z-dreamland-carpark', label: 'Dreamland Car Park', kind: 'carpark', left: 52, top: 5, width: 41, height: 23 },
+  { id: 'z-east-park', label: 'East Park / Green', kind: 'park', left: 70, top: 33, width: 24, height: 28 },
+  { id: 'z-temp-toilets', label: 'Temporary Event Toilets', kind: 'amenity', left: 84, top: 29, width: 11, height: 5 },
+  { id: 'z-event-space', label: 'Event Space', sublabel: 'Temporary Stage', kind: 'stage', left: 62, top: 70, width: 16, height: 13 },
+  // --- West / SW amenities ---
+  { id: 'z-arlington', label: 'Arlington Car Park', kind: 'carpark', left: 0.5, top: 36, width: 11, height: 13 },
+  { id: 'z-dda-platform', label: 'DDA Platform & Toilets', kind: 'amenity', left: 0.5, top: 50, width: 11, height: 5 },
+  { id: 'z-vip-bar', label: 'VIP Bar', kind: 'food', left: 24, top: 61, width: 8, height: 4 },
+  { id: 'z-vip-toilets', label: 'VIP Toilets', kind: 'amenity', left: 13, top: 65, width: 10, height: 4 },
+];
+
+const ZONE_KIND_LABEL: Record<ZoneKind, string> = {
+  building: 'Building',
+  stage: 'Stage / Arena',
+  ride: 'Ride',
+  amenity: 'Amenity',
+  food: 'Food & Bars',
+  entrance: 'Entrance',
+  carpark: 'Car Park',
+  park: 'Green Space',
+  road: 'Road',
+};
+
+// Black & red palette: assignable zones use crimson at varying weights; passive
+// areas (car park / green / road) stay muted neutral so the rides and buildings
+// read as the actionable foreground.
+const ZONE_KIND_STYLE: Record<ZoneKind, string> = {
+  building: 'border-invictus-crimson-bright/50 bg-invictus-crimson-bright/15 text-neutral-100',
+  stage: 'border-invictus-crimson-bright/45 bg-invictus-crimson-bright/10 text-neutral-100',
+  ride: 'border-invictus-crimson-bright/35 bg-invictus-crimson-bright/[0.07] text-neutral-200',
+  entrance: 'border-amber-400/40 bg-amber-400/[0.07] text-amber-100/90',
+  food: 'border-neutral-400/30 bg-neutral-500/10 text-neutral-200',
+  amenity: 'border-neutral-400/25 bg-neutral-500/[0.06] text-neutral-300',
+  carpark: 'border-neutral-500/20 bg-neutral-700/15 text-neutral-500',
+  park: 'border-emerald-500/20 bg-emerald-900/15 text-emerald-200/60',
+  road: 'border-transparent bg-transparent text-neutral-600',
+};
+
+function SiteMapPage({
+  tasks,
+  onAddTask,
+}: {
+  tasks: Task[];
+  onAddTask: (task: Task) => void;
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [priority, setPriority] = useState<Priority>('Medium');
+  const [dueDate, setDueDate] = useState('');
+  const { playConfirm } = useSound();
+
+  const selectedZone = SITE_ZONES.find((z) => z.id === selectedId) ?? null;
+
+  // Count active (non-archived, not-completed) tasks pinned to each zone label.
+  const activeCountByArea = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const t of tasks) {
+      if (t.area && t.status !== 'Completed') counts[t.area] = (counts[t.area] ?? 0) + 1;
+    }
+    return counts;
+  }, [tasks]);
+
+  const tasksForZone = useMemo(
+    () => (selectedZone ? tasks.filter((t) => t.area === selectedZone.label) : []),
+    [tasks, selectedZone]
+  );
+
+  const handleAssign = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedZone || !name.trim()) return;
+    onAddTask({
+      id: genId(),
+      name: name.trim(),
+      priority,
+      dueDate,
+      status: 'Not Started',
+      area: selectedZone.label,
+      category: ZONE_KIND_LABEL[selectedZone.kind],
+    });
+    playConfirm();
+    setName('');
+    setPriority('Medium');
+    setDueDate('');
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.9fr_1fr]">
+        <Panel title="Dreamland Site Map" icon={MapIcon} refCode="0106-M">
+          <p className="mb-3 text-xs text-neutral-500">
+            Select a zone to view or assign tasks to that part of the site. Assigned tasks flow
+            straight into Task Manager, tagged with their location.
+          </p>
+          <div
+            className="relative w-full overflow-hidden rounded-md border border-neutral-400/20 bg-invictus-base/70"
+            style={{ aspectRatio: '11 / 10' }}
+          >
+            {/* Grid overlay — a 12 x 12 lattice so the site reads as a grid map. */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                backgroundImage:
+                  'repeating-linear-gradient(to right, rgba(220,38,38,0.07) 0 1px, transparent 1px calc(100%/12)), repeating-linear-gradient(to bottom, rgba(220,38,38,0.07) 0 1px, transparent 1px calc(100%/12))',
+              }}
+            />
+            {SITE_ZONES.map((zone) => {
+              const isSelected = zone.id === selectedId;
+              const count = activeCountByArea[zone.label] ?? 0;
+              const isRoad = zone.kind === 'road';
+              return (
+                <button
+                  key={zone.id}
+                  type="button"
+                  disabled={isRoad}
+                  onClick={() => setSelectedId(zone.id)}
+                  style={{
+                    left: `${zone.left}%`,
+                    top: `${zone.top}%`,
+                    width: `${zone.width}%`,
+                    height: `${zone.height}%`,
+                  }}
+                  className={`group absolute flex flex-col items-center justify-center overflow-hidden rounded-[3px] border px-1 text-center transition-all ${
+                    ZONE_KIND_STYLE[zone.kind]
+                  } ${
+                    isRoad
+                      ? 'cursor-default'
+                      : 'cursor-pointer hover:z-20 hover:border-invictus-crimson-bright hover:shadow-glow-strong hover:brightness-125'
+                  } ${isSelected ? 'z-20 border-invictus-crimson-bright shadow-glow-strong ring-1 ring-invictus-crimson-bright' : ''}`}
+                >
+                  <span className={`pointer-events-none w-full truncate text-[9px] font-semibold uppercase leading-tight tracking-wide sm:text-[10px] ${isRoad ? 'tracking-[0.2em]' : ''}`}>
+                    {zone.label}
+                  </span>
+                  {zone.sublabel && (
+                    <span className="pointer-events-none w-full truncate text-[7px] uppercase tracking-wide text-neutral-400/70 sm:text-[8px]">
+                      {zone.sublabel}
+                    </span>
+                  )}
+                  {count > 0 && (
+                    <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/30 px-1 text-[9px] font-bold text-neutral-50 shadow-glow-subtle">
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {/* Legend */}
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+            {(['building', 'stage', 'ride', 'entrance', 'food', 'amenity', 'carpark', 'park'] as ZoneKind[]).map((kind) => (
+              <div key={kind} className="flex items-center gap-1.5">
+                <span className={`h-3 w-3 shrink-0 rounded-[2px] border ${ZONE_KIND_STYLE[kind]}`} />
+                <span className="text-[10px] uppercase tracking-wide text-neutral-500">{ZONE_KIND_LABEL[kind]}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title={selectedZone ? selectedZone.label : 'Zone Detail'} icon={MapPin} refCode="0107-M">
+          {!selectedZone ? (
+            <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-3 text-center">
+              <MapPin className="h-8 w-8 text-neutral-700" />
+              <p className="text-xs text-neutral-500">
+                Select an area on the map to view its tasks and assign new ones.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${ZONE_KIND_STYLE[selectedZone.kind]}`}>
+                  {ZONE_KIND_LABEL[selectedZone.kind]}
+                </span>
+                <button
+                  onClick={() => setSelectedId(null)}
+                  className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1 text-neutral-400 transition-colors hover:text-invictus-crimson-bright"
+                  title="Clear selection"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Existing tasks for this zone */}
+              <div>
+                <Kicker>Tasks here ({tasksForZone.length})</Kicker>
+                <div className="mt-2 space-y-1.5">
+                  {tasksForZone.length === 0 && (
+                    <p className="py-2 text-xs text-neutral-600">No tasks assigned to this area yet.</p>
+                  )}
+                  {tasksForZone.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between gap-2 rounded-md border border-neutral-400/20 bg-invictus-base/40 px-2.5 py-1.5"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-xs text-neutral-200">{t.name}</span>
+                      <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${STATUS_STYLES[t.status]}`}>
+                        {t.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Assign-task form */}
+              <form onSubmit={handleAssign} className="flex flex-col gap-2 border-t border-neutral-400/15 pt-4">
+                <Kicker>Assign a task to {selectedZone.label}</Kicker>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Task name"
+                  className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value as Priority)}
+                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                  >
+                    <option>High</option>
+                    <option>Medium</option>
+                    <option>Low</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
+                >
+                  <Plus className="h-4 w-4" /> Assign Task
+                </button>
+                <p className="text-center text-[10px] text-neutral-600">
+                  Appears in Task Manager, tagged <span className="text-neutral-400">{selectedZone.label}</span>.
+                </p>
+              </form>
+            </div>
+          )}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Task Manager
 // ---------------------------------------------------------------------------
 
@@ -2762,6 +3073,11 @@ function TaskManager({
                 {task.category && (
                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${CATEGORY_TAG_STYLE}`}>
                     {task.category}
+                  </span>
+                )}
+                {task.area && (
+                  <span className="flex items-center gap-1 rounded-full border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-200">
+                    <MapPin className="h-3 w-3" /> {task.area}
                   </span>
                 )}
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
@@ -3452,6 +3768,9 @@ export default function InvictusTrackerPage() {
             )}
             {activePage === 'calendar' && (
               <CalendarPage events={events} onAdd={handleAddEvent} onDelete={handleDeleteEvent} onImport={handleImportEvents} />
+            )}
+            {activePage === 'sitemap' && (
+              <SiteMapPage tasks={tasks} onAddTask={handleAddTask} />
             )}
             {activePage === 'tasks' && (
               <TaskManager
