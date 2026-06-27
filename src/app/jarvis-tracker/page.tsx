@@ -2570,10 +2570,10 @@ function CalendarPage({
 // ---------------------------------------------------------------------------
 
 // Geometry traced from the official Dreamland Margate site plan, normalised to a
-// 1000 x 900 SVG viewBox (north = top). These are deliberately "basic outlines":
-// the site boundary, the building cluster (NW), the Scenic Stage Arena circle,
-// the Scenic Railway loop, the Dreamland Car Park (NE, along Belgrave Road) and
-// the Event Space (SE) — enough to recognise the park and assign tasks by grid.
+// 1000 x 900 SVG viewBox (north = top). The boundary, roads and car park come
+// from the plan; the operational zones (Ingress, Roller Area, Food Court, Scenic
+// Stage/Railway, Boneyard, Bars storage, Rides, etc.) are the user's working
+// layout for the event build.
 type Pt = [number, number];
 
 const SITE_BOUNDARY: Pt[] = [
@@ -2581,25 +2581,50 @@ const SITE_BOUNDARY: Pt[] = [
   [706, 858], [420, 773], [290, 674], [64, 386],
 ];
 const CAR_PARK_POLY: Pt[] = [[426, 220], [644, 127], [853, 465], [486, 457]];
-const RAILWAY_POLY: Pt[] = [
-  [360, 320], [395, 440], [330, 560], [430, 690], [560, 690],
-  [625, 590], [610, 500], [520, 470], [430, 478], [392, 430],
-];
 const EAST_PARK_POLY: Pt[] = [[648, 470], [812, 360], [905, 600], [800, 720], [690, 612]];
 const CLUSTER_POLY: Pt[] = [
   [30, 148], [330, 150], [348, 230], [330, 300], [250, 358], [110, 360], [55, 300], [30, 205],
 ];
 
-interface SiteBuilding { label: string; x: number; y: number; w: number; h: number; }
-const SITE_BUILDINGS: SiteBuilding[] = [
-  { label: 'Ballroom', x: 39, y: 162, w: 52, h: 52 },
-  { label: 'Main Hall', x: 150, y: 232, w: 86, h: 52 },
-  { label: 'Roller Room', x: 242, y: 224, w: 82, h: 30 },
-  { label: 'Hall by the Sea', x: 77, y: 267, w: 58, h: 88 },
-  { label: 'Scenic Stage', x: 354, y: 514, w: 50, h: 57 },
-  { label: 'Event Space', x: 727, y: 662, w: 62, h: 66 },
+type ZoneTone = 'area' | 'storage' | 'building';
+interface SiteZone {
+  label: string;
+  x: number; y: number; w: number; h: number;
+  rot?: number;       // box rotation (deg)
+  labelRot?: number;  // text rotation (deg) — defaults to rot
+  tone?: ZoneTone;
+  noBadge?: boolean;  // skip task badge (for duplicate-labelled boxes)
+}
+
+// Working zones, positioned to match the user's marked-up plan.
+const SITE_ZONES: SiteZone[] = [
+  // Frontage / peripheral buildings
+  { label: 'Cinema', x: 30, y: 44, w: 84, h: 34, tone: 'building' },
+  { label: 'Cinque Ports', x: 143, y: 57, w: 62, h: 47, tone: 'building' },
+  { label: 'Ballroom', x: 33, y: 136, w: 58, h: 55, tone: 'building' },
+  { label: 'Hall by the Sea', x: 71, y: 251, w: 62, h: 89, tone: 'building' },
+  // Operational areas
+  { label: 'Ingress', x: 176, y: 152, w: 152, h: 45, tone: 'area' },
+  { label: 'Roller Area', x: 138, y: 205, w: 188, h: 63, tone: 'area' },
+  { label: 'Transit Area', x: 170, y: 287, w: 93, h: 57, tone: 'area' },
+  { label: 'Food Court', x: 170, y: 350, w: 126, h: 185, tone: 'area' },
+  { label: 'Scenic Stage', x: 301, y: 350, w: 42, h: 185, tone: 'area', labelRot: -90 },
+  { label: 'Scenic Railway', x: 346, y: 350, w: 59, h: 209, tone: 'area', labelRot: -90 },
+  { label: 'Scenic Railway', x: 341, y: 214, w: 62, h: 89, tone: 'area', labelRot: -90, noBadge: true },
+  { label: 'Shed', x: 331, y: 306, w: 84, h: 26, tone: 'area' },
+  { label: 'Teddy & Betty / Ark', x: 416, y: 338, w: 69, h: 157, rot: -32, tone: 'area' },
+  { label: 'VIP', x: 110, y: 356, w: 69, h: 141, rot: -62, tone: 'area' },
+  { label: 'Container Toilets', x: 321, y: 549, w: 102, h: 37, tone: 'area' },
+  // Rides (several pitches share the label)
+  { label: 'Rides', x: 423, y: 526, w: 83, h: 47, tone: 'area' },
+  { label: 'Rides', x: 450, y: 591, w: 59, h: 87, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 380, y: 706, w: 96, h: 34, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 244, y: 606, w: 148, h: 57, rot: -40, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 183, y: 575, w: 66, h: 27, tone: 'area', noBadge: true },
+  // Logistics (SE)
+  { label: 'Boneyard', x: 657, y: 397, w: 217, h: 429, tone: 'storage' },
+  { label: 'Bars storage', x: 573, y: 679, w: 158, h: 169, tone: 'storage' },
 ];
-const ARENA = { label: 'Scenic Stage Arena', cx: 278, cy: 594, r: 99 };
 
 function pointInPolygon(x: number, y: number, poly: Pt[]): boolean {
   let inside = false;
@@ -2611,18 +2636,25 @@ function pointInPolygon(x: number, y: number, poly: Pt[]): boolean {
   }
   return inside;
 }
-const rectHit = (b: SiteBuilding) => (x: number, y: number) =>
-  x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
 
-// Ordered specific -> general so a cell over the Ballroom resolves to "Ballroom"
-// rather than the larger area it sits within.
-const SITE_FEATURES: { label: string; contains: (x: number, y: number) => boolean; cx: number; cy: number }[] = [
-  ...SITE_BUILDINGS.map((b) => ({ label: b.label, contains: rectHit(b), cx: b.x + b.w / 2, cy: b.y + b.h / 2 })),
-  { label: ARENA.label, contains: (x: number, y: number) => (x - ARENA.cx) ** 2 + (y - ARENA.cy) ** 2 <= ARENA.r ** 2, cx: ARENA.cx, cy: ARENA.cy },
-  { label: 'Scenic Railway', contains: (x: number, y: number) => pointInPolygon(x, y, RAILWAY_POLY), cx: 475, cy: 545 },
-  { label: 'Dreamland Car Park', contains: (x: number, y: number) => pointInPolygon(x, y, CAR_PARK_POLY), cx: 600, cy: 318 },
-  { label: 'East Park / Green', contains: (x: number, y: number) => pointInPolygon(x, y, EAST_PARK_POLY), cx: 790, cy: 545 },
-];
+// Corner polygon of a (possibly rotated) zone rect, for cell hit-testing.
+function zoneCorners(z: SiteZone): Pt[] {
+  const cx = z.x + z.w / 2;
+  const cy = z.y + z.h / 2;
+  const t = ((z.rot ?? 0) * Math.PI) / 180;
+  const c = Math.cos(t);
+  const s = Math.sin(t);
+  const local: Pt[] = [
+    [-z.w / 2, -z.h / 2], [z.w / 2, -z.h / 2], [z.w / 2, z.h / 2], [-z.w / 2, z.h / 2],
+  ];
+  return local.map(([dx, dy]) => [cx + dx * c - dy * s, cy + dx * s + dy * c] as Pt);
+}
+
+const SITE_FEATURES: { label: string; contains: (x: number, y: number) => boolean; cx: number; cy: number }[] =
+  SITE_ZONES.map((z) => {
+    const poly = zoneCorners(z);
+    return { label: z.label, contains: (x: number, y: number) => pointInPolygon(x, y, poly), cx: z.x + z.w / 2, cy: z.y + z.h / 2 };
+  });
 
 const GRID_COLS = 14;
 const GRID_ROWS = 12;
@@ -2655,8 +2687,6 @@ const SITE_CELLS: GridCell[] = (() => {
 // SVG palette (kept in the black & red INVICTUS theme).
 const MAP_C = {
   crimson: '#dc2626',
-  crimsonSoft: 'rgba(220,38,38,0.16)',
-  crimsonFill: 'rgba(220,38,38,0.24)',
   line: 'rgba(220,38,38,0.30)',
   lineStrong: 'rgba(220,38,38,0.45)',
   boundaryFill: '#16171c',
@@ -2666,6 +2696,12 @@ const MAP_C = {
   greenStroke: 'rgba(16,185,129,0.30)',
   label: '#d4d4d4',
   labelDim: '#8a8a8a',
+};
+
+const ZONE_TONE: Record<ZoneTone, { fill: string; stroke: string; text: string }> = {
+  area: { fill: 'rgba(220,38,38,0.16)', stroke: '#dc2626', text: '#f1d2d2' },
+  storage: { fill: 'rgba(220,38,38,0.09)', stroke: 'rgba(220,38,38,0.65)', text: '#e6c3c3' },
+  building: { fill: 'rgba(120,20,24,0.32)', stroke: '#dc2626', text: '#e9bcbc' },
 };
 
 function toPoints(poly: Pt[]): string {
@@ -2688,7 +2724,6 @@ function SiteMapPage({
 
   const selectedCell = SITE_CELLS.find((c) => c.ref === selectedRef) ?? null;
 
-  // Active (non-archived, not-completed) tasks per area key.
   const activeCountByArea = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const t of tasks) {
@@ -2731,59 +2766,81 @@ function SiteMapPage({
         <Panel title="Dreamland Site Map" icon={MapIcon} refCode="0106-M">
           <p className="mb-3 text-xs text-neutral-500">
             Click a grid square to assign a task to that part of the site. Squares over a named
-            area (Ballroom, Scenic Railway&hellip;) tag the task with that area; open ground tags a
-            grid reference. Assigned tasks flow straight into Task Manager.
+            area (Food Court, Boneyard, Scenic Railway&hellip;) tag the task with that area; open
+            ground tags a grid reference. Assigned tasks flow straight into Task Manager.
           </p>
           <div className="relative w-full overflow-hidden rounded-md border border-neutral-400/20 bg-[#0b0b0c]">
             <svg viewBox="0 0 1000 900" className="h-auto w-full" role="img" aria-label="Dreamland site map grid">
               {/* Site boundary */}
               <polygon points={toPoints(SITE_BOUNDARY)} fill={MAP_C.boundaryFill} stroke={MAP_C.crimson} strokeWidth={2} strokeLinejoin="round" />
 
-              {/* Passive areas */}
+              {/* Passive context areas */}
               <polygon points={toPoints(CAR_PARK_POLY)} fill={MAP_C.passive} stroke={MAP_C.passiveStroke} strokeWidth={1} />
               <polygon points={toPoints(EAST_PARK_POLY)} fill={MAP_C.green} stroke={MAP_C.greenStroke} strokeWidth={1} />
               <polygon points={toPoints(CLUSTER_POLY)} fill={MAP_C.passive} stroke={MAP_C.passiveStroke} strokeWidth={1} />
 
-              {/* Scenic Railway loop */}
-              <polygon points={toPoints(RAILWAY_POLY)} fill={MAP_C.crimsonSoft} stroke={MAP_C.crimson} strokeWidth={1.5} strokeLinejoin="round" />
-              {/* Arena */}
-              <circle cx={ARENA.cx} cy={ARENA.cy} r={ARENA.r} fill={MAP_C.crimsonSoft} stroke={MAP_C.crimson} strokeWidth={1.5} />
-              {/* Buildings */}
-              {SITE_BUILDINGS.map((b) => (
-                <rect key={b.label} x={b.x} y={b.y} width={b.w} height={b.h} rx={2} fill={MAP_C.crimsonFill} stroke={MAP_C.crimson} strokeWidth={1.2} />
-              ))}
+              {/* Working zones */}
+              {SITE_ZONES.map((z, i) => {
+                const cx = z.x + z.w / 2;
+                const cy = z.y + z.h / 2;
+                const tone = ZONE_TONE[z.tone ?? 'area'];
+                const transform = z.rot ? `rotate(${z.rot} ${cx} ${cy})` : undefined;
+                return (
+                  <rect
+                    key={`zone-${i}`}
+                    x={z.x}
+                    y={z.y}
+                    width={z.w}
+                    height={z.h}
+                    rx={2}
+                    fill={tone.fill}
+                    stroke={tone.stroke}
+                    strokeWidth={1.2}
+                    transform={transform}
+                  />
+                );
+              })}
 
               {/* Roads */}
               <line x1={19} y1={132} x2={644} y2={114} stroke="rgba(180,180,190,0.35)" strokeWidth={3} />
               <line x1={644} y1={127} x2={965} y2={520} stroke="rgba(180,180,190,0.35)" strokeWidth={3} />
 
-              {/* Feature labels */}
-              <g fontFamily="inherit" fill={MAP_C.label} textAnchor="middle" style={{ textTransform: 'uppercase' }}>
+              {/* Context labels */}
+              <g fontFamily="inherit" textAnchor="middle" style={{ textTransform: 'uppercase' }}>
                 <text x={330} y={104} fontSize={12} letterSpacing={2} fill={MAP_C.labelDim}>Hall by the Sea Road</text>
                 <text x={812} y={300} fontSize={12} letterSpacing={2} fill={MAP_C.labelDim} transform="rotate(58 812 300)">Belgrave Road</text>
                 <text x={70} y={500} fontSize={11} fill={MAP_C.labelDim}>Arlington Car Park</text>
-                {SITE_BUILDINGS.map((b) => (
-                  <text key={b.label} x={b.x + b.w / 2} y={b.y + b.h / 2 + 3} fontSize={b.w < 60 ? 8 : 9.5} fontWeight={600}>
-                    {b.label}
-                  </text>
-                ))}
-                <text x={ARENA.cx} y={ARENA.cy + 3} fontSize={11} fontWeight={600}>Scenic Stage Arena</text>
-                <text x={475} y={560} fontSize={11} fontWeight={600}>Scenic Railway</text>
-                <text x={600} y={320} fontSize={11} fontWeight={600} fill={MAP_C.labelDim}>Dreamland Car Park</text>
-                <text x={790} y={548} fontSize={10} fontWeight={600} fill="rgba(110,210,170,0.8)">East Park / Green</text>
-                {/* Entrances / amenities */}
+                <text x={600} y={300} fontSize={11} fontWeight={600} fill={MAP_C.labelDim}>Dreamland Car Park</text>
                 <text x={70} y={120} fontSize={8} fill={MAP_C.crimson}>Undercover Entrance</text>
-                <text x={300} y={300} fontSize={8} fill={MAP_C.crimson}>VIP &amp; DDA Entrance</text>
-                <text x={560} y={372} fontSize={8} fill={MAP_C.crimson}>Scenic Stage GA</text>
-                <text x={838} y={330} fontSize={8} fill={MAP_C.labelDim}>Temp. Event Toilets</text>
               </g>
 
-              {/* Entrance markers */}
-              <g fill={MAP_C.crimson}>
-                <circle cx={64} cy={128} r={4} />
-                <circle cx={330} cy={306} r={4} />
-                <circle cx={556} cy={364} r={4} />
+              {/* Zone labels */}
+              <g fontFamily="inherit" textAnchor="middle" style={{ textTransform: 'uppercase' }}>
+                {SITE_ZONES.map((z, i) => {
+                  const cx = z.x + z.w / 2;
+                  const cy = z.y + z.h / 2;
+                  const tone = ZONE_TONE[z.tone ?? 'area'];
+                  const lr = z.labelRot ?? z.rot ?? 0;
+                  const fs = z.w < 78 || z.h < 32 ? 7.5 : 9;
+                  return (
+                    <text
+                      key={`zlbl-${i}`}
+                      x={cx}
+                      y={cy + 3}
+                      fontSize={fs}
+                      fontWeight={600}
+                      letterSpacing={0.5}
+                      fill={tone.text}
+                      transform={lr ? `rotate(${lr} ${cx} ${cy})` : undefined}
+                    >
+                      {z.label}
+                    </text>
+                  );
+                })}
               </g>
+
+              {/* Undercover entrance marker */}
+              <circle cx={64} cy={128} r={4} fill={MAP_C.crimson} />
 
               {/* Grid lines */}
               <g stroke={MAP_C.line} strokeWidth={1}>
@@ -2813,12 +2870,12 @@ function SiteMapPage({
                 />
               ))}
 
-              {/* Task-count badges on named features */}
-              {SITE_FEATURES.filter((f) => (activeCountByArea[f.label] ?? 0) > 0).map((f) => (
-                <g key={`badge-${f.label}`} pointerEvents="none">
-                  <circle cx={f.cx} cy={f.cy - 16} r={9} fill={MAP_C.crimson} stroke="#fff" strokeWidth={0.8} />
-                  <text x={f.cx} y={f.cy - 12.5} fontSize={11} fontWeight={700} fill="#fff" textAnchor="middle">
-                    {activeCountByArea[f.label]}
+              {/* Task-count badges on named zones */}
+              {SITE_ZONES.filter((z) => !z.noBadge && (activeCountByArea[z.label] ?? 0) > 0).map((z, i) => (
+                <g key={`badge-${i}`} pointerEvents="none">
+                  <circle cx={z.x + z.w / 2} cy={z.y + z.h / 2 - 14} r={9} fill={MAP_C.crimson} stroke="#fff" strokeWidth={0.8} />
+                  <text x={z.x + z.w / 2} y={z.y + z.h / 2 - 10.5} fontSize={11} fontWeight={700} fill="#fff" textAnchor="middle">
+                    {activeCountByArea[z.label]}
                   </text>
                 </g>
               ))}
@@ -2836,16 +2893,16 @@ function SiteMapPage({
           {/* Legend */}
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
             <div className="flex items-center gap-1.5">
-              <span className="h-3 w-3 shrink-0 rounded-[2px] border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/25" />
-              <span className="text-[10px] uppercase tracking-wide text-neutral-500">Buildings &amp; Rides</span>
+              <span className="h-3 w-3 shrink-0 rounded-[2px] border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/20" />
+              <span className="text-[10px] uppercase tracking-wide text-neutral-500">Working Area</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-3 w-3 shrink-0 rounded-[2px] border border-invictus-crimson-bright/50 bg-[#78141880]" />
+              <span className="text-[10px] uppercase tracking-wide text-neutral-500">Building</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-3 w-3 shrink-0 rounded-[2px] border border-neutral-400/25 bg-neutral-700/40" />
               <span className="text-[10px] uppercase tracking-wide text-neutral-500">Car Park</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-3 w-3 shrink-0 rounded-[2px] border border-emerald-500/40 bg-emerald-500/10" />
-              <span className="text-[10px] uppercase tracking-wide text-neutral-500">Green Space</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-invictus-crimson-bright text-[8px] font-bold text-white">1</span>
