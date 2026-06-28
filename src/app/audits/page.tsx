@@ -38,6 +38,10 @@ const AUDITS: Audit[] = [
   { name: 'Dangerous Equipment Audit', url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUOVA3RVNONkZEUE4xUTY1UFNTUkVUTFhWMC4u' },
   { name: 'COSHH Audit', url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUN0VFWDRWUDBIUTQ4NkkxVlhMSVZEUkZQWi4u' },
   { name: 'Daily Check Sheet — Park Audit', url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUM0FFODJUWEQyMURGNFg0RFRIVkxTQU9VVy4u' },
+  { name: 'Control Room Audit', url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUMzdDNzZYS0NUSk83WFYwTU00V0FHNFg4Qy4u' },
+  { name: 'Cable Management Audit', url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUMzdLRFI0MDQxNDJYNUhWS01ROUU4SFFLSC4u' },
+  { name: 'Ansul Audit', url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUQ1dJMlY5NEMzRlQxVUZVSjYyTFEyMzdXUS4u' },
+  { name: 'Accident Record Audit', url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUODcwUEREVFNLMUJXVlFBNEFDVFpLWklLUi4u' },
 ];
 
 // Small HUD corner accents to echo the INVICTUS panels.
