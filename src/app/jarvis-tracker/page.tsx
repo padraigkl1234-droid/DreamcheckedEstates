@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
-import { useSound, getSharedAudioContext } from '@/components/SoundProvider';
+import { useSound } from '@/components/SoundProvider';
 import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import {
@@ -348,10 +348,7 @@ function classifyComplianceDivision(name: string): string {
   return 'General';
 }
 
-// Once-per-browser-session gate: cleared on a new tab/session, untouched by in-app navigation.
-const SESSION_BOOTED_KEY = 'invictus:sessionBooted';
-
-// Per-card stagger timing for the dashboard's post-boot reveal animation.
+// Per-card stagger timing for the dashboard's reveal animation.
 const CARD_REVEAL_STEP_MS = 90;
 const CARD_REVEAL_DURATION_MS = 420;
 
@@ -529,50 +526,6 @@ function formatRelativeTime(pubDate: string | null): string {
   if (diffHours < 24) return `${diffHours}h ago`;
   const diffDays = Math.round(diffHours / 24);
   return `${diffDays}d ago`;
-}
-
-// ---------------------------------------------------------------------------
-// Boot sequence power-up hum — a one-off effect tied to the ignite button
-// itself (the click is the unlock gesture), reusing the shared AudioContext
-// from SoundProvider so the app only ever has one audio graph.
-// ---------------------------------------------------------------------------
-
-function playPowerUpHum() {
-  const ctx = getSharedAudioContext();
-  if (!ctx) return;
-  if (ctx.state === 'suspended') ctx.resume();
-  const now = ctx.currentTime;
-  const duration = 1.6;
-
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(300, now);
-  filter.frequency.exponentialRampToValueAtTime(5000, now + duration);
-
-  const masterGain = ctx.createGain();
-  masterGain.gain.setValueAtTime(0.0001, now);
-  masterGain.gain.exponentialRampToValueAtTime(0.22, now + duration * 0.55);
-  masterGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-  const fundamental = ctx.createOscillator();
-  fundamental.type = 'sawtooth';
-  fundamental.frequency.setValueAtTime(70, now);
-  fundamental.frequency.exponentialRampToValueAtTime(660, now + duration);
-
-  const overtone = ctx.createOscillator();
-  overtone.type = 'sine';
-  overtone.frequency.setValueAtTime(140, now);
-  overtone.frequency.exponentialRampToValueAtTime(990, now + duration);
-
-  fundamental.connect(filter);
-  overtone.connect(filter);
-  filter.connect(masterGain);
-  masterGain.connect(ctx.destination);
-
-  fundamental.start(now);
-  overtone.start(now);
-  fundamental.stop(now + duration);
-  overtone.stop(now + duration);
 }
 
 // ---------------------------------------------------------------------------
@@ -1069,76 +1022,6 @@ function CircularProgress({ percentage }: { percentage: number }) {
           {percentage}%
         </span>
       </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Boot sequence
-// ---------------------------------------------------------------------------
-
-function BootSequence({ onComplete }: { onComplete: (skipped: boolean) => void }) {
-  const [stage, setStage] = useState<'idle' | 'opening'>('idle');
-  const [openingPhase, setOpeningPhase] = useState<'spinup' | 'expand'>('spinup');
-  const finishedRef = useRef(false);
-
-  const finish = useCallback(
-    (skipped: boolean) => {
-      if (finishedRef.current) return;
-      finishedRef.current = true;
-      onComplete(skipped);
-    },
-    [onComplete]
-  );
-
-  // Any keypress (Escape included) jumps straight to the final state.
-  useEffect(() => {
-    const handleKeyDown = () => finish(true);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [finish]);
-
-  // Ignite -> rings spin up to speed, then the dial expands into a full-screen
-  // flash that cuts straight through to the dashboard, Jarvis-reactor style.
-  useEffect(() => {
-    if (stage !== 'opening') return;
-    const expandTimer = setTimeout(() => setOpeningPhase('expand'), 650);
-    const doneTimer = setTimeout(() => finish(false), 1650);
-    return () => {
-      clearTimeout(expandTimer);
-      clearTimeout(doneTimer);
-    };
-  }, [stage, finish]);
-
-  return (
-    <div
-      className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-invictus-base"
-      onClick={() => stage === 'idle' && finish(true)}
-    >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.06),transparent_70%)]" />
-
-      <div className="flex w-full max-w-6xl items-center justify-center gap-6 px-6 lg:gap-10">
-        <div className="hidden shrink-0 lg:block">
-          <NetworkPanel />
-        </div>
-        <BootDial
-          mode={stage === 'idle' ? 'idle' : openingPhase}
-          onIgnite={() => {
-            playPowerUpHum();
-            setOpeningPhase('spinup');
-            setStage('opening');
-          }}
-        />
-        <div className="hidden shrink-0 lg:block">
-          <EnvironmentPanel />
-        </div>
-      </div>
-
-      <div
-        className={`pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.9),rgba(194,48,74,0.6)_45%,transparent_75%)] transition-opacity duration-1000 ease-in ${
-          stage === 'opening' && openingPhase === 'expand' ? 'opacity-100' : 'opacity-0'
-        }`}
-      />
     </div>
   );
 }
@@ -3750,9 +3633,7 @@ function ComplianceTracker({
 
 export default function InvictusTrackerPage() {
   const { user } = useAuth();
-  const [bootPhase, setBootPhase] = useState<'pending' | 'boot' | 'done'>('pending');
-  const [animateCardsIn, setAnimateCardsIn] = useState(false);
-  const cardsRevealedRef = useRef(false);
+  const [mounted, setMounted] = useState(false);
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [tasks, setTasks] = useState<Task[]>(SEED_TASKS);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
@@ -3762,12 +3643,10 @@ export default function InvictusTrackerPage() {
   const loadedForUid = useRef<string | null>(null);
   const readyToSave = useRef(false);
 
-  // Decide once on mount whether the boot sequence should play: skip it for
-  // an already-booted session (in-app navigation) or for reduced-motion users.
+  // Render the app only after mount so live values (e.g. the diagnostics clock)
+  // never differ between the server HTML and the first client render.
   useEffect(() => {
-    const alreadyBooted = window.sessionStorage.getItem(SESSION_BOOTED_KEY) === 'true';
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setBootPhase(alreadyBooted || reducedMotion ? 'done' : 'boot');
+    setMounted(true);
   }, []);
 
   // Load this user's saved progress from Firestore whenever they sign in.
@@ -3937,17 +3816,7 @@ export default function InvictusTrackerPage() {
         }}
       />
 
-      {bootPhase === 'boot' && (
-        <BootSequence
-          onComplete={(skipped) => {
-            window.sessionStorage.setItem(SESSION_BOOTED_KEY, 'true');
-            if (!skipped) setAnimateCardsIn(true);
-            setBootPhase('done');
-          }}
-        />
-      )}
-
-      {bootPhase === 'done' && (
+      {mounted && (
         <div className="relative flex h-full">
           <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} />
           <main className="flex-1 overflow-y-auto p-5">
@@ -3957,10 +3826,6 @@ export default function InvictusTrackerPage() {
                 archivedTasks={archivedTasks}
                 compliances={compliances}
                 events={events}
-                animateCardsIn={animateCardsIn && !cardsRevealedRef.current}
-                onCardsRevealed={() => {
-                  cardsRevealedRef.current = true;
-                }}
                 onToggleMeeting={handleToggleMeeting}
               />
             )}
