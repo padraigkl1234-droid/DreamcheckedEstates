@@ -14,6 +14,10 @@ const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
   useFetchStreams: false,
+  // Drop undefined fields instead of throwing — e.g. a non-recurring calendar
+  // event carries `recurrence: undefined`, which would otherwise fail the whole
+  // save and silently stop diary entries (and anything else) from persisting.
+  ignoreUndefinedProperties: true,
   host: 'firestore.googleapis.com',
   ssl: true,
 }, firebaseConfig.firestoreDatabaseId);

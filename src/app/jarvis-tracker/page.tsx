@@ -1972,7 +1972,8 @@ function CalendarPage({
       date,
       priority,
       notes: notes.trim(),
-      recurrence: repeatFreq !== 'none' ? { freq: repeatFreq, until: repeatUntil } : undefined,
+      // Only attach recurrence when it actually repeats — never store `undefined`.
+      ...(repeatFreq !== 'none' ? { recurrence: { freq: repeatFreq, until: repeatUntil } } : {}),
     });
     playConfirm();
     setTitle('');
