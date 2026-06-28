@@ -55,6 +55,51 @@ const CHECKLIST_SECTIONS: ChecklistSection[] = [
       },
     ],
   },
+  {
+    name: 'Park',
+    forms: [
+      {
+        name: 'Operations Control Opening Checklist',
+        description: 'Opening checks for the operations control room.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtURUlKU1k2NDNYSUs0WTZFRUdDMDVVTlk3Si4u',
+      },
+      {
+        name: 'Operations Control Closing Checklist',
+        description: 'Closing checks for the operations control room.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUNzAwT1VXNjFMM1VTSDdSV1FNMlpLVUNTQS4u',
+      },
+      {
+        name: 'Park Manager Opening Checklist',
+        description: "Park manager's opening readiness checks.",
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUNkVGSUxQSzVFSlhSTzhaWDhKTkFFUkoxTi4u',
+      },
+      {
+        name: 'Security Opening Checklist',
+        description: 'Security opening checks before the park opens.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUQzdBQTRFRFdWQUVGTFJNWktRNFEwQTRaVC4u',
+      },
+      {
+        name: 'Security Closing Checklist',
+        description: 'Security closing checks after the park closes.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUOUJXV0sxQ0dQTUo0QklFQUoyR1JDSU5EOS4u',
+      },
+      {
+        name: 'Guest Experience Opening Checklist',
+        description: 'Guest experience opening readiness checks.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUNjhMSldZOTlBTDZOTTVESFpYTjJYOUdXRC4u',
+      },
+      {
+        name: 'Guest Experience Closing Checklist',
+        description: 'Guest experience closing checks.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUMlpLRkhBT0dSMzc3RkxFV1hGMDQyNTdXMi4u',
+      },
+      {
+        name: 'Guest Experience Roller Checklist',
+        description: 'Guest experience checks for the Roller area.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUOU1SOEFWRUlNS0hROUJSNDJDU0pYR1BPVS4u',
+      },
+    ],
+  },
 ];
 
 // Small HUD corner accents to echo the INVICTUS panels.
