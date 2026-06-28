@@ -1275,8 +1275,10 @@ function Dashboard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [animateCardsIn]);
 
-  const totalItems = tasks.length + compliances.length;
-  const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
+  // Overall task completion — tasks only (active list + archived), not compliances.
+  const overallTasks = [...tasks, ...archivedTasks];
+  const completedItems = overallTasks.filter((t) => t.status === 'Completed').length;
+  const totalItems = overallTasks.length;
   const completionPct = totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
 
   const recentTasks = [...tasks].slice(-4).reverse();
@@ -1346,7 +1348,7 @@ function Dashboard({
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Reveal index={2} animate={animateCardsIn}>
-        <Panel title="Estates & Maintenance Overall" icon={Gauge} refCode="0012-A" tier="primary">
+        <Panel title="Overall Tasks Completed" icon={Gauge} refCode="0012-A" tier="primary">
           <div className="flex flex-1 items-center justify-center py-2">
             <CircularProgress percentage={completionPct} />
           </div>
