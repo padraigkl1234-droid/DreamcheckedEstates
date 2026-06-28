@@ -65,7 +65,7 @@ export function Navbar() {
                     <Link
                       href={item.href}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                        "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium uppercase tracking-[0.15em] transition-colors hover:bg-accent hover:text-accent-foreground",
                         isActive(item.href) ? "bg-accent text-accent-foreground" : "text-muted-foreground"
                       )}
                     >
@@ -117,7 +117,7 @@ export function Navbar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                "rounded-md px-3 py-2 text-sm font-medium uppercase tracking-[0.15em] transition-colors hover:bg-accent hover:text-accent-foreground",
                 isActive(item.href) ? "bg-accent text-accent-foreground" : "text-muted-foreground"
               )}
             >
