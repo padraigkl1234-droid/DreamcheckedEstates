@@ -100,14 +100,14 @@ export default function ChecklistsPage() {
         <div className="space-y-8">
           {CHECKLIST_SECTIONS.map((section) => (
             <section key={section.name} className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-100">
+              <div className="flex items-center gap-3">
+                <h2 className="font-display text-xl uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-strong)] sm:text-2xl">
                   {section.name}
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">
+                </h2>
+                <span className="rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-200">
                   {section.forms.length}
                 </span>
-                <span className="h-px flex-1 bg-neutral-400/10" />
+                <span className="h-px flex-1 bg-invictus-crimson-bright/25" />
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
