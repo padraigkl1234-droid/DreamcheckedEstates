@@ -100,6 +100,36 @@ const CHECKLIST_SECTIONS: ChecklistSection[] = [
       },
     ],
   },
+  {
+    name: 'Undercover Show',
+    forms: [
+      {
+        name: 'Events Manager Checklist',
+        description: 'Overall event readiness and sign-off for the events manager.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtURU1HMERFTzdFNUdUTFk1RU9OSkZVQ00zTy4u',
+      },
+      {
+        name: 'Guest Experience Checklist',
+        description: 'Guest-facing readiness — front of house, signage and customer areas.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUMkYwWlI1WllLSEJGTjk0Q05VWVdGTUJVQS4u',
+      },
+      {
+        name: 'Operations Control Checklist',
+        description: 'Operations control room readiness and comms checks.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUNEFWT0FHVkdaUUNSOVNQSTIyUU9XM0dMTS4u',
+      },
+      {
+        name: 'Production Checklist',
+        description: 'Stage, sound, lighting and production readiness checks.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUMzdBMFJSUE9STllGSE9EMkJaUDYzWFFQSi4u',
+      },
+      {
+        name: 'Security Pre-Door Checklist',
+        description: 'Security checks completed before doors open.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUODZRU0M0WlNQNTlMOTNSV0FBQlpGWEpJVS4u',
+      },
+    ],
+  },
 ];
 
 // Small HUD corner accents to echo the INVICTUS panels.
