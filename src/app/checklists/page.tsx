@@ -130,6 +130,31 @@ const CHECKLIST_SECTIONS: ChecklistSection[] = [
       },
     ],
   },
+  {
+    name: 'Estates',
+    forms: [
+      {
+        name: 'Fire Door Checklist',
+        description: 'Inspection of fire doors across the estate.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUN0ZQUFEwVjFIRkRXQTlNWlE0VUM4MTRONC4u',
+      },
+      {
+        name: 'Water Fountain Checklist',
+        description: 'Checks for the water fountains and drinking points.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUNzdUM0lBWUZYTFZHRFoyUU82NkI0TUlaNS4u',
+      },
+      {
+        name: 'Drain & Gutter Inspection Checklist',
+        description: 'Inspection of drains and gutters for blockages and damage.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtURDQ5MVIzUUxGMlhFN0tPOTM1QzVUQk9ZMC4u',
+      },
+      {
+        name: 'Post-Show Estates Checklist',
+        description: 'Estates make-safe and walk-round after a show.',
+        url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=mfoYGzQzY0iReafbLftttfmhIWgCpdxOr6oOIUXc-xtUNFBaVk5SR0EwVlVSSlEzNE5ZNVFZQjBOOC4u',
+      },
+    ],
+  },
 ];
 
 // Small HUD corner accents to echo the INVICTUS panels.
