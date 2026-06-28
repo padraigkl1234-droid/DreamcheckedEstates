@@ -3628,12 +3628,28 @@ function ComplianceTracker({
 }
 
 // ---------------------------------------------------------------------------
+// Boot splash — a 1s spinning-logo intro before the app loads in.
+// ---------------------------------------------------------------------------
+
+function BootSplash() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-5">
+      <Pinwheel className="h-20 w-20 animate-spin text-invictus-crimson-bright drop-shadow-glow-subtle [animation-duration:1.1s]" />
+      <p className="font-display text-sm uppercase tracking-[0.3em] text-invictus-crimson-bright/80 [text-shadow:var(--glow-text-subtle)]">
+        {BRAND_NAME_DOTTED}
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Root page
 // ---------------------------------------------------------------------------
 
 export default function InvictusTrackerPage() {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [booting, setBooting] = useState(true);
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [tasks, setTasks] = useState<Task[]>(SEED_TASKS);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
@@ -3644,9 +3660,12 @@ export default function InvictusTrackerPage() {
   const readyToSave = useRef(false);
 
   // Render the app only after mount so live values (e.g. the diagnostics clock)
-  // never differ between the server HTML and the first client render.
+  // never differ between the server HTML and the first client render. Show a
+  // brief spinning-logo splash, then load the app in after 1 second.
   useEffect(() => {
     setMounted(true);
+    const timer = setTimeout(() => setBooting(false), 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   // Load this user's saved progress from Firestore whenever they sign in.
@@ -3816,7 +3835,9 @@ export default function InvictusTrackerPage() {
         }}
       />
 
-      {mounted && (
+      {mounted && booting && <BootSplash />}
+
+      {mounted && !booting && (
         <div className="relative flex h-full">
           <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} />
           <main className="flex-1 overflow-y-auto p-5">
