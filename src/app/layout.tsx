@@ -4,13 +4,13 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Dream Checked',
+  title: 'D.R.E.A.M.C.H.E.C.K.E.D',
   description: 'Event management forms for Dreamland',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'INVICTUS',
+    title: 'D.R.E.A.M.C.H.E.C.K.E.D',
   },
   icons: {
     icon: [
