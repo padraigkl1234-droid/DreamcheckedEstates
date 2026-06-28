@@ -348,13 +348,13 @@ function classifyComplianceDivision(name: string): string {
 const CARD_REVEAL_STEP_MS = 90;
 const CARD_REVEAL_DURATION_MS = 420;
 
-const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard }[] = [
+const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard; gapBefore?: boolean }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'calendar', label: 'Calendar', icon: CalendarDays },
   { key: 'sitemap', label: 'Site Map', icon: MapIcon },
   { key: 'tasks', label: 'Task Manager', icon: ListChecks },
-  { key: 'archive', label: 'Archive', icon: Archive },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
+  { key: 'archive', label: 'Archive', icon: Archive, gapBefore: true },
   { key: 'reports', label: 'Reports', icon: FileText },
 ];
 
@@ -1048,19 +1048,21 @@ function Sidebar({
           const Icon = item.icon;
           const active = activePage === item.key;
           return (
-            <button
-              key={item.key}
-              onClick={() => onNavigate(item.key)}
-              onMouseEnter={playHover}
-              className={`flex items-center justify-center gap-3 rounded-md border px-3 py-2.5 text-xs uppercase tracking-wider transition-all md:justify-start ${
-                active
-                  ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 text-neutral-100 shadow-glow-strong'
-                  : 'border-transparent text-neutral-500 hover:border-invictus-crimson-bright/20 hover:bg-invictus-crimson-bright/5 hover:text-invictus-crimson-bright'
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="hidden md:inline">{item.label}</span>
-            </button>
+            <React.Fragment key={item.key}>
+              {item.gapBefore && <div className="mx-1 my-2 border-t border-neutral-400/15" />}
+              <button
+                onClick={() => onNavigate(item.key)}
+                onMouseEnter={playHover}
+                className={`flex items-center justify-center gap-3 rounded-md border px-3 py-2.5 text-xs uppercase tracking-wider transition-all md:justify-start ${
+                  active
+                    ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 text-neutral-100 shadow-glow-strong'
+                    : 'border-transparent text-neutral-500 hover:border-invictus-crimson-bright/20 hover:bg-invictus-crimson-bright/5 hover:text-invictus-crimson-bright'
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="hidden md:inline">{item.label}</span>
+              </button>
+            </React.Fragment>
           );
         })}
       </nav>
