@@ -3651,10 +3651,13 @@ export default function InvictusTrackerPage() {
   const [mounted, setMounted] = useState(false);
   const [booting, setBooting] = useState(true);
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
-  const [tasks, setTasks] = useState<Task[]>(SEED_TASKS);
+  // Everyone starts with a clean slate — no example tasks/events/compliances.
+  // A signed-in user's own saved data loads from Firestore below and replaces
+  // these, and anything they add persists to their account from then on.
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
-  const [compliances, setCompliances] = useState<ComplianceItem[]>(SEED_COMPLIANCES);
-  const [events, setEvents] = useState<CalendarEvent[]>(SEED_EVENTS);
+  const [compliances, setCompliances] = useState<ComplianceItem[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'synced' | 'error'>('idle');
   const loadedForUid = useRef<string | null>(null);
   const readyToSave = useRef(false);
