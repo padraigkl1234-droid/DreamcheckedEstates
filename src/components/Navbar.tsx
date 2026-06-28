@@ -8,6 +8,7 @@ import {
   CheckSquare,
   Wrench,
   ClipboardCheck,
+  ClipboardList,
   LogOut,
   User as UserIcon,
   Volume2,
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
   { name: BRAND_NAME, href: '/jarvis-tracker', icon: Pinwheel },
   { name: 'Checklists', href: '/checklists', icon: ClipboardCheck },
+  { name: 'Audits', href: '/audits', icon: ClipboardList },
 ];
 
 export function Navbar() {
