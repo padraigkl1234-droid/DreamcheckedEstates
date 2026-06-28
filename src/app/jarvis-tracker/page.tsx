@@ -19,8 +19,6 @@ import {
   ShieldCheck,
   Plus,
   Trash2,
-  Cpu,
-  Activity,
   Wifi,
   Radio,
   Newspaper,
@@ -29,8 +27,6 @@ import {
   AlertTriangle,
   X,
   Gauge,
-  Server,
-  Briefcase,
   ImageOff,
   ExternalLink,
   RefreshCw,
@@ -402,10 +398,6 @@ function daysFromToday(dateStr: string, todayStr: string): number {
   const [y1, m1, d1] = dateStr.split('-').map(Number);
   const [y2, m2, d2] = todayStr.split('-').map(Number);
   return Math.round((new Date(y1, m1 - 1, d1).getTime() - new Date(y2, m2 - 1, d2).getTime()) / DAY_MS);
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }
 
 interface TimelinePoint {
@@ -1192,59 +1184,6 @@ function Reveal({ index, animate, children }: { index: number; animate: boolean;
 }
 
 // ---------------------------------------------------------------------------
-// SystemDiagnosticsPanel — owns its own 1s clock tick and fake load-metric
-// tick in isolation, so the rest of the dashboard (chart, news, panels) isn't
-// forced to re-render every second.
-// ---------------------------------------------------------------------------
-
-function SystemDiagnosticsPanel() {
-  const [now, setNow] = useState(new Date());
-  const [load, setLoad] = useState({ cpu: 38, mem: 52, net: 24 });
-
-  useEffect(() => {
-    const clockId = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(clockId);
-  }, []);
-
-  useEffect(() => {
-    const loadId = setInterval(() => {
-      setLoad((prev) => ({
-        cpu: clamp(prev.cpu + Math.round((Math.random() - 0.5) * 16), 12, 96),
-        mem: clamp(prev.mem + Math.round((Math.random() - 0.5) * 10), 20, 90),
-        net: clamp(prev.net + Math.round((Math.random() - 0.5) * 20), 5, 99),
-      }));
-    }, 2200);
-    return () => clearInterval(loadId);
-  }, []);
-
-  return (
-    <Panel title="System Diagnostics" icon={Activity} refCode="0048-A" tier="ambient">
-      <div className="flex flex-col gap-4">
-        <div className="text-center">
-          <p className="font-mono text-2xl font-bold tabular-nums tracking-widest text-neutral-200 [text-shadow:var(--glow-text-subtle)]">
-            {now.toLocaleTimeString('en-GB')}
-          </p>
-          <p className="text-[10px] uppercase tracking-widest text-neutral-600">
-            {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between gap-2">
-          <RadialGauge icon={Cpu} label="CPU" value={load.cpu} />
-          <RadialGauge icon={Server} label="Server" value={load.mem} />
-          <RadialGauge icon={Wifi} label="Network" value={load.net} />
-        </div>
-
-        <div className="flex items-center justify-center gap-2 rounded-md border border-emerald-400/30 bg-emerald-400/10 py-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-          <span className="text-xs uppercase tracking-widest text-emerald-300">System Status: Nominal</span>
-        </div>
-      </div>
-    </Panel>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
 
@@ -1265,9 +1204,8 @@ function Dashboard({
   onCardsRevealed?: () => void;
   onToggleMeeting: (id: string, date: string) => void;
 }) {
-  const [news, setNews] = useState<{ general: NewsItem[]; business: NewsItem[]; football: NewsItem[] }>({
+  const [news, setNews] = useState<{ general: NewsItem[]; football: NewsItem[] }>({
     general: [],
-    business: [],
     football: [],
   });
   const [newsStatus, setNewsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -1285,7 +1223,7 @@ function Dashboard({
           setNewsStatus('error');
           return;
         }
-        setNews({ general: data.general ?? [], business: data.business ?? [], football: data.football ?? [] });
+        setNews({ general: data.general ?? [], football: data.football ?? [] });
         setNewsStatus('ready');
       } catch {
         if (!cancelled) setNewsStatus('error');
@@ -1482,18 +1420,11 @@ function Dashboard({
         />
       </Reveal>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Reveal index={6} animate={animateCardsIn}>
-          <SystemDiagnosticsPanel />
-        </Reveal>
-
-        <Reveal index={7} animate={animateCardsIn}>
           <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
         </Reveal>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <Reveal index={8} animate={animateCardsIn}>
+        <Reveal index={7} animate={animateCardsIn}>
           <NewsPanel
             title="BBC News Feed"
             icon={Newspaper}
@@ -1503,17 +1434,7 @@ function Dashboard({
             tier="ambient"
           />
         </Reveal>
-        <Reveal index={9} animate={animateCardsIn}>
-          <NewsPanel
-            title="Business & Economics"
-            icon={Briefcase}
-            refCode="0092-B"
-            items={news.business}
-            status={newsStatus}
-            tier="ambient"
-          />
-        </Reveal>
-        <Reveal index={10} animate={animateCardsIn}>
+        <Reveal index={8} animate={animateCardsIn}>
           <NewsPanel
             title="Football News"
             icon={Trophy}
@@ -1641,8 +1562,24 @@ function WeatherPanel({
   const info = weather ? getWeatherInfo(weather.weatherCode) : null;
   const WeatherIcon = info?.icon ?? Cloud;
 
+  // Live local clock, shown alongside the weather. The dashboard only renders
+  // client-side (behind the mounted gate), so this never mismatches on hydration.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
-    <Panel title="Margate Weather" icon={WeatherIcon} refCode="0061-W" tier={tier}>
+    <Panel title="Margate · Time & Weather" icon={WeatherIcon} refCode="0061-W" tier={tier}>
+      <div className="mb-4 border-b border-neutral-400/15 pb-4 text-center">
+        <p className="font-mono text-2xl font-bold tabular-nums tracking-widest text-neutral-200 [text-shadow:var(--glow-text-subtle)]">
+          {now.toLocaleTimeString('en-GB')}
+        </p>
+        <p className="text-[10px] uppercase tracking-widest text-neutral-600">
+          {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
+      </div>
       {status === 'loading' && (
         <div className="flex flex-col items-center gap-2 py-10 text-neutral-600">
           <RefreshCw className="h-5 w-5 animate-spin" />
@@ -1902,40 +1839,6 @@ function NewsCard({ item }: { item: NewsItem }) {
         </div>
       </div>
     </a>
-  );
-}
-
-function RadialGauge({ icon: Icon, label, value }: { icon: typeof Cpu; label: string; value: number }) {
-  const radius = 24;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (value / 100) * circumference;
-  const color = value > 80 ? '#FF3B4E' : value > 55 ? '#fbbf24' : '#C2304A';
-
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="relative flex h-16 w-16 items-center justify-center">
-        <MicroCorners />
-        <svg viewBox="0 0 60 60" className="absolute h-full w-full -rotate-90">
-          <circle cx="30" cy="30" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
-          <circle
-            cx="30"
-            cy="30"
-            r={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            style={{ transition: 'stroke-dashoffset 0.5s ease', filter: `drop-shadow(0 0 4px ${color})` }}
-          />
-        </svg>
-        <span className="font-mono text-[11px] font-bold tabular-nums text-neutral-200">{value}%</span>
-      </div>
-      <span className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-neutral-500">
-        <Icon className="h-3 w-3" /> {label}
-      </span>
-    </div>
   );
 }
 
