@@ -6,6 +6,7 @@ import { db, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
 import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
+import { CHECKLIST_SECTIONS } from '@/lib/checklists';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import {
   type ComplianceItem,
@@ -57,6 +58,7 @@ import {
   Check,
   Map as MapIcon,
   MapPin,
+  Clapperboard,
 } from 'lucide-react';
 import {
   Area,
@@ -74,7 +76,18 @@ import {
 
 type Priority = 'High' | 'Medium' | 'Low';
 type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
-type PageKey = 'dashboard' | 'calendar' | 'sitemap' | 'tasks' | 'archive' | 'compliance' | 'reports';
+type PageKey = 'dashboard' | 'calendar' | 'shows' | 'sitemap' | 'tasks' | 'archive' | 'compliance' | 'reports';
+
+// A scheduled show. `type` matches a CHECKLIST_SECTIONS name and `completed`
+// maps each checklist's name to whether its light is green. Structured this way
+// so a future Power Automate feed can flip lights by writing to `completed`.
+interface Show {
+  id: string;
+  date: string;
+  type: string;
+  title?: string;
+  completed: Record<string, boolean>;
+}
 
 interface Task {
   id: string;
@@ -351,6 +364,7 @@ const CARD_REVEAL_DURATION_MS = 420;
 const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard; gapBefore?: boolean }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { key: 'shows', label: 'Show Board', icon: Clapperboard },
   { key: 'sitemap', label: 'Site Map', icon: MapIcon },
   { key: 'tasks', label: 'Task Manager', icon: ListChecks },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
@@ -2831,6 +2845,186 @@ function SiteMapPage({
 }
 
 // ---------------------------------------------------------------------------
+// Show Board — schedule shows and track each show's checklists as red/green
+// readiness lights. Lights are flipped manually for now; the per-show
+// `completed` map is shaped so a Power Automate feed could flip them later.
+// ---------------------------------------------------------------------------
+
+function StatusLight({ on }: { on: boolean }) {
+  return (
+    <span
+      className={`inline-block h-3.5 w-3.5 shrink-0 rounded-full border transition-all ${
+        on
+          ? 'border-emerald-300/80 bg-emerald-400 shadow-[0_0_8px_2px_rgba(52,211,153,0.55)]'
+          : 'border-alert/70 bg-alert/80 shadow-[0_0_8px_2px_rgba(255,59,78,0.45)]'
+      }`}
+    />
+  );
+}
+
+function ShowsBoard({
+  shows,
+  onAdd,
+  onDelete,
+  onToggleChecklist,
+}: {
+  shows: Show[];
+  onAdd: (show: Show) => void;
+  onDelete: (id: string) => void;
+  onToggleChecklist: (showId: string, checklistName: string) => void;
+}) {
+  const [date, setDate] = useState(() => toDateInputValue(new Date()));
+  const [type, setType] = useState(CHECKLIST_SECTIONS[0]?.name ?? '');
+  const [title, setTitle] = useState('');
+  const { playConfirm } = useSound();
+
+  const sortedShows = useMemo(
+    () => [...shows].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
+    [shows]
+  );
+
+  const handleSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!date || !type) return;
+    onAdd({ id: genId(), date, type, title: title.trim() || undefined, completed: {} });
+    playConfirm();
+    setTitle('');
+  };
+
+  const formsForType = (showType: string) =>
+    CHECKLIST_SECTIONS.find((s) => s.name === showType)?.forms ?? [];
+
+  return (
+    <div className="space-y-5">
+      <Panel title="Schedule a Show" icon={Plus} refCode="0080-S">
+        <form onSubmit={handleSchedule} className="grid grid-cols-1 gap-3 md:grid-cols-[0.8fr_1fr_1.2fr_auto]">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-widest text-neutral-600">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-widest text-neutral-600">Show Type</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+            >
+              {CHECKLIST_SECTIONS.map((s) => (
+                <option key={s.name}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-widest text-neutral-600">Label (optional)</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. The Streets — Live"
+              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+            />
+          </div>
+          <button
+            type="submit"
+            className="flex items-center justify-center gap-2 self-end rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
+          >
+            <Plus className="h-4 w-4" /> Schedule
+          </button>
+        </form>
+        <p className="mt-3 text-[10px] uppercase tracking-widest text-neutral-600">
+          Tap a checklist&apos;s light to mark it complete for that show · red = outstanding · green = done
+        </p>
+      </Panel>
+
+      {sortedShows.length === 0 && (
+        <Panel title="Show Board" icon={Clapperboard} refCode="0081-S">
+          <p className="py-8 text-center text-xs text-neutral-600">No shows scheduled yet.</p>
+        </Panel>
+      )}
+
+      {sortedShows.map((show) => {
+        const forms = formsForType(show.type);
+        const done = forms.filter((f) => show.completed[f.name]).length;
+        const total = forms.length;
+        const ready = total > 0 && done === total;
+        return (
+          <Panel
+            key={show.id}
+            title={show.title ? `${show.type} — ${show.title}` : show.type}
+            icon={Clapperboard}
+            refCode={formatDisplayDate(show.date)}
+            tier="primary"
+          >
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
+                    ready
+                      ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300'
+                      : 'border-alert/40 bg-alert/10 text-alert'
+                  }`}
+                >
+                  <StatusLight on={ready} /> {ready ? 'Show Ready' : `${total - done} Outstanding`}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+                  {done}/{total} complete
+                </span>
+              </div>
+              <button
+                onClick={() => onDelete(show.id)}
+                className="flex items-center justify-center rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
+                title="Remove show"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {forms.length === 0 && (
+                <p className="py-3 text-center text-xs text-neutral-600">No checklists defined for this show type.</p>
+              )}
+              {forms.map((f) => {
+                const isDone = Boolean(show.completed[f.name]);
+                return (
+                  <div
+                    key={f.name}
+                    className={`flex items-center gap-3 rounded-md border p-3 transition-colors ${
+                      isDone ? 'border-emerald-400/25 bg-emerald-400/[0.04]' : 'border-neutral-400/20 bg-invictus-base/40'
+                    }`}
+                  >
+                    <button
+                      onClick={() => onToggleChecklist(show.id, f.name)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      title={isDone ? 'Mark outstanding' : 'Mark complete'}
+                    >
+                      <StatusLight on={isDone} />
+                      <span className={`truncate text-sm ${isDone ? 'text-emerald-200' : 'text-neutral-100'}`}>{f.name}</span>
+                    </button>
+                    <a
+                      href={f.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 rounded-md border border-neutral-400/25 bg-invictus-base/60 px-2 py-1 text-[10px] uppercase tracking-widest text-neutral-400 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                      title="Open the Microsoft Form"
+                    >
+                      Form <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Task Manager
 // ---------------------------------------------------------------------------
 
@@ -3566,6 +3760,7 @@ export default function InvictusTrackerPage() {
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
   const [compliances, setCompliances] = useState<ComplianceItem[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [shows, setShows] = useState<Show[]>([]);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'synced' | 'error'>('idle');
   const loadedForUid = useRef<string | null>(null);
   const readyToSave = useRef(false);
@@ -3601,6 +3796,7 @@ export default function InvictusTrackerPage() {
           if (Array.isArray(data.archivedTasks)) setArchivedTasks(data.archivedTasks as Task[]);
           if (Array.isArray(data.compliances)) setCompliances(data.compliances as ComplianceItem[]);
           if (Array.isArray(data.events)) setEvents(data.events as CalendarEvent[]);
+          if (Array.isArray(data.shows)) setShows(data.shows as Show[]);
         }
         setSyncStatus('synced');
       } catch (error) {
@@ -3621,6 +3817,7 @@ export default function InvictusTrackerPage() {
         archivedTasks,
         compliances,
         events,
+        shows,
         updatedAt: Date.now(),
       })
         .then(() => setSyncStatus('synced'))
@@ -3630,7 +3827,7 @@ export default function InvictusTrackerPage() {
         });
     }, 600);
     return () => clearTimeout(timeout);
-  }, [tasks, archivedTasks, compliances, events, user]);
+  }, [tasks, archivedTasks, compliances, events, shows, user]);
 
   const totalItems = tasks.length + compliances.length;
   const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
@@ -3734,6 +3931,17 @@ export default function InvictusTrackerPage() {
     return toAdd.length;
   };
 
+  const handleAddShow = (show: Show) => setShows((prev) => [...prev, show]);
+  const handleDeleteShow = (id: string) => setShows((prev) => prev.filter((s) => s.id !== id));
+  const handleToggleShowChecklist = (showId: string, checklistName: string) =>
+    setShows((prev) =>
+      prev.map((s) =>
+        s.id === showId
+          ? { ...s, completed: { ...s.completed, [checklistName]: !s.completed[checklistName] } }
+          : s
+      )
+    );
+
   return (
     <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
@@ -3763,6 +3971,14 @@ export default function InvictusTrackerPage() {
             )}
             {activePage === 'calendar' && (
               <CalendarPage events={events} onAdd={handleAddEvent} onDelete={handleDeleteEvent} onImport={handleImportEvents} />
+            )}
+            {activePage === 'shows' && (
+              <ShowsBoard
+                shows={shows}
+                onAdd={handleAddShow}
+                onDelete={handleDeleteShow}
+                onToggleChecklist={handleToggleShowChecklist}
+              />
             )}
             {activePage === 'sitemap' && (
               <SiteMapPage tasks={tasks} onAddTask={handleAddTask} />
