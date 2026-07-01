@@ -1,0 +1,27 @@
+{
+  "name": "outlook-agent-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monitors an Outlook inbox via Microsoft Graph, classifies mail with Claude, and routes it to task-specific agents.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "print-last-10": "tsx scripts/print-last-10.ts",
+    "run-once": "tsx scripts/run-once.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.109.0",
+    "@azure/msal-node": "^2.16.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "tsx": "^4.19.1",
+    "typescript": "^5.5.4"
+  }
+}
