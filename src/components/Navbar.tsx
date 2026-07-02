@@ -58,7 +58,7 @@ export function Navbar() {
               <SheetHeader className="border-b pb-4">
                 <SheetTitle className="flex items-center gap-2">
                   <CheckSquare className="h-6 w-6 text-primary" />
-                  <span className="font-headline font-bold">Dream Checked</span>
+                  <span className="sr-only">Menu</span>
                 </SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-2 py-6">
@@ -106,9 +106,7 @@ export function Navbar() {
 
           <Link href="/" className="flex items-center gap-2">
             <CheckSquare className="h-8 w-8 text-primary" />
-            <span className="hidden font-headline text-xl font-bold tracking-tight sm:inline-block">
-              Dream Checked
-            </span>
+            <span className="sr-only">Home</span>
           </Link>
         </div>
 
