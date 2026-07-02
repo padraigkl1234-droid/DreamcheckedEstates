@@ -103,10 +103,6 @@ export function Navbar() {
             </SheetContent>
           </Sheet>
 
-          <Link href="/" className="flex items-center gap-2">
-            <CheckSquare className="h-8 w-8 text-primary" />
-            <span className="sr-only">Home</span>
-          </Link>
         </div>
 
         {/* Desktop Navigation */}
