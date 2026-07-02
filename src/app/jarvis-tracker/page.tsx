@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
@@ -2864,11 +2864,13 @@ function StatusLight({ on }: { on: boolean }) {
 
 function ShowsBoard({
   shows,
+  signedIn,
   onAdd,
   onDelete,
   onToggleChecklist,
 }: {
   shows: Show[];
+  signedIn: boolean;
   onAdd: (show: Show) => void;
   onDelete: (id: string) => void;
   onToggleChecklist: (showId: string, checklistName: string) => void;
@@ -2893,6 +2895,18 @@ function ShowsBoard({
 
   const formsForType = (showType: string) =>
     CHECKLIST_SECTIONS.find((s) => s.name === showType)?.forms ?? [];
+
+  if (!signedIn) {
+    return (
+      <div className="space-y-5">
+        <Panel title="Show Board" icon={Clapperboard} refCode="0081-S">
+          <p className="py-10 text-center text-xs uppercase tracking-widest text-neutral-500">
+            Sign in to view and update the shared Show Board.
+          </p>
+        </Panel>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -3796,7 +3810,6 @@ export default function InvictusTrackerPage() {
           if (Array.isArray(data.archivedTasks)) setArchivedTasks(data.archivedTasks as Task[]);
           if (Array.isArray(data.compliances)) setCompliances(data.compliances as ComplianceItem[]);
           if (Array.isArray(data.events)) setEvents(data.events as CalendarEvent[]);
-          if (Array.isArray(data.shows)) setShows(data.shows as Show[]);
         }
         setSyncStatus('synced');
       } catch (error) {
@@ -3817,7 +3830,6 @@ export default function InvictusTrackerPage() {
         archivedTasks,
         compliances,
         events,
-        shows,
         updatedAt: Date.now(),
       })
         .then(() => setSyncStatus('synced'))
@@ -3827,7 +3839,23 @@ export default function InvictusTrackerPage() {
         });
     }, 600);
     return () => clearTimeout(timeout);
-  }, [tasks, archivedTasks, compliances, events, shows, user]);
+  }, [tasks, archivedTasks, compliances, events, user]);
+
+  // The Show Board is a SHARED, live team board: shows live in a top-level
+  // `shows` collection that every signed-in user (and the Power Automate webhook)
+  // reads/writes, so lights update in real time for everyone.
+  useEffect(() => {
+    if (!user) {
+      setShows([]);
+      return;
+    }
+    const unsub = onSnapshot(
+      collection(db, 'shows'),
+      (snap) => setShows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Show, 'id'>) }))),
+      (error) => console.error('Show board subscription failed:', error)
+    );
+    return unsub;
+  }, [user]);
 
   const totalItems = tasks.length + compliances.length;
   const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
@@ -3931,16 +3959,24 @@ export default function InvictusTrackerPage() {
     return toAdd.length;
   };
 
-  const handleAddShow = (show: Show) => setShows((prev) => [...prev, show]);
-  const handleDeleteShow = (id: string) => setShows((prev) => prev.filter((s) => s.id !== id));
-  const handleToggleShowChecklist = (showId: string, checklistName: string) =>
-    setShows((prev) =>
-      prev.map((s) =>
-        s.id === showId
-          ? { ...s, completed: { ...s.completed, [checklistName]: !s.completed[checklistName] } }
-          : s
-      )
+  // Writes go straight to the shared `shows` collection; the onSnapshot listener
+  // above reflects them back (live) for this user and everyone else.
+  const handleAddShow = (show: Show) => {
+    if (!user) return;
+    setDoc(doc(db, 'shows', show.id), { date: show.date, type: show.type, title: show.title ?? null, completed: show.completed })
+      .catch((e) => console.error('Failed to add show:', e));
+  };
+  const handleDeleteShow = (id: string) => {
+    if (!user) return;
+    deleteDoc(doc(db, 'shows', id)).catch((e) => console.error('Failed to delete show:', e));
+  };
+  const handleToggleShowChecklist = (showId: string, checklistName: string) => {
+    if (!user) return;
+    const current = shows.find((s) => s.id === showId)?.completed[checklistName] ?? false;
+    updateDoc(doc(db, 'shows', showId), { [`completed.${checklistName}`]: !current }).catch((e) =>
+      console.error('Failed to update show checklist:', e)
     );
+  };
 
   return (
     <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
@@ -3975,6 +4011,7 @@ export default function InvictusTrackerPage() {
             {activePage === 'shows' && (
               <ShowsBoard
                 shows={shows}
+                signedIn={!!user}
                 onAdd={handleAddShow}
                 onDelete={handleDeleteShow}
                 onToggleChecklist={handleToggleShowChecklist}
