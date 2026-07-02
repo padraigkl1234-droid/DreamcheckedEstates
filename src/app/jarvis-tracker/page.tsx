@@ -1211,6 +1211,7 @@ function Dashboard({
   animateCardsIn = false,
   onCardsRevealed,
   onToggleMeeting,
+  onOpenSiteMap,
 }: {
   tasks: Task[];
   archivedTasks: Task[];
@@ -1219,6 +1220,7 @@ function Dashboard({
   animateCardsIn?: boolean;
   onCardsRevealed?: () => void;
   onToggleMeeting: (id: string, date: string) => void;
+  onOpenSiteMap?: () => void;
 }) {
   const [news, setNews] = useState<{ general: NewsItem[]; football: NewsItem[] }>({
     general: [],
@@ -1282,7 +1284,7 @@ function Dashboard({
   // this component later in the same session (switching tabs and back) won't replay it.
   useEffect(() => {
     if (!animateCardsIn) return;
-    const cardCount = 11; // greeting + 10 panels
+    const cardCount = 12; // greeting + 11 panels
     const totalMs = (cardCount - 1) * CARD_REVEAL_STEP_MS + CARD_REVEAL_DURATION_MS;
     const timeout = setTimeout(() => onCardsRevealed?.(), totalMs);
     return () => clearTimeout(timeout);
@@ -1438,11 +1440,15 @@ function Dashboard({
         />
       </Reveal>
 
+      <Reveal index={6} animate={animateCardsIn}>
+        <SiteHeatmap tasks={tasks} onOpen={onOpenSiteMap} />
+      </Reveal>
+
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <Reveal index={6} animate={animateCardsIn}>
+        <Reveal index={7} animate={animateCardsIn}>
           <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
         </Reveal>
-        <Reveal index={7} animate={animateCardsIn}>
+        <Reveal index={8} animate={animateCardsIn}>
           <NewsPanel
             title="BBC News Feed"
             icon={Newspaper}
@@ -1452,7 +1458,7 @@ function Dashboard({
             tier="ambient"
           />
         </Reveal>
-        <Reveal index={8} animate={animateCardsIn}>
+        <Reveal index={9} animate={animateCardsIn}>
           <NewsPanel
             title="Football News"
             icon={Trophy}
@@ -2546,6 +2552,143 @@ const ZONE_TONE: Record<ZoneTone, { fill: string; stroke: string; text: string }
 
 function toPoints(poly: Pt[]): string {
   return poly.map(([x, y]) => `${x},${y}`).join(' ');
+}
+
+// Thermal ramp used by the dashboard heat-map: cool/dark (few tasks) through
+// crimson and orange to amber/white-hot (busiest). t is normalised 0..1.
+function heatColor(t: number): string {
+  const stops: Array<[number, [number, number, number]]> = [
+    [0.0, [40, 20, 22]],
+    [0.25, [120, 26, 28]],
+    [0.5, [200, 38, 38]],
+    [0.75, [240, 130, 34]],
+    [1.0, [250, 214, 70]],
+  ];
+  const v = Math.max(0, Math.min(1, t));
+  for (let i = 1; i < stops.length; i++) {
+    if (v <= stops[i][0]) {
+      const [t0, c0] = stops[i - 1];
+      const [t1, c1] = stops[i];
+      const f = t1 === t0 ? 0 : (v - t0) / (t1 - t0);
+      const mix = (a: number, b: number) => Math.round(a + (b - a) * f);
+      return `rgb(${mix(c0[0], c1[0])}, ${mix(c0[1], c1[1])}, ${mix(c0[2], c1[2])})`;
+    }
+  }
+  return 'rgb(250, 214, 70)';
+}
+
+// A compact, unlabelled heat-map of the site for the dashboard. Each zone (and
+// any open-ground grid square carrying tasks) is shaded by how many active
+// tasks are assigned there — the "hotter" the colour, the busier the area.
+function SiteHeatmap({ tasks, onOpen }: { tasks: Task[]; onOpen?: () => void }) {
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const t of tasks) {
+      if (t.area && t.status !== 'Completed') c[t.area] = (c[t.area] ?? 0) + 1;
+    }
+    return c;
+  }, [tasks]);
+
+  const max = useMemo(() => Math.max(0, ...Object.values(counts)), [counts]);
+  const totalActive = useMemo(() => Object.values(counts).reduce((a, b) => a + b, 0), [counts]);
+  const hottest = useMemo(
+    () => Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3),
+    [counts]
+  );
+
+  const heatFor = (count: number): string => {
+    if (count <= 0) return '#191a20';
+    const t = max <= 0 ? 0 : 0.18 + 0.82 * (count / max);
+    return heatColor(t);
+  };
+
+  return (
+    <Panel title="Workload Heatmap" icon={MapIcon} refCode="0117-H" tier="primary">
+      {totalActive === 0 ? (
+        <p className="py-10 text-center text-xs text-neutral-600">
+          No active tasks assigned to the site yet — assign tasks on the Site Map to light up the heat.
+        </p>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={onOpen}
+            className="group relative block w-full overflow-hidden rounded-md border border-neutral-400/20 bg-[#0b0b0c] transition-colors hover:border-invictus-crimson-bright/50"
+            title="Open the full Site Map"
+          >
+            <svg viewBox="0 0 1000 900" className="mx-auto h-auto w-full max-w-md" role="img" aria-label="Site workload heatmap">
+              {/* Boundary + passive context, dimmed for shape recognition */}
+              <polygon points={toPoints(SITE_BOUNDARY)} fill="#101116" stroke="rgba(220,38,38,0.35)" strokeWidth={2} strokeLinejoin="round" />
+              <polygon points={toPoints(CAR_PARK_POLY)} fill="#141519" stroke="rgba(160,160,170,0.12)" strokeWidth={1} />
+              <polygon points={toPoints(EAST_PARK_POLY)} fill="#141519" stroke="rgba(160,160,170,0.12)" strokeWidth={1} />
+              <polygon points={toPoints(CLUSTER_POLY)} fill="#141519" stroke="rgba(160,160,170,0.12)" strokeWidth={1} />
+
+              {/* Open-ground grid squares that carry tasks */}
+              {SITE_CELLS.filter((c) => c.inside && !c.landmark && (counts[c.areaKey] ?? 0) > 0).map((cell) => (
+                <rect key={`h-${cell.ref}`} x={cell.x} y={cell.y} width={CELL_W} height={CELL_H} fill={heatFor(counts[cell.areaKey] ?? 0)} opacity={0.9}>
+                  <title>{`${cell.areaKey}: ${counts[cell.areaKey]} active`}</title>
+                </rect>
+              ))}
+
+              {/* Working zones, shaded by task load (no labels) */}
+              {SITE_ZONES.map((z, i) => {
+                const cx = z.x + z.w / 2;
+                const cy = z.y + z.h / 2;
+                const count = counts[z.label] ?? 0;
+                const transform = z.rot ? `rotate(${z.rot} ${cx} ${cy})` : undefined;
+                return (
+                  <rect
+                    key={`hz-${i}`}
+                    x={z.x}
+                    y={z.y}
+                    width={z.w}
+                    height={z.h}
+                    rx={2}
+                    fill={heatFor(count)}
+                    stroke={count > 0 ? 'rgba(0,0,0,0.35)' : 'rgba(220,38,38,0.18)'}
+                    strokeWidth={0.8}
+                    transform={transform}
+                    opacity={count > 0 ? 0.95 : 0.6}
+                  >
+                    <title>{`${z.label}: ${count} active task${count === 1 ? '' : 's'}`}</title>
+                  </rect>
+                );
+              })}
+            </svg>
+            <span className="pointer-events-none absolute bottom-1.5 right-2 text-[9px] uppercase tracking-widest text-neutral-500 group-hover:text-invictus-crimson-bright">
+              Open site map &rarr;
+            </span>
+          </button>
+
+          {/* Legend */}
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wide text-neutral-500">Fewer</span>
+            <span
+              className="h-2 flex-1 rounded-full"
+              style={{ background: `linear-gradient(to right, ${heatColor(0.18)}, ${heatColor(0.5)}, ${heatColor(0.82)}, ${heatColor(1)})` }}
+            />
+            <span className="text-[10px] uppercase tracking-wide text-neutral-500">More tasks</span>
+          </div>
+
+          {/* Busiest areas (names live here, not on the map) */}
+          {hottest.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {hottest.map(([area, count]) => (
+                <span
+                  key={area}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-2 py-0.5 text-[10px] text-neutral-200"
+                >
+                  <span className="h-2 w-2 rounded-full" style={{ background: heatFor(count) }} />
+                  {area}
+                  <span className="font-mono font-semibold text-neutral-100">{count}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </Panel>
+  );
 }
 
 function SiteMapPage({
@@ -4003,6 +4146,7 @@ export default function InvictusTrackerPage() {
                 compliances={compliances}
                 events={events}
                 onToggleMeeting={handleToggleMeeting}
+                onOpenSiteMap={() => setActivePage('sitemap')}
               />
             )}
             {activePage === 'calendar' && (
