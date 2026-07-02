@@ -4,13 +4,13 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Invictus',
+  title: 'INVICTUS',
   description: 'Event management forms for Dreamland',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Invictus',
+    title: 'INVICTUS',
   },
   icons: {
     icon: [
