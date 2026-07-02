@@ -28,11 +28,10 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
-import { BRAND_NAME } from '@/lib/brand';
 
 const NAV_ITEMS = [
   { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
-  { name: BRAND_NAME, href: '/jarvis-tracker', icon: Pinwheel },
+  { name: 'Home', href: '/jarvis-tracker', icon: Pinwheel },
   { name: 'Checklists', href: '/checklists', icon: ClipboardCheck },
   { name: 'Audits', href: '/audits', icon: ClipboardList },
 ];
