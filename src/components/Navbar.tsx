@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Menu,
-  CheckSquare,
   Wrench,
   ClipboardCheck,
   ClipboardList,
@@ -56,8 +55,7 @@ export function Navbar() {
             <SheetContent side="left" className="w-[300px] sm:w-[400px]">
               <SheetHeader className="border-b pb-4">
                 <SheetTitle className="flex items-center gap-2">
-                  <CheckSquare className="h-6 w-6 text-primary" />
-                  <span className="sr-only">Menu</span>
+                  <span className="font-headline text-lg font-bold uppercase tracking-[0.2em]">INVICTUS</span>
                 </SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-2 py-6">
