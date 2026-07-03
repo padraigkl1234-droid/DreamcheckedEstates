@@ -2577,9 +2577,12 @@ function heatColor(t: number): string {
   return 'rgb(250, 214, 70)';
 }
 
-// A compact, unlabelled heat-map of the site for the dashboard. Each zone (and
-// any open-ground grid square carrying tasks) is shaded by how many active
-// tasks are assigned there — the "hotter" the colour, the busier the area.
+// A compact, unlabelled thermal heat-map of the site for the dashboard.
+// Rendered like a thermal camera: each busy area emits a soft radial "energy"
+// blob; the blobs are blurred so neighbours blend, then the accumulated
+// intensity is mapped through the red→orange→yellow ramp via an SVG filter
+// (feGaussianBlur → alpha-to-intensity → feComponentTransfer colour tables).
+// Overlapping hotspots genuinely add up and glow hotter.
 function SiteHeatmap({ tasks, onOpen }: { tasks: Task[]; onOpen?: () => void }) {
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -2602,6 +2605,35 @@ function SiteHeatmap({ tasks, onOpen }: { tasks: Task[]; onOpen?: () => void }) 
     return heatColor(t);
   };
 
+  // One soft hotspot per busy area — zone centroids for named zones (the
+  // primary rect only, so duplicate-labelled pitches don't multiply the heat),
+  // cell centres for open-ground squares. Ellipses follow each zone's
+  // footprint so elongated areas (Boneyard, Food Court) read as a ridge of
+  // heat rather than one huge circle.
+  const hotspots = useMemo(() => {
+    const spots: { cx: number; cy: number; rx: number; ry: number; rot: number; count: number }[] = [];
+    for (const z of SITE_ZONES) {
+      if (z.noBadge) continue;
+      const count = counts[z.label] ?? 0;
+      if (count <= 0) continue;
+      spots.push({
+        cx: z.x + z.w / 2,
+        cy: z.y + z.h / 2,
+        rx: Math.min(z.w / 2 + 40, 150),
+        ry: Math.min(z.h / 2 + 40, 150),
+        rot: z.rot ?? 0,
+        count,
+      });
+    }
+    for (const c of SITE_CELLS) {
+      if (!c.inside || c.landmark) continue;
+      const count = counts[c.areaKey] ?? 0;
+      if (count <= 0) continue;
+      spots.push({ cx: c.cx, cy: c.cy, rx: 60, ry: 60, rot: 0, count });
+    }
+    return spots;
+  }, [counts]);
+
   return (
     <Panel title="Workload Heatmap" icon={MapIcon} refCode="0117-H" tier="primary">
       {totalActive === 0 ? (
@@ -2617,25 +2649,43 @@ function SiteHeatmap({ tasks, onOpen }: { tasks: Task[]; onOpen?: () => void }) 
             title="Open the full Site Map"
           >
             <svg viewBox="0 0 1000 900" className="mx-auto h-auto w-full max-w-md" role="img" aria-label="Site workload heatmap">
-              {/* Boundary + passive context, dimmed for shape recognition */}
+              <defs>
+                {/* Soft radial falloff for a single heat source. */}
+                <radialGradient id="heat-blob">
+                  <stop offset="0%" stopColor="#fff" stopOpacity={1} />
+                  <stop offset="45%" stopColor="#fff" stopOpacity={0.55} />
+                  <stop offset="100%" stopColor="#fff" stopOpacity={0} />
+                </radialGradient>
+                {/* Thermal colormap: blur the white blobs so they merge, read
+                    the accumulated alpha as intensity, then map intensity
+                    through the dark-red → crimson → orange → amber ramp. */}
+                <filter id="heat-thermal" x="-15%" y="-15%" width="130%" height="130%" colorInterpolationFilters="sRGB">
+                  <feGaussianBlur stdDeviation={16} />
+                  <feColorMatrix
+                    type="matrix"
+                    values="0 0 0 1 0
+                            0 0 0 1 0
+                            0 0 0 1 0
+                            0 0 0 1 0"
+                  />
+                  <feComponentTransfer>
+                    <feFuncR type="table" tableValues="0.16 0.47 0.78 0.94 0.98" />
+                    <feFuncG type="table" tableValues="0.08 0.10 0.15 0.51 0.84" />
+                    <feFuncB type="table" tableValues="0.09 0.11 0.15 0.13 0.27" />
+                    <feFuncA type="table" tableValues="0 0.35 0.65 0.85 0.95" />
+                  </feComponentTransfer>
+                </filter>
+              </defs>
+
+              {/* Base map, dimmed for shape recognition */}
               <polygon points={toPoints(SITE_BOUNDARY)} fill="#101116" stroke="rgba(220,38,38,0.35)" strokeWidth={2} strokeLinejoin="round" />
               <polygon points={toPoints(CAR_PARK_POLY)} fill="#141519" stroke="rgba(160,160,170,0.12)" strokeWidth={1} />
               <polygon points={toPoints(EAST_PARK_POLY)} fill="#141519" stroke="rgba(160,160,170,0.12)" strokeWidth={1} />
               <polygon points={toPoints(CLUSTER_POLY)} fill="#141519" stroke="rgba(160,160,170,0.12)" strokeWidth={1} />
-
-              {/* Open-ground grid squares that carry tasks */}
-              {SITE_CELLS.filter((c) => c.inside && !c.landmark && (counts[c.areaKey] ?? 0) > 0).map((cell) => (
-                <rect key={`h-${cell.ref}`} x={cell.x} y={cell.y} width={CELL_W} height={CELL_H} fill={heatFor(counts[cell.areaKey] ?? 0)} opacity={0.9}>
-                  <title>{`${cell.areaKey}: ${counts[cell.areaKey]} active`}</title>
-                </rect>
-              ))}
-
-              {/* Working zones, shaded by task load (no labels) */}
+              {/* Faint zone outlines keep the site readable under the heat */}
               {SITE_ZONES.map((z, i) => {
                 const cx = z.x + z.w / 2;
                 const cy = z.y + z.h / 2;
-                const count = counts[z.label] ?? 0;
-                const transform = z.rot ? `rotate(${z.rot} ${cx} ${cy})` : undefined;
                 return (
                   <rect
                     key={`hz-${i}`}
@@ -2644,16 +2694,56 @@ function SiteHeatmap({ tasks, onOpen }: { tasks: Task[]; onOpen?: () => void }) 
                     width={z.w}
                     height={z.h}
                     rx={2}
-                    fill={heatFor(count)}
-                    stroke={count > 0 ? 'rgba(0,0,0,0.35)' : 'rgba(220,38,38,0.18)'}
+                    fill="rgba(255,255,255,0.015)"
+                    stroke="rgba(220,38,38,0.18)"
                     strokeWidth={0.8}
-                    transform={transform}
-                    opacity={count > 0 ? 0.95 : 0.6}
+                    transform={z.rot ? `rotate(${z.rot} ${cx} ${cy})` : undefined}
+                  />
+                );
+              })}
+
+              {/* Thermal layer — blurred energy blobs run through the colormap.
+                  Screen blending means heat only ever lightens the map (a true
+                  glow), never casts a dark halo over it. */}
+              <g filter="url(#heat-thermal)" style={{ mixBlendMode: 'screen' }}>
+                {hotspots.map((s, i) => (
+                  <ellipse
+                    key={`spot-${i}`}
+                    cx={s.cx}
+                    cy={s.cy}
+                    rx={s.rx}
+                    ry={s.ry}
+                    fill="url(#heat-blob)"
+                    opacity={0.45 + 0.55 * (max > 0 ? s.count / max : 0)}
+                    transform={s.rot ? `rotate(${s.rot} ${s.cx} ${s.cy})` : undefined}
+                  />
+                ))}
+              </g>
+
+              {/* Invisible hover targets with exact counts */}
+              {SITE_ZONES.filter((z) => !z.noBadge && (counts[z.label] ?? 0) > 0).map((z, i) => {
+                const cx = z.x + z.w / 2;
+                const cy = z.y + z.h / 2;
+                const count = counts[z.label] ?? 0;
+                return (
+                  <rect
+                    key={`hit-${i}`}
+                    x={z.x}
+                    y={z.y}
+                    width={z.w}
+                    height={z.h}
+                    fill="transparent"
+                    transform={z.rot ? `rotate(${z.rot} ${cx} ${cy})` : undefined}
                   >
                     <title>{`${z.label}: ${count} active task${count === 1 ? '' : 's'}`}</title>
                   </rect>
                 );
               })}
+              {SITE_CELLS.filter((c) => c.inside && !c.landmark && (counts[c.areaKey] ?? 0) > 0).map((cell) => (
+                <rect key={`hitc-${cell.ref}`} x={cell.x} y={cell.y} width={CELL_W} height={CELL_H} fill="transparent">
+                  <title>{`${cell.areaKey}: ${counts[cell.areaKey]} active`}</title>
+                </rect>
+              ))}
             </svg>
             <span className="pointer-events-none absolute bottom-1.5 right-2 text-[9px] uppercase tracking-widest text-neutral-500 group-hover:text-invictus-crimson-bright">
               Open site map &rarr;
