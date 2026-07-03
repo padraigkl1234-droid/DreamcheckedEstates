@@ -1432,17 +1432,18 @@ function Dashboard({
         </Reveal>
       </div>
 
-      <Reveal index={5} animate={animateCardsIn}>
-        <CompletionTimelinePanel
-          timeline={timeline}
-          taskTotal={timelineTaskTotal}
-          complianceTotal={timelineComplianceTotal}
-        />
-      </Reveal>
-
-      <Reveal index={6} animate={animateCardsIn}>
-        <SiteHeatmap tasks={tasks} onOpen={onOpenSiteMap} />
-      </Reveal>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.8fr_1fr]">
+        <Reveal index={5} animate={animateCardsIn}>
+          <CompletionTimelinePanel
+            timeline={timeline}
+            taskTotal={timelineTaskTotal}
+            complianceTotal={timelineComplianceTotal}
+          />
+        </Reveal>
+        <Reveal index={6} animate={animateCardsIn}>
+          <SiteHeatmap tasks={tasks} onOpen={onOpenSiteMap} />
+        </Reveal>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Reveal index={7} animate={animateCardsIn}>
@@ -2648,7 +2649,7 @@ function SiteHeatmap({ tasks, onOpen }: { tasks: Task[]; onOpen?: () => void }) 
             className="group relative block w-full overflow-hidden rounded-md border border-neutral-400/20 bg-[#0b0b0c] transition-colors hover:border-invictus-crimson-bright/50"
             title="Open the full Site Map"
           >
-            <svg viewBox="0 0 1000 900" className="mx-auto h-auto w-full max-w-md" role="img" aria-label="Site workload heatmap">
+            <svg viewBox="0 0 1000 900" className="mx-auto h-auto w-full max-w-sm" role="img" aria-label="Site workload heatmap">
               <defs>
                 {/* Soft radial falloff for a single heat source. */}
                 <radialGradient id="heat-blob">
