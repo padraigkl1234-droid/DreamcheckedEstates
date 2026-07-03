@@ -1060,11 +1060,13 @@ function Sidebar({
   onNavigate,
   user,
   syncStatus,
+  syncError,
 }: {
   activePage: PageKey;
   onNavigate: (p: PageKey) => void;
   user: User | null;
   syncStatus: 'idle' | 'loading' | 'synced' | 'error';
+  syncError?: string | null;
 }) {
   const { playHover } = useSound();
   return (
@@ -1142,6 +1144,11 @@ function Sidebar({
               : 'Progress saved'}
           </span>
         </div>
+        {user && syncStatus === 'error' && syncError && (
+          <p className="mt-1 hidden break-words text-[9px] leading-snug text-alert/80 md:block" title={syncError}>
+            {syncError}
+          </p>
+        )}
       </div>
     </aside>
   );
@@ -4155,6 +4162,7 @@ export default function InvictusTrackerPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [shows, setShows] = useState<Show[]>([]);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'synced' | 'error'>('idle');
+  const [syncError, setSyncError] = useState<string | null>(null);
   const loadedForUid = useRef<string | null>(null);
   const readyToSave = useRef(false);
 
@@ -4201,13 +4209,21 @@ export default function InvictusTrackerPage() {
               participants: [user.uid],
               participantNames: { [user.uid]: ownerName },
             };
+            // If a legacy task's id can't be written (e.g. it collides with a
+            // doc this user can't touch), remint it under a fresh id rather
+            // than failing the whole migration.
+            const migrate = async (t: Task, archived: boolean) => {
+              const { id, ...rest } = t;
+              const payload = { ...rest, ...share, archived };
+              try {
+                await setDoc(doc(db, 'tasks', id || genId()), payload);
+              } catch {
+                await setDoc(doc(db, 'tasks', genId()), payload);
+              }
+            };
             await Promise.all([
-              ...legacyTasks.map(({ id, ...t }) =>
-                setDoc(doc(db, 'tasks', id), { ...t, ...share, archived: false })
-              ),
-              ...legacyArchived.map(({ id, ...t }) =>
-                setDoc(doc(db, 'tasks', id), { ...t, ...share, archived: true })
-              ),
+              ...legacyTasks.map((t) => migrate(t, false)),
+              ...legacyArchived.map((t) => migrate(t, true)),
             ]);
             await setDoc(doc(db, 'jarvisState', user.uid), {
               compliances: Array.isArray(data.compliances) ? data.compliances : [],
@@ -4217,9 +4233,11 @@ export default function InvictusTrackerPage() {
           }
         }
         setSyncStatus('synced');
+        setSyncError(null);
       } catch (error) {
         console.error('Failed to load INVICTUS progress:', error);
         setSyncStatus('error');
+        setSyncError((error as { code?: string })?.code || (error as Error)?.message || 'Unknown load error');
       } finally {
         readyToSave.current = true;
       }
@@ -4236,10 +4254,14 @@ export default function InvictusTrackerPage() {
         events,
         updatedAt: Date.now(),
       })
-        .then(() => setSyncStatus('synced'))
+        .then(() => {
+          setSyncStatus('synced');
+          setSyncError(null);
+        })
         .catch((error) => {
           console.error('Failed to save INVICTUS progress:', error);
           setSyncStatus('error');
+          setSyncError((error as { code?: string })?.code || (error as Error)?.message || 'Unknown save error');
         });
     }, 600);
     return () => clearTimeout(timeout);
@@ -4488,7 +4510,7 @@ export default function InvictusTrackerPage() {
 
       {mounted && !booting && (
         <div className="relative flex h-full">
-          <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} />
+          <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} syncError={syncError} />
           <main className="flex-1 overflow-y-auto p-5">
             {activePage === 'dashboard' && (
               <Dashboard
