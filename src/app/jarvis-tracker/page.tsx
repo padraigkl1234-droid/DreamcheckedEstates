@@ -54,7 +54,6 @@ import {
   Search,
   Download,
   Repeat,
-  Upload,
   Check,
   Map as MapIcon,
   MapPin,
@@ -280,47 +279,6 @@ const OUTLOOK_TASKS: Task[] = [
 
 const SEED_EVENTS: CalendarEvent[] = [
   { id: 'e1', title: 'Ansul Meeting', date: '2026-06-20', priority: 'High', notes: 'It is with Paul A.' },
-];
-
-// One-click import of the user's external Jun-Dec 2026 calendar, transcribed from screenshots.
-// Recurring entries use the recurrence feature; titles/dates flagged "verify" were partially
-// cut off or hard to read in the source screenshots and should be double-checked.
-const IMPORT_SCHEDULE: CalendarEvent[] = [
-  { id: 'imp-r1', title: 'Estates & Maintenance Team', date: '2026-06-02', priority: 'Medium', notes: 'Weekly team check-in.', recurrence: { freq: 'weekly', until: '2026-12-29' } },
-  { id: 'imp-r2', title: 'Virtual Global Meditation', date: '2026-06-09', priority: 'Low', notes: '', recurrence: { freq: 'weekly', until: '2026-09-29' } },
-  { id: 'imp-r3', title: 'Site Safety Walk', date: '2026-06-10', priority: 'Medium', notes: 'Rotates between Cinque Ports, Poppenhame, 4DXB A and KERB A — verify which site each week.', recurrence: { freq: 'weekly', until: '2026-12-30' } },
-  { id: 'imp-r4', title: 'Live and Commercial Events', date: '2026-06-10', priority: 'Low', notes: '', recurrence: { freq: 'weekly', until: '2026-09-30' } },
-  { id: 'imp-r5', title: 'Live and Commercial Events', date: '2026-06-11', priority: 'Low', notes: '', recurrence: { freq: 'weekly', until: '2026-09-30' } },
-  { id: 'imp-r6', title: 'H&S Fire Safety Committee', date: '2026-07-02', priority: 'High', notes: '', recurrence: { freq: 'monthly', until: '2026-12-31' } },
-  { id: 'imp-r7', title: 'PKL 1-2-1', date: '2026-07-02', priority: 'Medium', notes: '', recurrence: { freq: 'monthly', until: '2026-12-31' } },
-  { id: 'imp-r8', title: 'Meter Readings & Fire Doors', date: '2026-06-26', priority: 'Medium', notes: '', recurrence: { freq: 'monthly', until: '2026-12-31' } },
-  { id: 'imp-r9', title: 'Water Meter Reading', date: '2026-06-01', priority: 'Low', notes: 'High-frequency reading task — add extra ad hoc dates manually if it occurs more than twice a week.', recurrence: { freq: 'weekly', until: '2026-12-28' } },
-  { id: 'imp-r10', title: 'Water Meter Reading', date: '2026-06-04', priority: 'Low', notes: '', recurrence: { freq: 'weekly', until: '2026-12-31' } },
-  { id: 'imp-o1', title: 'Event Operations Meeting', date: '2026-06-03', priority: 'Medium', notes: '' },
-  { id: 'imp-o2', title: '1st Interview', date: '2026-06-05', priority: 'Medium', notes: 'Transcribed from "Collo Day - 1st Interview" — verify exact title.' },
-  { id: 'imp-o3', title: 'Fire Dampers Service', date: '2026-06-12', priority: 'Medium', notes: '' },
-  { id: 'imp-o4', title: 'Operational Fire and Safety', date: '2026-06-16', priority: 'Medium', notes: '' },
-  { id: 'imp-o5', title: 'Live Nation Global Employee Event', date: '2026-06-17', priority: 'Low', notes: 'Best-effort read from screenshot — verify exact title.' },
-  { id: 'imp-o6', title: 'REPLAY: Live Nation Global Employee Event', date: '2026-06-18', priority: 'Low', notes: 'Best-effort read from screenshot — verify exact title.' },
-  { id: 'imp-o7', title: 'Triangle', date: '2026-06-23', priority: 'Medium', notes: 'Site name only in source screenshot — verify what this refers to.' },
-  { id: 'imp-o8', title: 'Arlington Car Park Safety', date: '2026-06-24', priority: 'Medium', notes: '' },
-  { id: 'imp-o9', title: 'Profile UPS Service Visit', date: '2026-07-07', priority: 'Medium', notes: '' },
-  { id: 'imp-o10', title: 'Cinema Maintenance Check', date: '2026-07-08', priority: 'Medium', notes: '' },
-  { id: 'imp-o11', title: 'FRA Review - 50 Marine Terrace', date: '2026-07-09', priority: 'Medium', notes: 'Site name truncated in source — verify exact address.' },
-  { id: 'imp-o12', title: '2027 Estates Budget Review', date: '2026-08-03', priority: 'High', notes: '' },
-  { id: 'imp-o13', title: 'Operational Fire and Safety', date: '2026-08-19', priority: 'Medium', notes: '' },
-  { id: 'imp-o14', title: 'FRA Review - Cinema', date: '2026-10-13', priority: 'Medium', notes: '' },
-  { id: 'imp-o15', title: 'Cinema Maintenance Check', date: '2026-11-10', priority: 'Medium', notes: '' },
-];
-
-// New calendar invites found in Outlook since 22 Jun 2026 that aren't already covered by
-// SEED_EVENTS/IMPORT_SCHEDULE (most other invites in that window — meditation, water meter
-// reading, site safety walks, 1-2-1s etc. — are recurring entries already imported above).
-const OUTLOOK_EVENTS: CalendarEvent[] = [
-  { id: 'oe1', title: 'Insurance visit - Affilifest', date: '2026-06-25', priority: 'Medium', notes: 'Organised by Sarah Boorman, w/ James Penfold, Craig Ellis, Hollie Taylor. Tentative, 09:30-10:30.' },
-  { id: 'oe2', title: 'Fire Dampers Testing', date: '2026-06-29', priority: 'Medium', notes: 'All-day, with Cary Phipps.' },
-  { id: 'oe3', title: 'Meter Readings', date: '2026-06-29', priority: 'Low', notes: '08:00-09:30.' },
-  { id: 'oe4', title: 'Visit for the Glass Balustrade', date: '2026-07-01', priority: 'Medium', notes: '10:00-11:00, with Cary Phipps — relates to the glass balustrades (decking) task.' },
 ];
 
 const SEED_COMPLIANCES: ComplianceItem[] = [
@@ -1969,12 +1927,10 @@ function CalendarPage({
   events,
   onAdd,
   onDelete,
-  onImport,
 }: {
   events: CalendarEvent[];
   onAdd: (event: CalendarEvent) => void;
   onDelete: (id: string) => void;
-  onImport: (events: CalendarEvent[]) => number;
 }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -1987,8 +1943,6 @@ function CalendarPage({
   const [repeatFreq, setRepeatFreq] = useState<RecurrenceFreq | 'none'>('none');
   const [repeatUntil, setRepeatUntil] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<{ event: CalendarEvent; occurrenceDate: string } | null>(null);
-  const [importMessage, setImportMessage] = useState<string | null>(null);
-  const [outlookImportMessage, setOutlookImportMessage] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { playConfirm } = useSound();
 
@@ -2029,18 +1983,6 @@ function CalendarPage({
     setNotes('');
     setRepeatFreq('none');
     setRepeatUntil('');
-  };
-
-  const handleImportClick = () => {
-    const added = onImport(IMPORT_SCHEDULE);
-    setImportMessage(added > 0 ? `Imported ${added} entries from your 2026 schedule.` : 'Your 2026 schedule is already imported.');
-    playConfirm();
-  };
-
-  const handleImportOutlookClick = () => {
-    const added = onImport(OUTLOOK_EVENTS);
-    setOutlookImportMessage(added > 0 ? `Imported ${added} new invite${added === 1 ? '' : 's'} from Outlook.` : 'No new Outlook invites to import.');
-    playConfirm();
   };
 
   const cells = useMemo(() => {
@@ -2154,34 +2096,6 @@ function CalendarPage({
             <Plus className="h-4 w-4" /> Add to Diary
           </button>
         </form>
-      </Panel>
-
-      <Panel title="Bulk Import" icon={Upload} refCode="0102-D">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-neutral-400">
-            One-click import of your estate schedule (water meter readings, site safety walks, H&amp;S committee, PKL 1-2-1s and more) for Jun–Dec 2026.
-            Safe to click more than once — already-imported entries are skipped.
-          </p>
-          <button
-            onClick={handleImportClick}
-            className="flex shrink-0 items-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
-          >
-            <Upload className="h-4 w-4" /> Import 2026 Schedule
-          </button>
-        </div>
-        {importMessage && <p className="mt-3 text-xs text-emerald-400">{importMessage}</p>}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-400/10 pt-4">
-          <p className="text-xs text-neutral-400">
-            New meeting invites picked up from your Outlook inbox since 22 Jun 2026 that aren&apos;t already on this calendar.
-          </p>
-          <button
-            onClick={handleImportOutlookClick}
-            className="flex shrink-0 items-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
-          >
-            <Upload className="h-4 w-4" /> Import Outlook Invites
-          </button>
-        </div>
-        {outlookImportMessage && <p className="mt-3 text-xs text-emerald-400">{outlookImportMessage}</p>}
       </Panel>
 
       <Panel title={`${MONTH_LABELS[viewMonth]} ${viewYear}`} icon={CalendarDays} refCode="0103-C">
@@ -4468,12 +4382,6 @@ export default function InvictusTrackerPage() {
           : { ...e, completedDates: [...completedDates, date] };
       })
     );
-  const handleImportEvents = (importEvents: CalendarEvent[]) => {
-    const existingIds = new Set(events.map((e) => e.id));
-    const toAdd = importEvents.filter((e) => !existingIds.has(e.id));
-    if (toAdd.length > 0) setEvents((prev) => [...prev, ...toAdd]);
-    return toAdd.length;
-  };
 
   // Writes go straight to the shared `shows` collection; the onSnapshot listener
   // above reflects them back (live) for this user and everyone else.
@@ -4523,7 +4431,7 @@ export default function InvictusTrackerPage() {
               />
             )}
             {activePage === 'calendar' && (
-              <CalendarPage events={events} onAdd={handleAddEvent} onDelete={handleDeleteEvent} onImport={handleImportEvents} />
+              <CalendarPage events={events} onAdd={handleAddEvent} onDelete={handleDeleteEvent} />
             )}
             {activePage === 'shows' && (
               <ShowsBoard
