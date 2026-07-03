@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot, query, where, arrayUnion } from 'firebase/firestore';
 import { db, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
@@ -59,6 +59,9 @@ import {
   Map as MapIcon,
   MapPin,
   Clapperboard,
+  Users,
+  UserPlus,
+  Inbox,
 } from 'lucide-react';
 import {
   Area,
@@ -97,9 +100,25 @@ interface Task {
   status: TaskStatus;
   archivedAt?: number;
   completedAt?: number;
+  createdAt?: number;
   category?: string;
   notes?: string;
   area?: string; // Dreamland site-map zone this task is pinned to, if any
+  // --- Sharing (tasks live in a shared `tasks` collection, private by default) ---
+  ownerUid?: string;
+  ownerName?: string;
+  participants?: string[]; // uids who can see this task (owner + anyone who accepted)
+  participantNames?: Record<string, string>;
+  pendingUid?: string | null; // person this task is offered to, awaiting their accept
+  pendingName?: string | null;
+  archived?: boolean;
+}
+
+// A user who has signed in at least once — the assignable-people roster.
+interface TeamMember {
+  uid: string;
+  name: string;
+  email?: string | null;
 }
 
 type RecurrenceFreq = 'weekly' | 'fortnightly' | 'monthly';
@@ -1297,7 +1316,8 @@ function Dashboard({
   const totalItems = overallTasks.length;
   const completionPct = totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
 
-  const recentTasks = [...tasks].slice(-4).reverse();
+  // Firestore snapshots don't preserve insertion order, so sort by createdAt.
+  const recentTasks = [...tasks].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0)).slice(-4).reverse();
 
   const upcomingCompliances = getOutstandingCompliances(compliances).slice(0, 4);
 
@@ -2784,9 +2804,13 @@ function SiteHeatmap({ tasks, onOpen }: { tasks: Task[]; onOpen?: () => void }) 
 
 function SiteMapPage({
   tasks,
+  team,
+  currentUid,
   onAddTask,
 }: {
   tasks: Task[];
+  team: TeamMember[];
+  currentUid: string;
   onAddTask: (task: Task) => void;
 }) {
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
@@ -2794,7 +2818,9 @@ function SiteMapPage({
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
+  const [assigneeUid, setAssigneeUid] = useState('');
   const { playConfirm } = useSound();
+  const teammates = team.filter((m) => m.uid !== currentUid);
 
   const selectedCell = SITE_CELLS.find((c) => c.ref === selectedRef) ?? null;
 
@@ -2814,6 +2840,7 @@ function SiteMapPage({
   const handleAssign = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCell || !name.trim()) return;
+    const assignee = teammates.find((m) => m.uid === assigneeUid);
     onAddTask({
       id: genId(),
       name: name.trim(),
@@ -2821,11 +2848,13 @@ function SiteMapPage({
       dueDate,
       status: 'Not Started',
       area: selectedCell.areaKey,
+      ...(assignee ? { pendingUid: assignee.uid, pendingName: assignee.name } : {}),
     });
     playConfirm();
     setName('');
     setPriority('Medium');
     setDueDate('');
+    setAssigneeUid('');
   };
 
   const cellFill = (cell: GridCell): string => {
@@ -3060,6 +3089,19 @@ function SiteMapPage({
                     className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
                   />
                 </div>
+                <select
+                  value={assigneeUid}
+                  onChange={(e) => setAssigneeUid(e.target.value)}
+                  title="Assign this task to a teammate — they'll get it as an offer to accept"
+                  className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                >
+                  <option value="">Keep to myself</option>
+                  {teammates.map((m) => (
+                    <option key={m.uid} value={m.uid}>
+                      Assign to {m.name}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="submit"
                   className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
@@ -3279,6 +3321,9 @@ function ShowsBoard({
 function TaskManager({
   tasks,
   archivedTasks,
+  offers,
+  team,
+  currentUid,
   onAdd,
   onUpdateStatus,
   onDelete,
@@ -3287,9 +3332,14 @@ function TaskManager({
   onAddPendingReturn,
   onAddInboxTasks,
   onAddOutlookTasks,
+  onAcceptOffer,
+  onDeclineOffer,
 }: {
   tasks: Task[];
   archivedTasks: Task[];
+  offers: Task[];
+  team: TeamMember[];
+  currentUid: string;
   onAdd: (task: Task) => void;
   onUpdateStatus: (id: string, status: TaskStatus) => void;
   onDelete: (id: string) => void;
@@ -3298,6 +3348,8 @@ function TaskManager({
   onAddPendingReturn: () => void;
   onAddInboxTasks: () => void;
   onAddOutlookTasks: () => void;
+  onAcceptOffer: (id: string) => void;
+  onDeclineOffer: (id: string) => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
   // A seed item counts as "already handled" if it's in the live list OR sitting in
@@ -3345,23 +3397,81 @@ function TaskManager({
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
   const [status, setStatus] = useState<TaskStatus>('Not Started');
+  const [assigneeUid, setAssigneeUid] = useState('');
   const { playConfirm } = useSound();
+  const teammates = team.filter((m) => m.uid !== currentUid);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onAdd({ id: genId(), name: name.trim(), priority, dueDate, status });
+    const assignee = teammates.find((m) => m.uid === assigneeUid);
+    onAdd({
+      id: genId(),
+      name: name.trim(),
+      priority,
+      dueDate,
+      status,
+      ...(assignee ? { pendingUid: assignee.uid, pendingName: assignee.name } : {}),
+    });
     playConfirm();
     setName('');
     setPriority('Medium');
     setDueDate('');
     setStatus('Not Started');
+    setAssigneeUid('');
   };
 
   return (
     <div className="space-y-5">
+      {offers.length > 0 && (
+        <Panel title={`Task Offers (${offers.length})`} icon={Inbox} refCode="0105-O">
+          <p className="mb-3 text-xs text-neutral-500">
+            Tasks a teammate has assigned to you. Accept to share the task — it appears on both
+            your boards, and either of you completing it completes it for both.
+          </p>
+          <div className="space-y-2">
+            {offers.map((task) => (
+              <div
+                key={task.id}
+                className="relative flex flex-col gap-3 rounded-md border border-amber-400/40 bg-amber-400/5 p-3 shadow-glow-subtle md:flex-row md:items-center md:justify-between"
+              >
+                <MicroCorners />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-neutral-100">{task.name}</p>
+                  <Kicker>
+                    From {task.ownerName || 'a teammate'} · Due {task.dueDate || '—'}
+                  </Kicker>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {task.area && (
+                    <span className="flex items-center gap-1 rounded-full border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-200">
+                      <MapPin className="h-3 w-3" /> {task.area}
+                    </span>
+                  )}
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
+                    {task.priority}
+                  </span>
+                  <button
+                    onClick={() => onAcceptOffer(task.id)}
+                    className="flex items-center gap-1.5 rounded-md border border-emerald-400/50 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-300 transition-all hover:bg-emerald-400/20"
+                  >
+                    <Check className="h-3.5 w-3.5" /> Accept
+                  </button>
+                  <button
+                    onClick={() => onDeclineOffer(task.id)}
+                    className="flex items-center gap-1.5 rounded-md border border-alert/30 bg-alert/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-alert transition-all hover:bg-alert/20"
+                  >
+                    <X className="h-3.5 w-3.5" /> Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
       <Panel title="Deploy New Task" icon={Plus} refCode="0103-T">
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -3392,9 +3502,22 @@ function TaskManager({
             <option>In Progress</option>
             <option>Completed</option>
           </select>
+          <select
+            value={assigneeUid}
+            onChange={(e) => setAssigneeUid(e.target.value)}
+            title="Assign this task to a teammate — they'll get it as an offer to accept"
+            className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+          >
+            <option value="">Keep to myself</option>
+            {teammates.map((m) => (
+              <option key={m.uid} value={m.uid}>
+                Assign to {m.name}
+              </option>
+            ))}
+          </select>
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong sm:col-span-2 lg:col-span-5"
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong sm:col-span-2 lg:col-span-6"
           >
             <Plus className="h-4 w-4" /> Add Task
           </button>
@@ -3478,6 +3601,26 @@ function TaskManager({
                 {task.area && (
                   <span className="flex items-center gap-1 rounded-full border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-200">
                     <MapPin className="h-3 w-3" /> {task.area}
+                  </span>
+                )}
+                {task.pendingUid && (
+                  <span
+                    className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300"
+                    title="Waiting for them to accept this task"
+                  >
+                    <UserPlus className="h-3 w-3" /> Awaiting {task.pendingName || 'accept'}
+                  </span>
+                )}
+                {!task.pendingUid && (task.participants?.length ?? 0) > 1 && (
+                  <span
+                    className="flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300"
+                    title="Shared task — completing it completes it for everyone on it"
+                  >
+                    <Users className="h-3 w-3" />
+                    {(task.participants ?? [])
+                      .filter((uid) => uid !== currentUid)
+                      .map((uid) => task.participantNames?.[uid] || 'Teammate')
+                      .join(', ') || 'Shared'}
                   </span>
                 )}
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
@@ -4006,6 +4149,8 @@ export default function InvictusTrackerPage() {
   // these, and anything they add persists to their account from then on.
   const [tasks, setTasks] = useState<Task[]>([]);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
+  const [taskOffers, setTaskOffers] = useState<Task[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [compliances, setCompliances] = useState<ComplianceItem[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [shows, setShows] = useState<Show[]>([]);
@@ -4040,10 +4185,36 @@ export default function InvictusTrackerPage() {
         const snap = await getDoc(doc(db, 'jarvisState', user.uid));
         const data = snap.data();
         if (data) {
-          if (Array.isArray(data.tasks)) setTasks(data.tasks as Task[]);
-          if (Array.isArray(data.archivedTasks)) setArchivedTasks(data.archivedTasks as Task[]);
           if (Array.isArray(data.compliances)) setCompliances(data.compliances as ComplianceItem[]);
           if (Array.isArray(data.events)) setEvents(data.events as CalendarEvent[]);
+
+          // One-time migration: tasks used to live inside this per-user doc.
+          // Move any leftovers into the shared `tasks` collection (keeping the
+          // same ids so a re-run is harmless), then drop them from this doc.
+          const legacyTasks = Array.isArray(data.tasks) ? (data.tasks as Task[]) : [];
+          const legacyArchived = Array.isArray(data.archivedTasks) ? (data.archivedTasks as Task[]) : [];
+          if (legacyTasks.length || legacyArchived.length) {
+            const ownerName = user.displayName || user.email || 'Unknown';
+            const share = {
+              ownerUid: user.uid,
+              ownerName,
+              participants: [user.uid],
+              participantNames: { [user.uid]: ownerName },
+            };
+            await Promise.all([
+              ...legacyTasks.map(({ id, ...t }) =>
+                setDoc(doc(db, 'tasks', id), { ...t, ...share, archived: false })
+              ),
+              ...legacyArchived.map(({ id, ...t }) =>
+                setDoc(doc(db, 'tasks', id), { ...t, ...share, archived: true })
+              ),
+            ]);
+            await setDoc(doc(db, 'jarvisState', user.uid), {
+              compliances: Array.isArray(data.compliances) ? data.compliances : [],
+              events: Array.isArray(data.events) ? data.events : [],
+              updatedAt: Date.now(),
+            });
+          }
         }
         setSyncStatus('synced');
       } catch (error) {
@@ -4055,13 +4226,12 @@ export default function InvictusTrackerPage() {
     })();
   }, [user]);
 
-  // Persist tasks/compliances to Firestore whenever they change, while signed in.
+  // Persist compliances/events to Firestore whenever they change, while signed
+  // in. (Tasks live in the shared `tasks` collection and save themselves.)
   useEffect(() => {
     if (!user || !readyToSave.current) return;
     const timeout = setTimeout(() => {
       setDoc(doc(db, 'jarvisState', user.uid), {
-        tasks,
-        archivedTasks,
         compliances,
         events,
         updatedAt: Date.now(),
@@ -4073,7 +4243,69 @@ export default function InvictusTrackerPage() {
         });
     }, 600);
     return () => clearTimeout(timeout);
-  }, [tasks, archivedTasks, compliances, events, user]);
+  }, [compliances, events, user]);
+
+  // Team roster: everyone who signs in registers themselves in `users`, and the
+  // roster is what populates the "assign to" dropdowns.
+  useEffect(() => {
+    if (!user) {
+      setTeam([]);
+      return;
+    }
+    setDoc(
+      doc(db, 'users', user.uid),
+      {
+        name: user.displayName || user.email || 'Unknown',
+        email: user.email ?? null,
+        lastSeen: Date.now(),
+      },
+      { merge: true }
+    ).catch((error) => console.error('Failed to register user:', error));
+    const unsub = onSnapshot(
+      collection(db, 'users'),
+      (snap) =>
+        setTeam(
+          snap.docs.map((d) => {
+            const data = d.data() as { name?: string; email?: string | null };
+            return { uid: d.id, name: data.name || data.email || 'Unknown', email: data.email };
+          })
+        ),
+      (error) => console.error('Team roster subscription failed:', error)
+    );
+    return unsub;
+  }, [user]);
+
+  // Tasks are private by default but live in a shared `tasks` collection:
+  // you see a task if you're a participant (owner, or you accepted it). A task
+  // offered to you appears separately as an offer until you accept.
+  useEffect(() => {
+    if (!user) {
+      setTasks([]);
+      setArchivedTasks([]);
+      setTaskOffers([]);
+      return;
+    }
+    const mineQ = query(collection(db, 'tasks'), where('participants', 'array-contains', user.uid));
+    const unsubMine = onSnapshot(
+      mineQ,
+      (snap) => {
+        const all = snap.docs.map((d) => ({ ...(d.data() as Omit<Task, 'id'>), id: d.id } as Task));
+        setTasks(all.filter((t) => !t.archived));
+        setArchivedTasks(all.filter((t) => t.archived));
+      },
+      (error) => console.error('Tasks subscription failed:', error)
+    );
+    const offersQ = query(collection(db, 'tasks'), where('pendingUid', '==', user.uid));
+    const unsubOffers = onSnapshot(
+      offersQ,
+      (snap) => setTaskOffers(snap.docs.map((d) => ({ ...(d.data() as Omit<Task, 'id'>), id: d.id } as Task))),
+      (error) => console.error('Task offers subscription failed:', error)
+    );
+    return () => {
+      unsubMine();
+      unsubOffers();
+    };
+  }, [user]);
 
   // The Show Board is a SHARED, live team board: shows live in a top-level
   // `shows` collection that every signed-in user (and the Power Automate webhook)
@@ -4095,65 +4327,93 @@ export default function InvictusTrackerPage() {
   const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
   const completionPct = totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
 
-  const handleAddTask = (task: Task) => setTasks((prev) => [...prev, task]);
-  const handleUpdateStatus = (id: string, status: TaskStatus) =>
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, status, completedAt: status === 'Completed' ? t.completedAt ?? Date.now() : undefined }
-          : t
-      )
-    );
-  const handleDeleteTask = (id: string) => setTasks((prev) => prev.filter((t) => t.id !== id));
+  // All task mutations write straight to the shared `tasks` collection; the
+  // live subscriptions above reflect them back into local state (for everyone
+  // who can see the task, not just this device).
+  const logTaskError = (what: string) => (error: unknown) => console.error(`Failed to ${what}:`, error);
+  const handleAddTask = (task: Task) => {
+    if (!user) return;
+    const ownerName = user.displayName || user.email || 'Unknown';
+    const { id, ...data } = task;
+    setDoc(doc(db, 'tasks', id), {
+      ...data,
+      createdAt: Date.now(),
+      ownerUid: user.uid,
+      ownerName,
+      participants: [user.uid],
+      participantNames: { [user.uid]: ownerName },
+      pendingUid: task.pendingUid ?? null,
+      pendingName: task.pendingName ?? null,
+      archived: false,
+    }).catch(logTaskError('add task'));
+  };
+  const handleUpdateStatus = (id: string, status: TaskStatus) => {
+    if (!user) return;
+    const task = tasks.find((t) => t.id === id);
+    updateDoc(doc(db, 'tasks', id), {
+      status,
+      completedAt: status === 'Completed' ? task?.completedAt ?? Date.now() : null,
+    }).catch(logTaskError('update task status'));
+  };
+  const handleDeleteTask = (id: string) => {
+    if (!user) return;
+    deleteDoc(doc(db, 'tasks', id)).catch(logTaskError('delete task'));
+  };
   // A quick-add seed item is "missing" only if it's absent from BOTH the live list
   // and the archive — so an archived task is never resurrected by these buttons.
-  const isTaskTracked = (prev: Task[], seedName: string) => {
+  const isTaskTracked = (seedName: string) => {
     const key = seedName.trim().toLowerCase();
     return (
-      prev.some((t) => t.name.trim().toLowerCase() === key) ||
+      tasks.some((t) => t.name.trim().toLowerCase() === key) ||
       archivedTasks.some((t) => t.name.trim().toLowerCase() === key)
     );
   };
-  const handleAddPendingReturnTasks = () => {
-    setTasks((prev) => {
-      const missing = PENDING_RETURN_TASKS.filter((p) => !isTaskTracked(prev, p.name));
-      return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
-    });
+  const addSeedTasks = (seeds: Omit<Task, 'id'>[]) => {
+    seeds.filter((s) => !isTaskTracked(s.name)).forEach((item) => handleAddTask({ ...item, id: genId() }));
   };
-  const handleAddInboxTasks = () => {
-    setTasks((prev) => {
-      const missing = INBOX_TASKS.filter((i) => !isTaskTracked(prev, i.name));
-      return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
-    });
-  };
-  const handleAddOutlookTasks = () => {
-    setTasks((prev) => {
-      const missing = OUTLOOK_TASKS.filter((o) => !isTaskTracked(prev, o.name));
-      return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
-    });
-  };
+  const handleAddPendingReturnTasks = () => addSeedTasks(PENDING_RETURN_TASKS);
+  const handleAddInboxTasks = () => addSeedTasks(INBOX_TASKS);
+  const handleAddOutlookTasks = () => addSeedTasks(OUTLOOK_TASKS);
 
   const handleArchiveTask = (id: string) => {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-    setArchivedTasks((archived) => [...archived, { ...task, archivedAt: Date.now() }]);
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    if (!user) return;
+    updateDoc(doc(db, 'tasks', id), { archived: true, archivedAt: Date.now() }).catch(logTaskError('archive task'));
   };
   const handleArchiveAllCompleted = () => {
-    const completed = tasks.filter((t) => t.status === 'Completed');
-    if (completed.length === 0) return;
+    if (!user) return;
     const now = Date.now();
-    setArchivedTasks((archived) => [...archived, ...completed.map((t) => ({ ...t, archivedAt: now }))]);
-    setTasks((prev) => prev.filter((t) => t.status !== 'Completed'));
+    tasks
+      .filter((t) => t.status === 'Completed')
+      .forEach((t) =>
+        updateDoc(doc(db, 'tasks', t.id), { archived: true, archivedAt: now }).catch(logTaskError('archive task'))
+      );
   };
   const handleRestoreTask = (id: string) => {
-    const task = archivedTasks.find((t) => t.id === id);
-    if (!task) return;
-    const { archivedAt, ...rest } = task;
-    setTasks((prev) => [...prev, rest]);
-    setArchivedTasks((prev) => prev.filter((t) => t.id !== id));
+    if (!user) return;
+    updateDoc(doc(db, 'tasks', id), { archived: false, archivedAt: null }).catch(logTaskError('restore task'));
   };
-  const handleDeleteArchivedTask = (id: string) => setArchivedTasks((prev) => prev.filter((t) => t.id !== id));
+  const handleDeleteArchivedTask = (id: string) => {
+    if (!user) return;
+    deleteDoc(doc(db, 'tasks', id)).catch(logTaskError('delete archived task'));
+  };
+
+  // Task offers: accepting joins you to the task (it becomes shared — visible
+  // to both, one completion completes it for everyone). Declining just clears
+  // the offer and it stays the owner's private task.
+  const handleAcceptOffer = (id: string) => {
+    if (!user) return;
+    const myName = user.displayName || user.email || 'Unknown';
+    updateDoc(doc(db, 'tasks', id), {
+      participants: arrayUnion(user.uid),
+      [`participantNames.${user.uid}`]: myName,
+      pendingUid: null,
+      pendingName: null,
+    }).catch(logTaskError('accept task offer'));
+  };
+  const handleDeclineOffer = (id: string) => {
+    if (!user) return;
+    updateDoc(doc(db, 'tasks', id), { pendingUid: null, pendingName: null }).catch(logTaskError('decline task offer'));
+  };
 
   const handleAddCompliance = (item: ComplianceItem) => setCompliances((prev) => [...prev, item]);
   const handleToggleCompliance = (id: string) =>
@@ -4253,12 +4513,15 @@ export default function InvictusTrackerPage() {
               />
             )}
             {activePage === 'sitemap' && (
-              <SiteMapPage tasks={tasks} onAddTask={handleAddTask} />
+              <SiteMapPage tasks={tasks} team={team} currentUid={user?.uid ?? ''} onAddTask={handleAddTask} />
             )}
             {activePage === 'tasks' && (
               <TaskManager
                 tasks={tasks}
                 archivedTasks={archivedTasks}
+                offers={taskOffers}
+                team={team}
+                currentUid={user?.uid ?? ''}
                 onAdd={handleAddTask}
                 onUpdateStatus={handleUpdateStatus}
                 onDelete={handleDeleteTask}
@@ -4267,6 +4530,8 @@ export default function InvictusTrackerPage() {
                 onAddPendingReturn={handleAddPendingReturnTasks}
                 onAddInboxTasks={handleAddInboxTasks}
                 onAddOutlookTasks={handleAddOutlookTasks}
+                onAcceptOffer={handleAcceptOffer}
+                onDeclineOffer={handleDeclineOffer}
               />
             )}
             {activePage === 'archive' && (
