@@ -4302,7 +4302,7 @@ function ComplianceTracker({
         )}
       </Panel>
 
-      <Panel title="Estate Compliance Tracker" icon={ShieldCheck} refCode="0200-C">
+      <Panel title="Compliance Tracker" icon={ShieldCheck} refCode="0200-C">
         {/* Shared file picker for attaching reports to items */}
         <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChosen} />
         {uploadError && <p className="mb-3 text-xs text-alert">{uploadError}</p>}
