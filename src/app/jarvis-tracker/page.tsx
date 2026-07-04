@@ -15,6 +15,7 @@ import {
   type ComplianceAttachment,
   type ComplianceUrgency,
   getOutstandingCompliances,
+  getComplianceAttachments,
 } from '@/lib/complianceCountdown';
 import {
   Power,
@@ -4157,7 +4158,8 @@ function ComplianceTracker({
   onChangeComments,
   onDelete,
   onAddMissingStandard,
-  onSetAttachment,
+  onAddAttachment,
+  onRemoveAttachment,
 }: {
   compliances: ComplianceItem[];
   onAdd: (item: ComplianceItem) => void;
@@ -4167,7 +4169,8 @@ function ComplianceTracker({
   onChangeComments: (id: string, comments: string) => void;
   onDelete: (id: string) => void;
   onAddMissingStandard: () => void;
-  onSetAttachment: (id: string, attachment: ComplianceAttachment | null) => void;
+  onAddAttachment: (id: string, attachment: ComplianceAttachment) => void;
+  onRemoveAttachment: (id: string, path: string) => void;
 }) {
   const missingStandardCount = SEED_COMPLIANCES.filter(
     (seed) => !compliances.some((c) => c.name.trim().toLowerCase() === seed.name.trim().toLowerCase())
@@ -4204,27 +4207,24 @@ function ComplianceTracker({
     fileInputRef.current?.click();
   };
   const handleFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = ''; // allow re-picking the same file later
     const id = uploadTargetId.current;
-    if (!file || !id) return;
-    if (file.size > 20 * 1024 * 1024) {
-      setUploadError('That file is over the 20 MB limit.');
+    if (!files.length || !id) return;
+    if (files.some((f) => f.size > 20 * 1024 * 1024)) {
+      setUploadError('Files must be 20 MB or under.');
       return;
     }
-    const item = compliances.find((c) => c.id === id);
     setUploadingId(id);
     setUploadError(null);
     try {
-      const path = `compliance/${id}/${Date.now()}-${file.name}`;
-      const fileRef = storageRef(storage, path);
-      await uploadBytes(fileRef, file);
-      const url = await getDownloadURL(fileRef);
-      // Replacing an existing report? Tidy up the old file (best-effort).
-      if (item?.attachment?.path) {
-        deleteObject(storageRef(storage, item.attachment.path)).catch(() => {});
+      for (const file of files) {
+        const path = `compliance/${id}/${Date.now()}-${file.name}`;
+        const fileRef = storageRef(storage, path);
+        await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(fileRef);
+        onAddAttachment(id, { name: file.name, url, path, uploadedAt: Date.now() });
       }
-      onSetAttachment(id, { name: file.name, url, path, uploadedAt: Date.now() });
       playConfirm();
     } catch (error) {
       console.error('Attachment upload failed:', error);
@@ -4235,11 +4235,9 @@ function ComplianceTracker({
       setUploadingId(null);
     }
   };
-  const handleRemoveAttachment = (item: ComplianceItem) => {
-    if (item.attachment?.path) {
-      deleteObject(storageRef(storage, item.attachment.path)).catch(() => {});
-    }
-    onSetAttachment(item.id, null);
+  const handleRemoveAttachment = (item: ComplianceItem, att: ComplianceAttachment) => {
+    deleteObject(storageRef(storage, att.path)).catch(() => {});
+    onRemoveAttachment(item.id, att.path);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -4306,7 +4304,7 @@ function ComplianceTracker({
 
       <Panel title="Estate Compliance Tracker" icon={ShieldCheck} refCode="0200-C">
         {/* Shared file picker for attaching reports to items */}
-        <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChosen} />
+        <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChosen} />
         {uploadError && <p className="mb-3 text-xs text-alert">{uploadError}</p>}
         <div className="mb-2 hidden gap-3 px-3 text-[10px] uppercase tracking-widest text-neutral-600 md:grid md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.1fr_auto_auto]">
           <span>Status</span>
@@ -4379,42 +4377,41 @@ function ComplianceTracker({
                       className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
                     />
 
-                    <div className="flex items-center gap-1.5">
-                      {item.attachment ? (
-                        <>
+                    <div className="flex max-w-[240px] flex-wrap items-center gap-1.5">
+                      {getComplianceAttachments(item).map((att) => (
+                        <span key={att.path} className="flex items-center gap-0.5">
                           <a
-                            href={item.attachment.url}
+                            href={att.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title={`Open ${item.attachment.name}`}
-                            className="flex max-w-[140px] items-center gap-1 rounded-full border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-2 py-1 text-[10px] text-neutral-200 transition-colors hover:bg-invictus-crimson-bright/20"
+                            title={`Open ${att.name}`}
+                            className="flex max-w-[130px] items-center gap-1 rounded-full border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-2 py-1 text-[10px] text-neutral-200 transition-colors hover:bg-invictus-crimson-bright/20"
                           >
                             <Paperclip className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{item.attachment.name}</span>
+                            <span className="truncate">{att.name}</span>
                           </a>
                           <button
-                            onClick={() => handleRemoveAttachment(item)}
-                            title="Remove attached document"
+                            onClick={() => handleRemoveAttachment(item, att)}
+                            title={`Remove ${att.name}`}
                             className="rounded-md border border-neutral-400/30 p-1 text-neutral-500 transition-colors hover:border-alert/40 hover:text-alert"
                           >
                             <X className="h-3 w-3" />
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => pickFile(item.id)}
-                          disabled={uploadingId === item.id}
-                          title="Attach a document (e.g. the latest inspection report)"
-                          className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-50"
-                        >
-                          {uploadingId === item.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Paperclip className="h-3 w-3" />
-                          )}
-                          Attach
-                        </button>
-                      )}
+                        </span>
+                      ))}
+                      <button
+                        onClick={() => pickFile(item.id)}
+                        disabled={uploadingId === item.id}
+                        title="Attach documents (e.g. inspection reports, certificates)"
+                        className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-50"
+                      >
+                        {uploadingId === item.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Paperclip className="h-3 w-3" />
+                        )}
+                        Attach
+                      </button>
                     </div>
 
                     <button
@@ -4780,8 +4777,20 @@ export default function InvictusTrackerPage() {
     setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, nextDueDate } : c)));
   const handleChangeComments = (id: string, comments: string) =>
     setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, comments } : c)));
-  const handleSetComplianceAttachment = (id: string, attachment: ComplianceAttachment | null) =>
-    setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, attachment } : c)));
+  const handleAddComplianceAttachment = (id: string, attachment: ComplianceAttachment) =>
+    setCompliances((prev) =>
+      prev.map((c) =>
+        c.id === id ? { ...c, attachments: [...getComplianceAttachments(c), attachment], attachment: null } : c
+      )
+    );
+  const handleRemoveComplianceAttachment = (id: string, path: string) =>
+    setCompliances((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? { ...c, attachments: getComplianceAttachments(c).filter((a) => a.path !== path), attachment: null }
+          : c
+      )
+    );
   const handleDeleteCompliance = (id: string) => setCompliances((prev) => prev.filter((c) => c.id !== id));
   const handleAddMissingStandardCompliances = () => {
     setCompliances((prev) => {
@@ -4907,7 +4916,8 @@ export default function InvictusTrackerPage() {
                 onChangeComments={handleChangeComments}
                 onDelete={handleDeleteCompliance}
                 onAddMissingStandard={handleAddMissingStandardCompliances}
-                onSetAttachment={handleSetComplianceAttachment}
+                onAddAttachment={handleAddComplianceAttachment}
+                onRemoveAttachment={handleRemoveComplianceAttachment}
               />
             )}
             {activePage === 'reports' && (

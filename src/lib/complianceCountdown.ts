@@ -19,8 +19,17 @@ export interface ComplianceItem {
   date: string;
   nextDueDate: string;
   comments: string;
-  // Latest inspection report / certificate attached to this item, if any.
+  // Inspection reports / certificates attached to this item.
+  attachments?: ComplianceAttachment[];
+  // Legacy single-attachment field from before multiple attachments existed;
+  // folded into `attachments` by the UI. Kept so old saved data still loads.
   attachment?: ComplianceAttachment | null;
+}
+
+// All attachments on an item, folding in the legacy single-attachment field.
+export function getComplianceAttachments(item: ComplianceItem): ComplianceAttachment[] {
+  if (item.attachments) return item.attachments;
+  return item.attachment ? [item.attachment] : [];
 }
 
 export type ComplianceUrgency = 'red' | 'amber' | 'green';
