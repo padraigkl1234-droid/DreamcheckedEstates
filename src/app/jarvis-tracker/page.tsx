@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
 import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
 import { CHECKLIST_SECTIONS } from '@/lib/checklists';
+import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import {
   type ComplianceItem,
@@ -62,6 +63,8 @@ import {
   UserPlus,
   Inbox,
   Pencil,
+  UserCog,
+  ShieldOff,
 } from 'lucide-react';
 import {
   Area,
@@ -79,7 +82,7 @@ import {
 
 type Priority = 'High' | 'Medium' | 'Low';
 type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
-type PageKey = 'dashboard' | 'calendar' | 'shows' | 'sitemap' | 'tasks' | 'archive' | 'compliance' | 'reports';
+type PageKey = 'dashboard' | 'calendar' | 'shows' | 'sitemap' | 'tasks' | 'archive' | 'compliance' | 'reports' | 'admin';
 
 // A scheduled show. `type` matches a CHECKLIST_SECTIONS name and `completed`
 // maps each checklist's name to whether its light is green. Structured this way
@@ -119,6 +122,9 @@ interface TeamMember {
   uid: string;
   name: string;
   email?: string | null;
+  role?: string;
+  blocked?: boolean;
+  lastSeen?: number;
 }
 
 type RecurrenceFreq = 'weekly' | 'fortnightly' | 'monthly';
@@ -339,7 +345,7 @@ function classifyComplianceDivision(name: string): string {
 const CARD_REVEAL_STEP_MS = 90;
 const CARD_REVEAL_DURATION_MS = 420;
 
-const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard; gapBefore?: boolean }[] = [
+const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard; gapBefore?: boolean; adminOnly?: boolean }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'calendar', label: 'Calendar', icon: CalendarDays },
   { key: 'shows', label: 'Show Board', icon: Clapperboard },
@@ -348,6 +354,7 @@ const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard; ga
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
   { key: 'archive', label: 'Archive', icon: Archive, gapBefore: true },
   { key: 'reports', label: 'Reports', icon: FileText },
+  { key: 'admin', label: 'Team Control', icon: UserCog, gapBefore: true, adminOnly: true },
 ];
 
 const PRIORITY_STYLES: Record<Priority, string> = {
@@ -1020,14 +1027,17 @@ function Sidebar({
   user,
   syncStatus,
   syncError,
+  isAdmin = false,
 }: {
   activePage: PageKey;
   onNavigate: (p: PageKey) => void;
   user: User | null;
   syncStatus: 'idle' | 'loading' | 'synced' | 'error';
   syncError?: string | null;
+  isAdmin?: boolean;
 }) {
   const { playHover } = useSound();
+  const navItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
   return (
     <aside className="flex w-16 flex-col border-r border-neutral-400/20 bg-invictus-base/70 shadow-glow-subtle backdrop-blur-xl md:w-60">
       <div className="flex h-16 items-center justify-center gap-2 border-b border-neutral-400/20 px-2 md:justify-start md:px-5">
@@ -1038,7 +1048,7 @@ function Sidebar({
       </div>
 
       <nav className="flex flex-col gap-1 p-2 md:p-3">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           const active = activePage === item.key;
           return (
@@ -1922,6 +1932,203 @@ function formatDisplayDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   if (!y || !m || !d) return dateStr;
   return `${d} ${MONTH_LABELS[m - 1]} ${y}`;
+}
+
+// ---------------------------------------------------------------------------
+// Team Control (admin only)
+// ---------------------------------------------------------------------------
+
+function AdminPage({ team, user, isMaster }: { team: TeamMember[]; user: User; isMaster: boolean }) {
+  const [busyUid, setBusyUid] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [messageIsError, setMessageIsError] = useState(false);
+  const [confirmRemoveUid, setConfirmRemoveUid] = useState<string | null>(null);
+  const [deleteData, setDeleteData] = useState(false);
+
+  const nameOf = (uid: string) => team.find((m) => m.uid === uid)?.name ?? 'that user';
+
+  const callAdmin = async (action: 'promote' | 'demote' | 'block' | 'unblock' | 'remove', targetUid: string, withData = false) => {
+    setBusyUid(targetUid);
+    setMessage(null);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, targetUid, deleteData: withData }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || `Request failed (${res.status})`);
+      const n = nameOf(targetUid);
+      setMessage(
+        action === 'promote' ? `${n} is now an admin.`
+        : action === 'demote' ? `${n} is no longer an admin.`
+        : action === 'block' ? `${n}'s sign-in is blocked.`
+        : action === 'unblock' ? `${n} can sign in again.`
+        : withData ? `${n} removed from the team and their data deleted.`
+        : `${n} removed from the team.`
+      );
+      setMessageIsError(false);
+    } catch (e) {
+      setMessage(`Failed: ${(e as Error).message}`);
+      setMessageIsError(true);
+    } finally {
+      setBusyUid(null);
+      setConfirmRemoveUid(null);
+      setDeleteData(false);
+    }
+  };
+
+  const smallBtn =
+    'flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest transition-all disabled:opacity-40';
+  const sorted = [...team].sort((a, b) => a.name.localeCompare(b.name));
+
+  return (
+    <div className="space-y-5">
+      <Panel title="Team Control" icon={UserCog} refCode="0120-A">
+        <p className="mb-4 text-xs text-neutral-500">
+          Everyone who has signed into the app. Blocking stops an account signing in at all;
+          removing takes them off the team roster (their shared tasks stay with the remaining
+          people). Only the master account can grant or revoke admin.
+        </p>
+        {message && (
+          <p className={`mb-3 text-xs ${messageIsError ? 'text-alert' : 'text-emerald-400'}`}>{message}</p>
+        )}
+        <div className="space-y-2">
+          {sorted.map((m) => {
+            const memberIsMaster = (m.email ?? '').toLowerCase() === MASTER_ADMIN_EMAIL;
+            const isSelf = m.uid === user.uid;
+            const busy = busyUid === m.uid;
+            return (
+              <div
+                key={m.uid}
+                className="relative flex flex-col gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 p-3 shadow-glow-subtle md:flex-row md:items-center md:justify-between"
+              >
+                <MicroCorners />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm text-neutral-100">{m.name}</p>
+                    {memberIsMaster && (
+                      <span className="rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-invictus-crimson-bright">
+                        Master
+                      </span>
+                    )}
+                    {!memberIsMaster && m.role === 'admin' && (
+                      <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-amber-300">
+                        Admin
+                      </span>
+                    )}
+                    {m.blocked && (
+                      <span className="rounded-full border border-alert/50 bg-alert/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-alert">
+                        Blocked
+                      </span>
+                    )}
+                    {isSelf && (
+                      <span className="rounded-full border border-neutral-400/30 bg-neutral-400/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-neutral-400">
+                        You
+                      </span>
+                    )}
+                  </div>
+                  <Kicker>
+                    {m.email || 'no email'}
+                    {m.lastSeen ? ` · last seen ${new Date(m.lastSeen).toLocaleDateString('en-GB')}` : ''}
+                  </Kicker>
+                </div>
+
+                {!memberIsMaster && !isSelf && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {confirmRemoveUid === m.uid ? (
+                      <>
+                        <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-neutral-400">
+                          <input
+                            type="checkbox"
+                            checked={deleteData}
+                            onChange={(e) => setDeleteData(e.target.checked)}
+                            className="h-3.5 w-3.5 accent-red-600"
+                          />
+                          Also delete their data
+                        </label>
+                        <button
+                          onClick={() => callAdmin('remove', m.uid, deleteData)}
+                          disabled={busy}
+                          className={`${smallBtn} border-alert/50 bg-alert/15 text-alert hover:bg-alert/25`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Confirm remove
+                        </button>
+                        <button
+                          onClick={() => {
+                            setConfirmRemoveUid(null);
+                            setDeleteData(false);
+                          }}
+                          disabled={busy}
+                          className={`${smallBtn} border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:text-invictus-crimson-bright`}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {isMaster &&
+                          (m.role === 'admin' ? (
+                            <button
+                              onClick={() => callAdmin('demote', m.uid)}
+                              disabled={busy}
+                              className={`${smallBtn} border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20`}
+                              title="Remove admin rights"
+                            >
+                              <UserCog className="h-3.5 w-3.5" /> Demote
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => callAdmin('promote', m.uid)}
+                              disabled={busy}
+                              className={`${smallBtn} border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20`}
+                              title="Make this person an admin"
+                            >
+                              <UserCog className="h-3.5 w-3.5" /> Make admin
+                            </button>
+                          ))}
+                        {m.blocked ? (
+                          <button
+                            onClick={() => callAdmin('unblock', m.uid)}
+                            disabled={busy}
+                            className={`${smallBtn} border-emerald-400/50 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20`}
+                            title="Let this account sign in again"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" /> Unblock
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => callAdmin('block', m.uid)}
+                            disabled={busy}
+                            className={`${smallBtn} border-alert/40 bg-alert/10 text-alert hover:bg-alert/20`}
+                            title="Stop this account signing in"
+                          >
+                            <ShieldOff className="h-3.5 w-3.5" /> Block sign-in
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setConfirmRemoveUid(m.uid)}
+                          disabled={busy}
+                          className={`${smallBtn} border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:border-alert/40 hover:text-alert`}
+                          title="Remove from the team roster"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Remove
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {sorted.length === 0 && (
+            <p className="py-8 text-center text-xs text-neutral-600">No team members yet.</p>
+          )}
+        </div>
+      </Panel>
+    </div>
+  );
 }
 
 function CalendarPage({
@@ -4298,8 +4505,15 @@ export default function InvictusTrackerPage() {
       (snap) =>
         setTeam(
           snap.docs.map((d) => {
-            const data = d.data() as { name?: string; email?: string | null };
-            return { uid: d.id, name: data.name || data.email || 'Unknown', email: data.email };
+            const data = d.data() as { name?: string; email?: string | null; role?: string; blocked?: boolean; lastSeen?: number };
+            return {
+              uid: d.id,
+              name: data.name || data.email || 'Unknown',
+              email: data.email,
+              role: data.role,
+              blocked: data.blocked,
+              lastSeen: data.lastSeen,
+            };
           })
         ),
       (error) => console.error('Team roster subscription failed:', error)
@@ -4358,6 +4572,9 @@ export default function InvictusTrackerPage() {
   const totalItems = tasks.length + compliances.length;
   const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
   const completionPct = totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
+
+  const isMaster = (user?.email ?? '').toLowerCase() === MASTER_ADMIN_EMAIL;
+  const isAdmin = isMaster || (!!user && team.some((m) => m.uid === user.uid && m.role === 'admin'));
 
   // All task mutations write straight to the shared `tasks` collection; the
   // live subscriptions above reflect them back into local state (for everyone
@@ -4523,7 +4740,7 @@ export default function InvictusTrackerPage() {
 
       {mounted && !booting && (
         <div className="relative flex h-full">
-          <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} syncError={syncError} />
+          <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} syncError={syncError} isAdmin={isAdmin} />
           <main className="flex-1 overflow-y-auto p-5">
             {activePage === 'dashboard' && (
               <Dashboard
@@ -4537,6 +4754,9 @@ export default function InvictusTrackerPage() {
             )}
             {activePage === 'calendar' && (
               <CalendarPage events={events} onAdd={handleAddEvent} onDelete={handleDeleteEvent} />
+            )}
+            {activePage === 'admin' && isAdmin && user && (
+              <AdminPage team={team} user={user} isMaster={isMaster} />
             )}
             {activePage === 'shows' && (
               <ShowsBoard

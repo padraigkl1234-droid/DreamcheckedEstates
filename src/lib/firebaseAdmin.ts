@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { getAuth, type Auth } from 'firebase-admin/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Server-side Firebase Admin, used by the Show Board webhook to flip checklist
@@ -26,4 +27,10 @@ export function getAdminDb(): Firestore {
   const app = getAdminApp();
   cachedDb = getFirestore(app, firebaseConfig.firestoreDatabaseId);
   return cachedDb;
+}
+
+// Admin Auth — used by the team-control endpoint to verify ID tokens and
+// disable/enable user accounts.
+export function getAdminAuth(): Auth {
+  return getAuth(getAdminApp());
 }
