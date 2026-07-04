@@ -61,6 +61,7 @@ import {
   Users,
   UserPlus,
   Inbox,
+  Pencil,
 } from 'lucide-react';
 import {
   Area,
@@ -3255,6 +3256,7 @@ function TaskManager({
   onAddOutlookTasks,
   onAcceptOffer,
   onDeclineOffer,
+  onEdit,
 }: {
   tasks: Task[];
   archivedTasks: Task[];
@@ -3271,6 +3273,10 @@ function TaskManager({
   onAddOutlookTasks: () => void;
   onAcceptOffer: (id: string) => void;
   onDeclineOffer: (id: string) => void;
+  onEdit: (
+    id: string,
+    updates: { name: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
+  ) => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
   // A seed item counts as "already handled" if it's in the live list OR sitting in
@@ -3321,6 +3327,34 @@ function TaskManager({
   const [assigneeUid, setAssigneeUid] = useState('');
   const { playConfirm } = useSound();
   const teammates = team.filter((m) => m.uid !== currentUid);
+
+  // Inline editing of an existing task.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPriority, setEditPriority] = useState<Priority>('Medium');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editAssigneeUid, setEditAssigneeUid] = useState('');
+
+  const startEdit = (task: Task) => {
+    setEditingId(task.id);
+    setEditName(task.name);
+    setEditPriority(task.priority);
+    setEditDueDate(task.dueDate);
+    setEditAssigneeUid(task.pendingUid ?? '');
+  };
+  const saveEdit = (task: Task) => {
+    if (!editName.trim()) return;
+    const assignee = teammates.find((m) => m.uid === editAssigneeUid);
+    onEdit(task.id, {
+      name: editName.trim(),
+      priority: editPriority,
+      dueDate: editDueDate,
+      pendingUid: assignee?.uid ?? null,
+      pendingName: assignee?.name ?? null,
+    });
+    playConfirm();
+    setEditingId(null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -3503,6 +3537,59 @@ function TaskManager({
               }`}
             >
               <MicroCorners />
+              {editingId === task.id ? (
+                <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
+                  <input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Task name"
+                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-2"
+                  />
+                  <select
+                    value={editPriority}
+                    onChange={(e) => setEditPriority(e.target.value as Priority)}
+                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                  >
+                    <option>High</option>
+                    <option>Medium</option>
+                    <option>Low</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                  />
+                  <select
+                    value={editAssigneeUid}
+                    onChange={(e) => setEditAssigneeUid(e.target.value)}
+                    title="Assign this task to a teammate — they'll get it as an offer to accept"
+                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                  >
+                    <option value="">No assignment</option>
+                    {teammates.map((m) => (
+                      <option key={m.uid} value={m.uid}>
+                        Assign to {m.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => saveEdit(task)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-300 transition-all hover:bg-emerald-400/20"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Save
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                    >
+                      <X className="h-3.5 w-3.5" /> Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+              <>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-neutral-100">{task.name}</p>
                 <Kicker>Due {task.dueDate || '—'}</Kicker>
@@ -3556,6 +3643,13 @@ function TaskManager({
                   <option>In Progress</option>
                   <option>Completed</option>
                 </select>
+                <button
+                  onClick={() => startEdit(task)}
+                  className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+                  title="Edit task"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
                 {task.status === 'Completed' && (
                   <button
                     onClick={() => onArchive(task.id)}
@@ -3573,6 +3667,8 @@ function TaskManager({
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
+              </>
+              )}
             </div>
                 );
               })}
@@ -4295,6 +4391,15 @@ export default function InvictusTrackerPage() {
     if (!user) return;
     deleteDoc(doc(db, 'tasks', id)).catch(logTaskError('delete task'));
   };
+  // Edit a task in place — name/priority/due date, and (re)assigning it to a
+  // teammate after creation (sets a fresh pending offer; null clears one).
+  const handleEditTask = (
+    id: string,
+    updates: { name: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
+  ) => {
+    if (!user) return;
+    updateDoc(doc(db, 'tasks', id), updates).catch(logTaskError('edit task'));
+  };
   // A quick-add seed item is "missing" only if it's absent from BOTH the live list
   // and the archive — so an archived task is never resurrected by these buttons.
   const isTaskTracked = (seedName: string) => {
@@ -4462,6 +4567,7 @@ export default function InvictusTrackerPage() {
                 onAddOutlookTasks={handleAddOutlookTasks}
                 onAcceptOffer={handleAcceptOffer}
                 onDeclineOffer={handleDeclineOffer}
+                onEdit={handleEditTask}
               />
             )}
             {activePage === 'archive' && (
