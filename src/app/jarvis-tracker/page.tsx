@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot, query, where, arrayUnion } from 'firebase/firestore';
-import { db, type User } from '@/lib/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
 import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
@@ -11,6 +12,7 @@ import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import {
   type ComplianceItem,
+  type ComplianceAttachment,
   type ComplianceUrgency,
   getOutstandingCompliances,
 } from '@/lib/complianceCountdown';
@@ -65,6 +67,8 @@ import {
   Pencil,
   UserCog,
   ShieldOff,
+  Paperclip,
+  Loader2,
 } from 'lucide-react';
 import {
   Area,
@@ -4153,6 +4157,7 @@ function ComplianceTracker({
   onChangeComments,
   onDelete,
   onAddMissingStandard,
+  onSetAttachment,
 }: {
   compliances: ComplianceItem[];
   onAdd: (item: ComplianceItem) => void;
@@ -4162,6 +4167,7 @@ function ComplianceTracker({
   onChangeComments: (id: string, comments: string) => void;
   onDelete: (id: string) => void;
   onAddMissingStandard: () => void;
+  onSetAttachment: (id: string, attachment: ComplianceAttachment | null) => void;
 }) {
   const missingStandardCount = SEED_COMPLIANCES.filter(
     (seed) => !compliances.some((c) => c.name.trim().toLowerCase() === seed.name.trim().toLowerCase())
@@ -4185,6 +4191,56 @@ function ComplianceTracker({
   const [nextDueDate, setNextDueDate] = useState('');
   const [comments, setComments] = useState('');
   const { playConfirm } = useSound();
+
+  // Attach a document (e.g. the latest inspection report) to a compliance item.
+  // The file goes to Firebase Storage; the item stores its name + download URL.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetId = useRef<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const pickFile = (id: string) => {
+    uploadTargetId.current = id;
+    fileInputRef.current?.click();
+  };
+  const handleFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file later
+    const id = uploadTargetId.current;
+    if (!file || !id) return;
+    if (file.size > 20 * 1024 * 1024) {
+      setUploadError('That file is over the 20 MB limit.');
+      return;
+    }
+    const item = compliances.find((c) => c.id === id);
+    setUploadingId(id);
+    setUploadError(null);
+    try {
+      const path = `compliance/${id}/${Date.now()}-${file.name}`;
+      const fileRef = storageRef(storage, path);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      // Replacing an existing report? Tidy up the old file (best-effort).
+      if (item?.attachment?.path) {
+        deleteObject(storageRef(storage, item.attachment.path)).catch(() => {});
+      }
+      onSetAttachment(id, { name: file.name, url, path, uploadedAt: Date.now() });
+      playConfirm();
+    } catch (error) {
+      console.error('Attachment upload failed:', error);
+      setUploadError(
+        'Upload failed — make sure Firebase Storage is set up and its rules allow signed-in uploads.'
+      );
+    } finally {
+      setUploadingId(null);
+    }
+  };
+  const handleRemoveAttachment = (item: ComplianceItem) => {
+    if (item.attachment?.path) {
+      deleteObject(storageRef(storage, item.attachment.path)).catch(() => {});
+    }
+    onSetAttachment(item.id, null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -4249,12 +4305,16 @@ function ComplianceTracker({
       </Panel>
 
       <Panel title="Estate Compliance Tracker" icon={ShieldCheck} refCode="0200-C">
-        <div className="mb-2 hidden gap-3 px-3 text-[10px] uppercase tracking-widest text-neutral-600 md:grid md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.3fr_auto]">
+        {/* Shared file picker for attaching reports to items */}
+        <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChosen} />
+        {uploadError && <p className="mb-3 text-xs text-alert">{uploadError}</p>}
+        <div className="mb-2 hidden gap-3 px-3 text-[10px] uppercase tracking-widest text-neutral-600 md:grid md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.1fr_auto_auto]">
           <span>Status</span>
           <span>Item</span>
           <span>Last Completed</span>
           <span>Next Due</span>
           <span>Comments</span>
+          <span>Report</span>
           <span />
         </div>
         <div className="space-y-4">
@@ -4278,7 +4338,7 @@ function ComplianceTracker({
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    className="relative grid grid-cols-1 items-center gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.3fr_auto]"
+                    className="relative grid grid-cols-1 items-center gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.1fr_auto_auto]"
                   >
                     <MicroCorners />
                     <button
@@ -4318,6 +4378,44 @@ function ComplianceTracker({
                       placeholder="Comments..."
                       className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
                     />
+
+                    <div className="flex items-center gap-1.5">
+                      {item.attachment ? (
+                        <>
+                          <a
+                            href={item.attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Open ${item.attachment.name}`}
+                            className="flex max-w-[140px] items-center gap-1 rounded-full border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-2 py-1 text-[10px] text-neutral-200 transition-colors hover:bg-invictus-crimson-bright/20"
+                          >
+                            <Paperclip className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{item.attachment.name}</span>
+                          </a>
+                          <button
+                            onClick={() => handleRemoveAttachment(item)}
+                            title="Remove attached document"
+                            className="rounded-md border border-neutral-400/30 p-1 text-neutral-500 transition-colors hover:border-alert/40 hover:text-alert"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => pickFile(item.id)}
+                          disabled={uploadingId === item.id}
+                          title="Attach a document (e.g. the latest inspection report)"
+                          className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-50"
+                        >
+                          {uploadingId === item.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Paperclip className="h-3 w-3" />
+                          )}
+                          Attach
+                        </button>
+                      )}
+                    </div>
 
                     <button
                       onClick={() => onDelete(item.id)}
@@ -4682,6 +4780,8 @@ export default function InvictusTrackerPage() {
     setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, nextDueDate } : c)));
   const handleChangeComments = (id: string, comments: string) =>
     setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, comments } : c)));
+  const handleSetComplianceAttachment = (id: string, attachment: ComplianceAttachment | null) =>
+    setCompliances((prev) => prev.map((c) => (c.id === id ? { ...c, attachment } : c)));
   const handleDeleteCompliance = (id: string) => setCompliances((prev) => prev.filter((c) => c.id !== id));
   const handleAddMissingStandardCompliances = () => {
     setCompliances((prev) => {
@@ -4807,6 +4907,7 @@ export default function InvictusTrackerPage() {
                 onChangeComments={handleChangeComments}
                 onDelete={handleDeleteCompliance}
                 onAddMissingStandard={handleAddMissingStandardCompliances}
+                onSetAttachment={handleSetComplianceAttachment}
               />
             )}
             {activePage === 'reports' && (

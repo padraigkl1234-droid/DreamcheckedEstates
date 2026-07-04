@@ -5,6 +5,13 @@
 // disagree about which item is most pressing.
 // ---------------------------------------------------------------------------
 
+export interface ComplianceAttachment {
+  name: string; // original filename, shown in the UI
+  url: string; // download URL
+  path: string; // storage path, needed to delete/replace the file
+  uploadedAt: number;
+}
+
 export interface ComplianceItem {
   id: string;
   name: string;
@@ -12,6 +19,8 @@ export interface ComplianceItem {
   date: string;
   nextDueDate: string;
   comments: string;
+  // Latest inspection report / certificate attached to this item, if any.
+  attachment?: ComplianceAttachment | null;
 }
 
 export type ComplianceUrgency = 'red' | 'amber' | 'green';
