@@ -199,6 +199,44 @@ const logBodyMetricTool = ai.defineTool(
   }
 );
 
+const rememberTool = ai.defineTool(
+  {
+    name: 'remember',
+    description:
+      "Saves a durable fact about the athlete to long-term memory so it persists across every future conversation. Use for things worth remembering indefinitely: injuries and limitations, food allergies or dislikes, equipment they own, personal records, schedule constraints, and stated preferences. Do NOT use this for one-off daily logs (meals, sets, water) — those have their own tools.",
+    inputSchema: z.object({
+      note: z.string().describe('A concise, self-contained fact, e.g. "Left shoulder impingement — avoid heavy overhead pressing"'),
+    }),
+    outputSchema: z.object({ memoryCount: z.number() }),
+  },
+  async ({ note }) => {
+    const trimmed = note.trim();
+    if (trimmed && !working.memories.some((m) => m.note.toLowerCase() === trimmed.toLowerCase())) {
+      working.memories.push({ date: todayStr(), note: trimmed });
+    }
+    return { memoryCount: working.memories.length };
+  }
+);
+
+const forgetTool = ai.defineTool(
+  {
+    name: 'forget',
+    description:
+      'Removes a previously saved long-term memory when it is no longer true (e.g. an injury has healed, a preference changed). Match against the existing memory text.',
+    inputSchema: z.object({
+      noteContains: z.string().describe('Text that identifies the memory to remove; the closest match is deleted'),
+    }),
+    outputSchema: z.object({ memoryCount: z.number(), removed: z.boolean() }),
+  },
+  async ({ noteContains }) => {
+    const needle = noteContains.trim().toLowerCase();
+    const idx = working.memories.findIndex((m) => m.note.toLowerCase().includes(needle));
+    const removed = idx >= 0;
+    if (removed) working.memories.splice(idx, 1);
+    return { memoryCount: working.memories.length, removed };
+  }
+);
+
 const getHistoryTool = ai.defineTool(
   {
     name: 'getHistory',
@@ -246,6 +284,8 @@ const TOOLS = [
   logWaterTool,
   logSetTool,
   logBodyMetricTool,
+  rememberTool,
+  forgetTool,
   getHistoryTool,
 ];
 
@@ -270,6 +310,11 @@ function buildContextBlock(now: Date): string {
       ? working.plan.map((d) => `${WEEKDAYS[d.weekday]}: ${d.label}`).join('; ')
       : 'NO PLAN YET — the athlete has not been given a weekly training plan.';
 
+  const memorySummary =
+    working.memories.length > 0
+      ? working.memories.map((m) => `• ${m.note}`).join('\n')
+      : 'Nothing saved yet.';
+
   const setsSummary =
     sets.length > 0
       ? sets
@@ -286,6 +331,9 @@ CURRENT CONTEXT (ground truth — trust this over anything that contradicts it):
 - Sets logged today: ${setsSummary}
 - Nutrition today: ${Math.round(meals.calories)} kcal / ${Math.round(meals.proteinG)}g protein / ${Math.round(meals.carbsG)}g carbs / ${Math.round(meals.fatG)}g fat across ${meals.count} entries (targets: ${p.calorieTarget} kcal, ${p.proteinTargetG}g protein, ${p.carbsTargetG}g carbs, ${p.fatTargetG}g fat).
 - Hydration today: ${water}ml of ${p.hydrationTargetMl}ml target.
+
+LONG-TERM MEMORY (durable facts you have saved about this athlete — always respect these):
+${memorySummary}
 `.trim();
 }
 
@@ -298,6 +346,7 @@ How you operate:
 - When the athlete starts their workout, guide it live: give them the first exercise with target sets/reps, and as they report each set, log it with logSet and tell them what's next. One step at a time — this is a conversation mid-workout, not an essay.
 - When the athlete tells you what they ate or drank, log it with logMeal or logWater (estimate calories and macros yourself from the description), then coach: how it fits today's targets and what to prioritise in the next meal.
 - Log body weight, sleep, and resting heart rate with logBodyMetric when mentioned.
+- Build a real relationship over time: whenever the athlete tells you something durable about themselves — an injury, an allergy, equipment they have, a personal record, a scheduling constraint, a preference — save it with the remember tool so you never forget it. Weave saved memories naturally into your coaching. If something you remembered is no longer true, use forget to remove it.
 - For questions about progress or trends, call getHistory and reason over the real numbers.
 - Be precise and data-driven: sets, reps, %1RM, grams, kcal, hours. Ground advice in progressive overload, periodization, protein distribution, energy balance, and recovery science.
 - Responses are read aloud by text-to-speech: no markdown, no bullet lists, no headings. Short, confident, conversational sentences — usually 2-4 of them. Address the athlete directly, with warmth and authority.

@@ -61,6 +61,11 @@ export interface MetricEntry {
   sleepHours?: number;
 }
 
+export interface MemoryEntry {
+  date: string; // when it was noted
+  note: string; // a durable fact JARVIS should remember about the athlete
+}
+
 export interface JarvisStore {
   profile: Profile;
   plan: PlanDay[];
@@ -68,6 +73,7 @@ export interface JarvisStore {
   sets: SetEntry[];
   water: WaterEntry[];
   metrics: MetricEntry[];
+  memories: MemoryEntry[];
 }
 
 export const DEFAULT_STORE: JarvisStore = {
@@ -85,6 +91,7 @@ export const DEFAULT_STORE: JarvisStore = {
   sets: [],
   water: [],
   metrics: [],
+  memories: [],
 };
 
 export function todayStr(d: Date = new Date()): string {
@@ -124,4 +131,28 @@ export function saveStore(store: JarvisStore): void {
   } catch {
     // Storage full or unavailable — nothing sensible to do.
   }
+}
+
+/** Triggers a browser download of the full store as a timestamped JSON backup. */
+export function downloadStore(store: JarvisStore): void {
+  if (typeof window === 'undefined') return;
+  const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `jarvis-backup-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Parses and normalises an imported backup file, merging over defaults. */
+export function parseImportedStore(raw: string): JarvisStore {
+  const parsed = JSON.parse(raw);
+  return {
+    ...structuredClone(DEFAULT_STORE),
+    ...parsed,
+    profile: { ...DEFAULT_STORE.profile, ...(parsed.profile ?? {}) },
+  };
 }

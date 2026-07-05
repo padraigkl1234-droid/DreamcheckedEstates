@@ -38,11 +38,45 @@ export function useVoice({ onFinalTranscript }: UseVoiceOptions) {
   const micRafRef = useRef<number | null>(null);
   const speakRafRef = useRef<number | null>(null);
   const speakSpikeRef = useRef(0);
+  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const onFinalTranscriptRef = useRef(onFinalTranscript);
   onFinalTranscriptRef.current = onFinalTranscript;
 
   useEffect(() => {
     setSttSupported(!!getSpeechRecognitionCtor());
+
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    // Pick ONE voice, once, and reuse it for every utterance so JARVIS never
+    // changes voice mid-session. Voices load asynchronously in most browsers,
+    // so resolve on the voiceschanged event and cache the result.
+    const pickVoice = () => {
+      if (voiceRef.current) return;
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length === 0) return;
+
+      // Priority list of stable, known-good deep/neutral English voices.
+      const byName = (needle: string) =>
+        voices.find((v) => v.name.toLowerCase().includes(needle.toLowerCase()));
+      const byLang = (re: RegExp) => voices.find((v) => re.test(v.lang));
+
+      voiceRef.current =
+        byName('Google UK English Male') ||
+        byName('Daniel') ||
+        byName('Microsoft Ryan') ||
+        byName('Microsoft George') ||
+        byName('Arthur') ||
+        byName('Google UK English') ||
+        byLang(/^en-GB/i) ||
+        byName('Google US English') ||
+        byLang(/^en-US/i) ||
+        byLang(/^en/i) ||
+        voices[0];
+    };
+
+    pickVoice();
+    window.speechSynthesis.addEventListener('voiceschanged', pickVoice);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', pickVoice);
   }, []);
 
   const stopMicAnalysis = useCallback(() => {
@@ -155,12 +189,11 @@ export function useVoice({ onFinalTranscript }: UseVoiceOptions) {
       utterance.rate = 1.02;
       utterance.pitch = 0.94;
 
-      const voices = window.speechSynthesis.getVoices();
-      const preferred =
-        voices.find((v) => /en-(GB|US)/i.test(v.lang) && /male/i.test(v.name)) ||
-        voices.find((v) => /en-GB/i.test(v.lang)) ||
-        voices.find((v) => /en-US/i.test(v.lang));
-      if (preferred) utterance.voice = preferred;
+      // Always use the single voice locked in at mount — never re-pick per call.
+      if (voiceRef.current) {
+        utterance.voice = voiceRef.current;
+        utterance.lang = voiceRef.current.lang;
+      }
 
       utterance.onstart = () => {
         setState('speaking');

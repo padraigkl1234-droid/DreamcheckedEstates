@@ -9,6 +9,44 @@ body {
   color: #fff;
 }
 
+/* Faint engineering grid that sits behind everything. */
+.hud-grid {
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 78%);
+}
+
+/* Moving scanlines overlay for a CRT/hologram feel. */
+.hud-scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.025) 0px,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  animation: hud-scan 8s linear infinite;
+}
+
+@keyframes hud-scan {
+  from { background-position-y: 0; }
+  to { background-position-y: 120px; }
+}
+
+@keyframes hud-flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  94% { opacity: 0.82; }
+  96% { opacity: 1; }
+}
+
+.hud-flicker {
+  animation: hud-flicker 6s infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

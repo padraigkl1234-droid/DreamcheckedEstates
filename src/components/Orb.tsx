@@ -83,6 +83,10 @@ export function Orb({
       const amp = ampSmoothRef.current;
       const core = lerpColor(BLUE_CORE, GOLD_CORE, mix);
       const accent = lerpColor(BLUE_ACCENT, GOLD_ACCENT, mix);
+      const ar = Math.round(lerp(BLUE_ACCENT[0], GOLD_ACCENT[0], mix));
+      const ag = Math.round(lerp(BLUE_ACCENT[1], GOLD_ACCENT[1], mix));
+      const ab = Math.round(lerp(BLUE_ACCENT[2], GOLD_ACCENT[2], mix));
+      const rgba = (a: number) => `rgba(${ar}, ${ag}, ${ab}, ${a})`;
 
       const R = size / 2;
       ctx.clearRect(0, 0, size, size);
@@ -99,6 +103,45 @@ export function Orb({
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
+
+      // Rotating outer tick ring — a slowly spinning ring of graduation marks.
+      const tickCount = 60;
+      const tickR = R * 0.965;
+      const spin = (t / 1000) * 0.18;
+      ctx.save();
+      ctx.rotate(spin);
+      for (let i = 0; i < tickCount; i++) {
+        const a = (i / tickCount) * Math.PI * 2;
+        const major = i % 5 === 0;
+        const len = (major ? 8 : 4) * (1 + amp * 0.4);
+        const x1 = Math.cos(a) * tickR;
+        const y1 = Math.sin(a) * tickR;
+        const x2 = Math.cos(a) * (tickR - len);
+        const y2 = Math.sin(a) * (tickR - len);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = accent;
+        ctx.globalAlpha = major ? 0.4 : 0.16;
+        ctx.lineWidth = major ? 1.4 : 0.8;
+        ctx.stroke();
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+
+      // Counter-rotating radar sweep — a soft trailing wedge of light.
+      if (typeof ctx.createConicGradient === 'function') {
+        const sweep = ctx.createConicGradient(-(t / 1000) * 0.9, 0, 0);
+        sweep.addColorStop(0, rgba(0.16));
+        sweep.addColorStop(0.08, rgba(0));
+        sweep.addColorStop(1, rgba(0));
+        ctx.beginPath();
+        ctx.arc(0, 0, R * 0.9, 0, Math.PI * 2);
+        ctx.fillStyle = sweep;
+        ctx.globalAlpha = 0.6 + amp * 0.3;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
 
       const coreR = R * 0.9 * (1 + amp * 0.06);
       const gradient = ctx.createRadialGradient(0, 0, coreR * 0.05, 0, 0, coreR);
