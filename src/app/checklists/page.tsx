@@ -5,6 +5,7 @@ import { ClipboardCheck, ExternalLink, ChevronRight, ChevronDown, Plus, Trash2 }
 import { collection, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
+import { InvictusSelect } from '@/components/InvictusSelect';
 import { CHECKLIST_SECTIONS } from '@/lib/checklists';
 
 // Checklists — a directory of Mobaro / Microsoft Forms checklists, grouped into
@@ -191,19 +192,15 @@ export default function ChecklistsPage() {
               Add a checklist
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <select
+              <InvictusSelect
                 value={sectionChoice}
-                onChange={(e) => setSectionChoice(e.target.value)}
-                className={inputClass}
+                onChange={setSectionChoice}
                 title="Which category this checklist belongs to"
-              >
-                {sectionNames.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-                <option value={NEW_CATEGORY}>+ New category…</option>
-              </select>
+                options={[
+                  ...sectionNames.map((s) => ({ value: s, label: s })),
+                  { value: NEW_CATEGORY, label: '+ New category…' },
+                ]}
+              />
               {sectionChoice === NEW_CATEGORY ? (
                 <input
                   value={newCategory}

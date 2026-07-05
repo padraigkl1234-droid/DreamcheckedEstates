@@ -5,6 +5,7 @@ import { ClipboardList, ExternalLink, ChevronDown, Plus, Trash2, Search } from '
 import { collection, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
+import { InvictusSelect } from '@/components/InvictusSelect';
 
 // ---------------------------------------------------------------------------
 // Audits — a directory of audit Microsoft Forms in collapsible groups. The
@@ -247,19 +248,15 @@ export default function AuditsPage() {
               Add an audit
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <select
+              <InvictusSelect
                 value={categoryChoice}
-                onChange={(e) => setCategoryChoice(e.target.value)}
-                className={inputClass}
+                onChange={setCategoryChoice}
                 title="Which group this audit belongs to"
-              >
-                {groups.map((g) => (
-                  <option key={g.name} value={g.name}>
-                    {g.name}
-                  </option>
-                ))}
-                <option value={NEW_CATEGORY}>+ New category…</option>
-              </select>
+                options={[
+                  ...groups.map((g) => ({ value: g.name, label: g.name })),
+                  { value: NEW_CATEGORY, label: '+ New category…' },
+                ]}
+              />
               {categoryChoice === NEW_CATEGORY ? (
                 <input
                   value={newCategory}
