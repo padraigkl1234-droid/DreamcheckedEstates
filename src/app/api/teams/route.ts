@@ -187,6 +187,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
   } catch (error) {
     console.error('teams endpoint error:', error);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    const detail = (error as { message?: string })?.message || String(error);
+    return NextResponse.json({ error: `Server error: ${detail}` }, { status: 500 });
   }
 }
