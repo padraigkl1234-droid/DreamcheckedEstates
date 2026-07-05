@@ -73,6 +73,7 @@ import {
   ShieldOff,
   Paperclip,
   Loader2,
+  ImagePlus,
 } from 'lucide-react';
 import {
   Area,
@@ -114,6 +115,7 @@ interface Task {
   createdAt?: number;
   category?: string;
   notes?: string;
+  images?: TaskImage[]; // photos attached to the task
   area?: string; // Dreamland site-map zone this task is pinned to, if any
   // --- Sharing (tasks live in a shared `tasks` collection, private by default) ---
   ownerUid?: string;
@@ -123,6 +125,12 @@ interface Task {
   pendingUid?: string | null; // person this task is offered to, awaiting their accept
   pendingName?: string | null;
   archived?: boolean;
+}
+
+interface TaskImage {
+  url: string;
+  path: string; // storage path, for deletion
+  uploadedAt: number;
 }
 
 // A user who has signed in at least once — the assignable-people roster.
@@ -3400,6 +3408,7 @@ function TaskManager({
   onAcceptOffer,
   onDeclineOffer,
   onEdit,
+  onSetImages,
 }: {
   tasks: Task[];
   archivedTasks: Task[];
@@ -3417,6 +3426,7 @@ function TaskManager({
     id: string,
     updates: { name: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
   ) => void;
+  onSetImages: (id: string, images: TaskImage[]) => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
   const todayStr = toDateInputValue(new Date());
@@ -3481,6 +3491,52 @@ function TaskManager({
     });
     playConfirm();
     setEditingId(null);
+  };
+
+  // Photo attachments per task — uploaded to Firebase Storage under tasks/<id>/.
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const imageTargetId = useRef<string | null>(null);
+  const [uploadingImageFor, setUploadingImageFor] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
+  const pickImages = (id: string) => {
+    imageTargetId.current = id;
+    imageInputRef.current?.click();
+  };
+  const handleImagesChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    const id = imageTargetId.current;
+    if (!files.length || !id) return;
+    if (files.some((f) => f.size > 15 * 1024 * 1024)) {
+      setImageError('Images must be 15 MB or under.');
+      return;
+    }
+    const task = tasks.find((t) => t.id === id);
+    setUploadingImageFor(id);
+    setImageError(null);
+    try {
+      const added: TaskImage[] = [];
+      for (const file of files) {
+        const path = `tasks/${id}/${Date.now()}-${file.name}`;
+        const fileRef = storageRef(storage, path);
+        await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(fileRef);
+        added.push({ url, path, uploadedAt: Date.now() });
+      }
+      onSetImages(id, [...(task?.images ?? []), ...added]);
+      playConfirm();
+    } catch (error) {
+      console.error('Task image upload failed:', error);
+      setImageError('Upload failed — make sure Storage rules allow signed-in uploads.');
+    } finally {
+      setUploadingImageFor(null);
+    }
+  };
+  const removeImage = (task: Task, img: TaskImage) => {
+    deleteObject(storageRef(storage, img.path)).catch(() => {});
+    onSetImages(task.id, (task.images ?? []).filter((i) => i.path !== img.path));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -3606,6 +3662,8 @@ function TaskManager({
       </Panel>
 
       <Panel title={`Active Tasks (${tasks.length})`} icon={ListChecks} refCode="0104-T">
+        <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImagesChosen} />
+        {imageError && <p className="mb-2 text-xs text-alert">{imageError}</p>}
         <div className="space-y-2">
           {completedCount > 0 && (
             <button
@@ -3634,7 +3692,7 @@ function TaskManager({
                 return (
             <div
               key={task.id}
-              className={`relative flex flex-col gap-3 rounded-md border p-3 shadow-glow-subtle md:flex-row md:items-center md:justify-between ${
+              className={`relative flex flex-col gap-3 rounded-md border p-3 shadow-glow-subtle ${
                 isPinned ? 'border-alert/50 bg-alert/5 shadow-glow-alert' : 'border-neutral-400/20 bg-invictus-base/40'
               }`}
             >
@@ -3690,10 +3748,11 @@ function TaskManager({
                 </div>
               ) : (
               <>
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-neutral-100">{task.name}</p>
+                <p className="text-base font-semibold leading-snug text-neutral-100 md:text-lg">{task.name}</p>
                 <Kicker>Due {task.dueDate || '—'}</Kicker>
-                {task.notes && <p className="mt-1 line-clamp-2 text-xs text-neutral-500">{task.notes}</p>}
+                {task.notes && <p className="mt-1.5 text-sm leading-relaxed text-neutral-400">{task.notes}</p>}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {isPinned && (
@@ -3746,6 +3805,14 @@ function TaskManager({
                   ]}
                 />
                 <button
+                  onClick={() => pickImages(task.id)}
+                  disabled={uploadingImageFor === task.id}
+                  className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright disabled:opacity-50"
+                  title="Add photos"
+                >
+                  {uploadingImageFor === task.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                </button>
+                <button
                   onClick={() => startEdit(task)}
                   className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
                   title="Edit task"
@@ -3769,6 +3836,29 @@ function TaskManager({
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
+              </div>
+              {(task.images?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {task.images!.map((img) => (
+                    <div key={img.path} className="group/img relative h-20 w-20 overflow-hidden rounded-md border border-neutral-400/25">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img.url}
+                        alt="Task attachment"
+                        className="h-full w-full cursor-zoom-in object-cover"
+                        onClick={() => setLightbox(img.url)}
+                      />
+                      <button
+                        onClick={() => removeImage(task, img)}
+                        className="absolute right-0.5 top-0.5 rounded bg-black/60 p-0.5 text-neutral-300 opacity-0 transition-opacity hover:text-alert group-hover/img:opacity-100"
+                        title="Remove photo"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               </>
               )}
             </div>
@@ -3778,6 +3868,23 @@ function TaskManager({
           ))}
         </div>
       </Panel>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-6 backdrop-blur-sm"
+          onClick={() => setLightbox(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={lightbox} alt="Task attachment" className="max-h-full max-w-full rounded-md object-contain shadow-glow-strong" />
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute right-5 top-5 rounded-md border border-neutral-400/30 bg-invictus-base/70 p-2 text-neutral-300 transition-colors hover:text-invictus-crimson-bright"
+            title="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -4631,6 +4738,10 @@ export default function InvictusTrackerPage() {
     if (!user) return;
     updateDoc(doc(db, 'tasks', id), updates).catch(logTaskError('edit task'));
   };
+  const handleSetTaskImages = (id: string, images: TaskImage[]) => {
+    if (!user) return;
+    updateDoc(doc(db, 'tasks', id), { images }).catch(logTaskError('update task images'));
+  };
 
   const handleArchiveTask = (id: string) => {
     if (!user) return;
@@ -4791,6 +4902,7 @@ export default function InvictusTrackerPage() {
                 onAcceptOffer={handleAcceptOffer}
                 onDeclineOffer={handleDeclineOffer}
                 onEdit={handleEditTask}
+                onSetImages={handleSetTaskImages}
               />
             )}
             {activePage === 'archive' && (
