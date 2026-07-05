@@ -30,6 +30,7 @@ export const viewport: Viewport = {
 import { AuthProvider } from "@/components/AuthProvider";
 import { ProfileProvider } from "@/components/ProfileProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { LanguageProvider } from "@/components/LanguageProvider";
 import { AppGate } from "@/components/AppGate";
 import { SoundProvider } from "@/components/SoundProvider";
 import { PointerCaptureFix } from "@/components/PointerCaptureFix";
@@ -70,6 +71,7 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <PointerCaptureFix />
         <ThemeProvider>
+        <LanguageProvider>
         <AuthProvider>
           <ProfileProvider>
             <SoundProvider>
@@ -82,6 +84,7 @@ export default function RootLayout({
             </SoundProvider>
           </ProfileProvider>
         </AuthProvider>
+        </LanguageProvider>
         </ThemeProvider>
         <Toaster />
       </body>

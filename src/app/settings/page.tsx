@@ -9,6 +9,9 @@ import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useTheme, type ThemePref } from '@/components/ThemeProvider';
 import { useSound } from '@/components/SoundProvider';
+import { useLang } from '@/components/LanguageProvider';
+import { LANGUAGES } from '@/lib/i18n';
+import { InvictusSelect } from '@/components/InvictusSelect';
 import { profileName } from '@/lib/teams';
 
 const inputClass =
@@ -25,6 +28,7 @@ export default function SettingsPage() {
   const { profile, team } = useProfile();
   const { theme, setTheme } = useTheme();
   const { muted, toggleMute } = useSound();
+  const { lang, setLang, t } = useLang();
   const [displayName, setDisplayName] = useState('');
   const [teamRole, setTeamRole] = useState('');
   const [photoURL, setPhotoURL] = useState<string | null>(null);
@@ -95,9 +99,9 @@ export default function SettingsPage() {
           <SettingsIcon className="h-8 w-8 text-invictus-crimson-bright drop-shadow-glow-subtle" />
           <div>
             <h1 className="font-display text-2xl uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)] sm:text-3xl">
-              Settings
+              {t('settings.title')}
             </h1>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">Your profile &amp; team</p>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">{t('settings.subtitle')}</p>
           </div>
         </div>
 
@@ -120,19 +124,19 @@ export default function SettingsPage() {
                 className="flex items-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-50"
               >
                 {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                {photoURL ? 'Change picture' : 'Upload picture'}
+                {photoURL ? t('settings.changePicture') : t('settings.uploadPicture')}
               </button>
-              <p className="mt-1 text-[10px] text-neutral-600">JPG or PNG, up to 5 MB.</p>
+              <p className="mt-1 text-[10px] text-neutral-600">{t('settings.pictureHint')}</p>
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] uppercase tracking-widest text-neutral-500">Display name</label>
-            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" className={inputClass} />
+            <label className="text-[10px] uppercase tracking-widest text-neutral-500">{t('settings.displayName')}</label>
+            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputClass} />
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] uppercase tracking-widest text-neutral-500">Team role</label>
+            <label className="text-[10px] uppercase tracking-widest text-neutral-500">{t('settings.teamRole')}</label>
             <input
               value={teamRole}
               onChange={(e) => setTeamRole(e.target.value)}
@@ -142,7 +146,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] uppercase tracking-widest text-neutral-500">Team</label>
+            <label className="text-[10px] uppercase tracking-widest text-neutral-500">{t('settings.team')}</label>
             <p className="rounded-md border border-neutral-400/20 bg-invictus-base/40 px-3 py-2 text-sm text-neutral-300">
               {team?.name ?? '—'}
             </p>
@@ -156,17 +160,26 @@ export default function SettingsPage() {
             className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2.5 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : null}
-            {saved ? 'Saved' : 'Save changes'}
+            {saved ? t('settings.saved') : t('settings.save')}
           </button>
         </div>
 
         {/* Appearance */}
         <div className="mt-6 space-y-4 border border-neutral-400/25 bg-invictus-surface/60 p-6 shadow-glow-subtle">
           <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
-            Appearance
+            {t('settings.appearance')}
           </p>
           <div className="space-y-1">
-            <label className="text-[10px] uppercase tracking-widest text-neutral-500">Theme</label>
+            <label className="text-[10px] uppercase tracking-widest text-neutral-500">{t('settings.language')}</label>
+            <InvictusSelect
+              value={lang}
+              onChange={(v) => setLang(v as typeof lang)}
+              options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))}
+            />
+            <p className="pt-1 text-[10px] text-neutral-600">{t('settings.languageHint')}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase tracking-widest text-neutral-500">{t('settings.theme')}</label>
             <div className="grid grid-cols-3 gap-2">
               {THEME_OPTIONS.map((opt) => {
                 const Icon = opt.icon;
@@ -182,21 +195,19 @@ export default function SettingsPage() {
                     }`}
                   >
                     <Icon className="h-5 w-5" />
-                    {opt.label}
+                    {t(`settings.${opt.value}`)}
                   </button>
                 );
               })}
             </div>
-            <p className="pt-1 text-[10px] text-neutral-600">
-              INVICTUS is designed dark-first; light mode is a lighter take on the same theme.
-            </p>
+            <p className="pt-1 text-[10px] text-neutral-600">{t('settings.themeHint')}</p>
           </div>
         </div>
 
         {/* Preferences */}
         <div className="mt-6 space-y-4 border border-neutral-400/25 bg-invictus-surface/60 p-6 shadow-glow-subtle">
           <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
-            Preferences
+            {t('settings.preferences')}
           </p>
           <button
             onClick={toggleMute}
@@ -204,10 +215,10 @@ export default function SettingsPage() {
           >
             <span className="flex items-center gap-3">
               {muted ? <VolumeX className="h-4 w-4 text-neutral-500" /> : <Volume2 className="h-4 w-4 text-invictus-crimson-bright" />}
-              <span className="text-sm text-neutral-200">Interface sounds</span>
+              <span className="text-sm text-neutral-200">{t('settings.interfaceSounds')}</span>
             </span>
             <span className={`text-[10px] font-semibold uppercase tracking-widest ${muted ? 'text-neutral-600' : 'text-emerald-300'}`}>
-              {muted ? 'Off' : 'On'}
+              {muted ? t('common.off') : t('common.on')}
             </span>
           </button>
         </div>
@@ -215,22 +226,22 @@ export default function SettingsPage() {
         {/* About */}
         <div className="mt-6 space-y-2 border border-neutral-400/25 bg-invictus-surface/60 p-6 shadow-glow-subtle">
           <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
-            About
+            {t('settings.about')}
           </p>
           <div className="flex justify-between text-xs text-neutral-500">
-            <span>Application</span>
-            <span className="text-neutral-300">INVICTUS · Estate Operations Platform</span>
+            <span>{t('settings.application')}</span>
+            <span className="text-neutral-300">INVICTUS · {t('gate.tagline')}</span>
           </div>
           <div className="flex justify-between text-xs text-neutral-500">
-            <span>Version</span>
+            <span>{t('settings.version')}</span>
             <span className="font-mono text-neutral-300">2.0</span>
           </div>
         </div>
 
         <div className="mt-6 flex items-center justify-between text-[11px] text-neutral-600">
-          <span>Signed in as {profileName(profile)} · {user?.email}</span>
+          <span>{t('common.signedInAs')} {profileName(profile)} · {user?.email}</span>
           <button onClick={() => logout()} className="flex items-center gap-1.5 uppercase tracking-widest transition-colors hover:text-alert">
-            <LogOut className="h-3.5 w-3.5" /> Sign out
+            <LogOut className="h-3.5 w-3.5" /> {t('common.signOut')}
           </button>
         </div>
       </div>

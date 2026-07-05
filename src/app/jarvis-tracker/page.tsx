@@ -10,6 +10,7 @@ import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
 import { CHECKLIST_SECTIONS, type ChecklistSection } from '@/lib/checklists';
 import { DREAMLAND_TEAM_ID, featureEnabled, type TeamFeatures } from '@/lib/teams';
 import { useProfile } from '@/components/ProfileProvider';
+import { useT } from '@/components/LanguageProvider';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { Pinwheel } from '@/components/icons/Pinwheel';
@@ -965,10 +966,23 @@ function Sidebar({
   isMaster?: boolean;
 }) {
   const { playHover } = useSound();
+  const t = useT();
   const navItems = NAV_ITEMS.filter(
     (item) =>
       (!item.adminOnly || isAdmin) && (!item.feature || isMaster || featureEnabled(features, item.feature))
   );
+  // Map each sidebar page to its i18n key.
+  const navLabelKey: Record<PageKey, string> = {
+    dashboard: 'nav.dashboard',
+    calendar: 'nav.calendar',
+    shows: 'nav.showBoard',
+    sitemap: 'nav.siteMap',
+    tasks: 'nav.taskManager',
+    compliance: 'nav.compliance',
+    archive: 'nav.archive',
+    reports: 'nav.reports',
+    admin: 'nav.teamControl',
+  };
   return (
     <aside className="flex w-16 flex-col border-r border-neutral-400/20 bg-invictus-base/70 shadow-glow-subtle backdrop-blur-xl md:w-60">
       <div className="flex h-16 items-center justify-center gap-2 border-b border-neutral-400/20 px-2 md:justify-start md:px-5">
@@ -995,7 +1009,7 @@ function Sidebar({
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span className="hidden md:inline">{item.label}</span>
+                <span className="hidden md:inline">{t(navLabelKey[item.key])}</span>
               </button>
             </React.Fragment>
           );
@@ -1009,7 +1023,7 @@ function Sidebar({
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
           </span>
           <span className="hidden text-[10px] uppercase tracking-widest text-emerald-400 md:inline">
-            Online
+            {t('status.online')}
           </span>
         </div>
         <div className="mt-2 flex items-center justify-center gap-2 md:justify-start">
@@ -1036,12 +1050,12 @@ function Sidebar({
             }`}
           >
             {!user
-              ? 'Sign in to save'
+              ? t('status.signInToSave')
               : syncStatus === 'error'
-              ? 'Sync error'
+              ? t('status.syncError')
               : syncStatus === 'loading'
-              ? 'Syncing...'
-              : 'Progress saved'}
+              ? t('status.syncing')
+              : t('status.progressSaved')}
           </span>
         </div>
         {user && syncStatus === 'error' && syncError && (

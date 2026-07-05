@@ -37,14 +37,15 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useTheme } from '@/components/ThemeProvider';
+import { useT } from '@/components/LanguageProvider';
 import { profileName, featureEnabled } from '@/lib/teams';
 import { useSound } from '@/components/SoundProvider';
 
 const NAV_ITEMS = [
-  { name: 'Home', href: '/jarvis-tracker', icon: Pinwheel },
-  { name: 'Estate Requests', href: '/estate-requests', icon: Wrench, feature: 'estateRequests' },
-  { name: 'Checklists', href: '/checklists', icon: ClipboardCheck, feature: 'checklists' },
-  { name: 'Audits', href: '/audits', icon: ClipboardList, feature: 'audits' },
+  { key: 'home', href: '/jarvis-tracker', icon: Pinwheel },
+  { key: 'estateRequests', href: '/estate-requests', icon: Wrench, feature: 'estateRequests' },
+  { key: 'checklists', href: '/checklists', icon: ClipboardCheck, feature: 'checklists' },
+  { key: 'audits', href: '/audits', icon: ClipboardList, feature: 'audits' },
 ];
 
 export function Navbar() {
@@ -52,6 +53,7 @@ export function Navbar() {
   const { user, logout } = useAuth();
   const { profile, team, isMaster } = useProfile();
   const { resolved, setTheme } = useTheme();
+  const t = useT();
   const { muted, toggleMute } = useSound();
   const isActive = (href: string) => pathname === href || (href === '/jarvis-tracker' && pathname === '/');
   // A feature-gated nav item shows only when this team has it enabled (the
@@ -88,7 +90,7 @@ export function Navbar() {
                       )}
                     >
                       <item.icon className={cn("h-5 w-5", isActive(item.href) ? "text-primary" : "")} />
-                      {item.name}
+                      {t(`nav.${item.key}`)}
                     </Link>
                   </SheetClose>
                 ))}
@@ -133,7 +135,7 @@ export function Navbar() {
                 isActive(item.href) ? "bg-accent text-accent-foreground" : "text-muted-foreground"
               )}
             >
-              {item.name}
+              {t(`nav.${item.key}`)}
             </Link>
           ))}
         </nav>
@@ -178,14 +180,14 @@ export function Navbar() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/team" className="cursor-pointer gap-2"><Users className="h-4 w-4" /> My Team</Link>
+                  <Link href="/team" className="cursor-pointer gap-2"><Users className="h-4 w-4" /> {t('nav.myTeam')}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/settings" className="cursor-pointer gap-2"><Settings className="h-4 w-4" /> Settings</Link>
+                  <Link href="/settings" className="cursor-pointer gap-2"><Settings className="h-4 w-4" /> {t('nav.settings')}</Link>
                 </DropdownMenuItem>
                 {isMaster && (
                   <DropdownMenuItem asChild>
-                    <Link href="/master" className="cursor-pointer gap-2"><Crown className="h-4 w-4 text-amber-400" /> Master Console</Link>
+                    <Link href="/master" className="cursor-pointer gap-2"><Crown className="h-4 w-4 text-amber-400" /> {t('nav.masterConsole')}</Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
@@ -194,11 +196,11 @@ export function Navbar() {
                   className="cursor-pointer gap-2"
                 >
                   {resolved === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                  {resolved === 'dark' ? 'Light mode' : 'Dark mode'}
+                  {resolved === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => logout()} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
-                  <LogOut className="h-4 w-4" /> Sign Out
+                  <LogOut className="h-4 w-4" /> {t('nav.signOut')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
