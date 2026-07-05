@@ -24,8 +24,19 @@ import {
   SheetTrigger,
   SheetClose,
 } from '@/components/ui/sheet';
+import { Users, Settings, Crown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/AuthProvider';
+import { useProfile } from '@/components/ProfileProvider';
+import { profileName } from '@/lib/teams';
 import { useSound } from '@/components/SoundProvider';
 
 const NAV_ITEMS = [
@@ -38,6 +49,7 @@ const NAV_ITEMS = [
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { profile, team, isMaster } = useProfile();
   const { muted, toggleMute } = useSound();
   const isActive = (href: string) => pathname === href || (href === '/jarvis-tracker' && pathname === '/');
 
@@ -136,15 +148,48 @@ export function Navbar() {
             <span className="sr-only">{muted ? 'Unmute interface sounds' : 'Mute interface sounds'}</span>
           </Button>
           {user ? (
-            <div className="hidden items-center gap-3 md:flex">
-              <span className="text-xs text-muted-foreground">{user.displayName || user.email}</span>
-              <Button variant="ghost" size="icon" onClick={() => logout()} title="Sign Out">
-                <LogOut className="h-5 w-5 text-muted-foreground" />
-              </Button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 rounded-full border border-border/60 py-1 pl-1 pr-2 transition-colors hover:border-primary/50" title="Account">
+                  <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-primary/30 bg-primary/10">
+                    {profile?.photoURL ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={profile.photoURL} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <UserIcon className="h-4 w-4 text-primary" />
+                    )}
+                  </span>
+                  <span className="hidden max-w-[140px] truncate text-xs text-muted-foreground sm:inline">
+                    {profileName(profile) !== 'Unknown' ? profileName(profile) : user.displayName || user.email}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="flex flex-col">
+                  <span className="truncate">{profileName(profile)}</span>
+                  {team && <span className="truncate text-[10px] font-normal uppercase tracking-widest text-muted-foreground">{team.name}</span>}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/team" className="cursor-pointer gap-2"><Users className="h-4 w-4" /> My Team</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" className="cursor-pointer gap-2"><Settings className="h-4 w-4" /> Settings</Link>
+                </DropdownMenuItem>
+                {isMaster && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/master" className="cursor-pointer gap-2"><Crown className="h-4 w-4 text-amber-400" /> Master Console</Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => logout()} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
+                  <LogOut className="h-4 w-4" /> Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/assignments">Sign In</Link>
+            <Button variant="outline" size="sm" onClick={() => logout()}>
+              Sign In
             </Button>
           )}
         </div>

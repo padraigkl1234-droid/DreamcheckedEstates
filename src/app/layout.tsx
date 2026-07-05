@@ -28,6 +28,8 @@ export const viewport: Viewport = {
 };
 
 import { AuthProvider } from "@/components/AuthProvider";
+import { ProfileProvider } from "@/components/ProfileProvider";
+import { AppGate } from "@/components/AppGate";
 import { SoundProvider } from "@/components/SoundProvider";
 import { PointerCaptureFix } from "@/components/PointerCaptureFix";
 import { Navbar } from "@/components/Navbar";
@@ -61,12 +63,16 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <PointerCaptureFix />
         <AuthProvider>
-          <SoundProvider>
-            <Navbar />
-            <div className="pt-16">
-              {children}
-            </div>
-          </SoundProvider>
+          <ProfileProvider>
+            <SoundProvider>
+              <AppGate>
+                <Navbar />
+                <div className="pt-16">
+                  {children}
+                </div>
+              </AppGate>
+            </SoundProvider>
+          </ProfileProvider>
         </AuthProvider>
         <Toaster />
       </body>
