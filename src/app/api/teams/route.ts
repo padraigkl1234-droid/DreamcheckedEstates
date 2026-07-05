@@ -31,9 +31,19 @@ async function ensureDreamland(db: Firestore) {
   const ref = db.collection('teams').doc(DREAMLAND_TEAM_ID);
   const snap = await ref.get();
   if (!snap.exists) {
-    await ref.set({ name: DREAMLAND_TEAM_NAME, referralCode: generateReferralCode(), createdAt: Date.now() });
-  } else if (!snap.data()?.referralCode) {
-    await ref.update({ referralCode: generateReferralCode() });
+    await ref.set({
+      name: DREAMLAND_TEAM_NAME,
+      referralCode: generateReferralCode(),
+      createdAt: Date.now(),
+      features: { estateRequests: true },
+    });
+  } else {
+    const data = snap.data() ?? {};
+    const patch: Record<string, unknown> = {};
+    if (!data.referralCode) patch.referralCode = generateReferralCode();
+    // Dreamland keeps Estate Requests on by default (backfill for existing doc).
+    if (data.features?.estateRequests === undefined) patch['features.estateRequests'] = true;
+    if (Object.keys(patch).length) await ref.update(patch);
   }
 }
 
@@ -155,6 +165,18 @@ export async function POST(req: Request) {
       const code = generateReferralCode();
       await db.collection('teams').doc(teamId).update({ referralCode: code });
       return NextResponse.json({ ok: true, referralCode: code });
+    }
+
+    if (action === 'setFeature') {
+      const teamId = typeof body.teamId === 'string' ? body.teamId : '';
+      const feature = typeof body.feature === 'string' ? body.feature : '';
+      const enabled = body.enabled === true;
+      const allowed = ['estateRequests'];
+      if (!teamId || !allowed.includes(feature)) {
+        return NextResponse.json({ error: 'Missing or unknown feature' }, { status: 400 });
+      }
+      await db.collection('teams').doc(teamId).set({ features: { [feature]: enabled } }, { merge: true });
+      return NextResponse.json({ ok: true });
     }
 
     // Everything below targets a specific user.

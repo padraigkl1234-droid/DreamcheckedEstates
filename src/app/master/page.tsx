@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Crown, RefreshCw, Plus, Copy, Check, ShieldOff, ShieldCheck, Trash2, Loader2 } from 'lucide-react';
+import { Crown, RefreshCw, Plus, Copy, Check, X, ShieldOff, ShieldCheck, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
@@ -12,6 +12,7 @@ type Action =
   | { action: 'list' }
   | { action: 'createTeam'; name: string }
   | { action: 'regenCode'; teamId: string }
+  | { action: 'setFeature'; teamId: string; feature: 'estateRequests'; enabled: boolean }
   | { action: 'moveUser'; targetUid: string; teamId: string }
   | { action: 'block'; targetUid: string }
   | { action: 'unblock'; targetUid: string }
@@ -152,7 +153,26 @@ export default function MasterPage() {
                         {teamMembers.length}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() =>
+                          run({
+                            action: 'setFeature',
+                            teamId: team.id,
+                            feature: 'estateRequests',
+                            enabled: !team.features?.estateRequests,
+                          })
+                        }
+                        className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest transition-colors ${
+                          team.features?.estateRequests
+                            ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20'
+                            : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-500 hover:text-neutral-300'
+                        }`}
+                        title="Toggle the Estate Requests page for this team"
+                      >
+                        {team.features?.estateRequests ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        Estate Requests
+                      </button>
                       <button
                         onClick={() => {
                           navigator.clipboard?.writeText(team.referralCode);

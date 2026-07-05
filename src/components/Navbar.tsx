@@ -41,7 +41,7 @@ import { useSound } from '@/components/SoundProvider';
 
 const NAV_ITEMS = [
   { name: 'Home', href: '/jarvis-tracker', icon: Pinwheel },
-  { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
+  { name: 'Estate Requests', href: '/estate-requests', icon: Wrench, feature: 'estateRequests' as const },
   { name: 'Checklists', href: '/checklists', icon: ClipboardCheck },
   { name: 'Audits', href: '/audits', icon: ClipboardList },
 ];
@@ -52,6 +52,11 @@ export function Navbar() {
   const { profile, team, isMaster } = useProfile();
   const { muted, toggleMute } = useSound();
   const isActive = (href: string) => pathname === href || (href === '/jarvis-tracker' && pathname === '/');
+  // A feature-gated nav item shows only when this team has it enabled (the
+  // master admin always sees everything).
+  const navItems = NAV_ITEMS.filter(
+    (item) => !item.feature || isMaster || team?.features?.[item.feature]
+  );
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 border-b bg-background/80 backdrop-blur-md">
@@ -71,7 +76,7 @@ export function Navbar() {
                 </SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-2 py-6">
-                {NAV_ITEMS.map((item) => (
+                {navItems.map((item) => (
                   <SheetClose asChild key={item.href}>
                     <Link
                       href={item.href}
@@ -117,7 +122,7 @@ export function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-1 md:flex">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

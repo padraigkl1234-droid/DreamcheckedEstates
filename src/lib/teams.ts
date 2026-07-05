@@ -5,11 +5,16 @@
 export const DREAMLAND_TEAM_ID = 'dreamland';
 export const DREAMLAND_TEAM_NAME = 'Dreamland';
 
+export interface TeamFeatures {
+  estateRequests?: boolean;
+}
+
 export interface Team {
   id: string;
   name: string;
   referralCode: string;
   createdAt: number;
+  features?: TeamFeatures;
 }
 
 export interface UserProfile {

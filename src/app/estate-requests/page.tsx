@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Wrench, FileSpreadsheet, ClipboardList, ExternalLink, ChevronRight } from 'lucide-react';
+import { useProfile } from '@/components/ProfileProvider';
 
 const REQUEST_EXCEL_URL =
   'https://lneallaccess-my.sharepoint.com/:x:/r/personal/padraig_kessonlyons_lyv_livenation_com/_layouts/15/Doc.aspx?sourcedoc=%7B0D9A54B0-596F-4B26-ACA7-3CBEFD452AA4%7D&file=Estates%20Request%20Form.xlsx&action=edit&mobileredirect=true&wdMsFormsCorrelationId=9c4bcf8d-b5ee-4b9a-8f45-d2cce541071d&wdtf=%20Microsoft.Office.Excel.FMsFormsMetadataInWorkbookMetadata%3Atrue';
@@ -46,6 +47,20 @@ function Corners() {
 }
 
 export default function EstateRequestsPage() {
+  const { team, isMaster, loading } = useProfile();
+  const enabled = isMaster || team?.features?.estateRequests;
+
+  // Enforce the per-team toggle even if someone navigates here directly.
+  if (!loading && !enabled) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-invictus-base px-4 text-center font-sans">
+        <p className="max-w-md text-xs uppercase tracking-widest text-neutral-500">
+          Estate Requests isn&apos;t enabled for your team.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
