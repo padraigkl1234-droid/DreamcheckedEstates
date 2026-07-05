@@ -3424,7 +3424,7 @@ function TaskManager({
   onDeclineOffer: (id: string) => void;
   onEdit: (
     id: string,
-    updates: { name: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
+    updates: { name: string; notes: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
   ) => void;
   onSetImages: (id: string, images: TaskImage[]) => void;
 }) {
@@ -3458,6 +3458,7 @@ function TaskManager({
     [sortedTasks]
   );
   const [name, setName] = useState('');
+  const [notes, setNotes] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
   const [status, setStatus] = useState<TaskStatus>('Not Started');
@@ -3468,6 +3469,7 @@ function TaskManager({
   // Inline editing of an existing task.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [editNotes, setEditNotes] = useState('');
   const [editPriority, setEditPriority] = useState<Priority>('Medium');
   const [editDueDate, setEditDueDate] = useState('');
   const [editAssigneeUid, setEditAssigneeUid] = useState('');
@@ -3475,6 +3477,7 @@ function TaskManager({
   const startEdit = (task: Task) => {
     setEditingId(task.id);
     setEditName(task.name);
+    setEditNotes(task.notes ?? '');
     setEditPriority(task.priority);
     setEditDueDate(task.dueDate);
     setEditAssigneeUid(task.pendingUid ?? '');
@@ -3484,6 +3487,7 @@ function TaskManager({
     const assignee = teammates.find((m) => m.uid === editAssigneeUid);
     onEdit(task.id, {
       name: editName.trim(),
+      notes: editNotes.trim(),
       priority: editPriority,
       dueDate: editDueDate,
       pendingUid: assignee?.uid ?? null,
@@ -3549,10 +3553,12 @@ function TaskManager({
       priority,
       dueDate,
       status,
+      ...(notes.trim() ? { notes: notes.trim() } : {}),
       ...(assignee ? { pendingUid: assignee.uid, pendingName: assignee.name } : {}),
     });
     playConfirm();
     setName('');
+    setNotes('');
     setPriority('Medium');
     setDueDate('');
     setStatus('Not Started');
@@ -3652,6 +3658,13 @@ function TaskManager({
               ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
             ]}
           />
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Description (optional)"
+            rows={2}
+            className="w-full min-w-0 resize-y rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-6"
+          />
           <button
             type="submit"
             className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong sm:col-span-2 lg:col-span-6"
@@ -3731,7 +3744,14 @@ function TaskManager({
                       ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
                     ]}
                   />
-                  <div className="flex items-center gap-2">
+                  <textarea
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Description (optional)"
+                    rows={2}
+                    className="w-full min-w-0 resize-y rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-6"
+                  />
+                  <div className="flex items-center gap-2 lg:col-span-6">
                     <button
                       onClick={() => saveEdit(task)}
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-300 transition-all hover:bg-emerald-400/20"
@@ -4733,7 +4753,7 @@ export default function InvictusTrackerPage() {
   // teammate after creation (sets a fresh pending offer; null clears one).
   const handleEditTask = (
     id: string,
-    updates: { name: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
+    updates: { name: string; notes: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
   ) => {
     if (!user) return;
     updateDoc(doc(db, 'tasks', id), updates).catch(logTaskError('edit task'));
