@@ -7,7 +7,9 @@ import { db, storage, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
 import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
-import { CHECKLIST_SECTIONS } from '@/lib/checklists';
+import { CHECKLIST_SECTIONS, type ChecklistSection } from '@/lib/checklists';
+import { DREAMLAND_TEAM_ID } from '@/lib/teams';
+import { useProfile } from '@/components/ProfileProvider';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { Pinwheel } from '@/components/icons/Pinwheel';
@@ -3275,21 +3277,28 @@ function StatusLight({ on }: { on: boolean }) {
 
 function ShowsBoard({
   shows,
+  sections,
   signedIn,
   onAdd,
   onDelete,
   onToggleChecklist,
 }: {
   shows: Show[];
+  sections: ChecklistSection[];
   signedIn: boolean;
   onAdd: (show: Show) => void;
   onDelete: (id: string) => void;
   onToggleChecklist: (showId: string, checklistName: string) => void;
 }) {
   const [date, setDate] = useState(() => toDateInputValue(new Date()));
-  const [type, setType] = useState(CHECKLIST_SECTIONS[0]?.name ?? '');
+  const [type, setType] = useState('');
   const [title, setTitle] = useState('');
   const { playConfirm } = useSound();
+
+  // Keep the selected show type valid as the team's sections load/change.
+  useEffect(() => {
+    if (sections.length && !sections.some((s) => s.name === type)) setType(sections[0].name);
+  }, [sections, type]);
 
   const sortedShows = useMemo(
     () => [...shows].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
@@ -3305,7 +3314,7 @@ function ShowsBoard({
   };
 
   const formsForType = (showType: string) =>
-    CHECKLIST_SECTIONS.find((s) => s.name === showType)?.forms ?? [];
+    sections.find((s) => s.name === showType)?.forms ?? [];
 
   if (!signedIn) {
     return (
@@ -3313,6 +3322,18 @@ function ShowsBoard({
         <Panel title="Show Board" icon={Clapperboard} refCode="0081-S">
           <p className="py-10 text-center text-xs uppercase tracking-widest text-neutral-500">
             Sign in to view and update the shared Show Board.
+          </p>
+        </Panel>
+      </div>
+    );
+  }
+
+  if (sections.length === 0) {
+    return (
+      <div className="space-y-5">
+        <Panel title="Show Board" icon={Clapperboard} refCode="0081-S">
+          <p className="py-10 text-center text-xs uppercase tracking-widest text-neutral-500">
+            No checklists yet. Add checklists on the Checklists page to schedule shows here.
           </p>
         </Panel>
       </div>
@@ -3338,7 +3359,7 @@ function ShowsBoard({
               value={type}
               onChange={setType}
               className="bg-invictus-base/60"
-              options={CHECKLIST_SECTIONS.map((s) => ({ value: s.name, label: s.name }))}
+              options={sections.map((s) => ({ value: s.name, label: s.name }))}
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -4457,6 +4478,10 @@ function BootSplash() {
 
 export default function InvictusTrackerPage() {
   const { user } = useAuth();
+  const { profile } = useProfile();
+  const teamId = profile?.teamId ?? null;
+  const isDreamland = teamId === DREAMLAND_TEAM_ID;
+  const [teamChecklistForms, setTeamChecklistForms] = useState<{ section: string; name: string; description?: string; url: string }[]>([]);
   const [mounted, setMounted] = useState(false);
   const [booting, setBooting] = useState(true);
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
@@ -4645,21 +4670,51 @@ export default function InvictusTrackerPage() {
     };
   }, [user]);
 
-  // The Show Board is a SHARED, live team board: shows live in a top-level
-  // `shows` collection that every signed-in user (and the Power Automate webhook)
-  // reads/writes, so lights update in real time for everyone.
+  // The Show Board is a SHARED, live team board scoped to this user's team:
+  // shows live in a top-level `shows` collection that everyone in the team
+  // (and the Power Automate webhook) reads/writes, so lights update live.
   useEffect(() => {
-    if (!user) {
+    if (!user || !teamId) {
       setShows([]);
       return;
     }
     const unsub = onSnapshot(
-      collection(db, 'shows'),
+      query(collection(db, 'shows'), where('teamId', '==', teamId)),
       (snap) => setShows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Show, 'id'>) }))),
       (error) => console.error('Show board subscription failed:', error)
     );
     return unsub;
-  }, [user]);
+  }, [user, teamId]);
+
+  // The team's custom checklists (feeds both the Checklists page and the Show
+  // Board's show types / lights).
+  useEffect(() => {
+    if (!user || !teamId) {
+      setTeamChecklistForms([]);
+      return;
+    }
+    const unsub = onSnapshot(
+      query(collection(db, 'checklistForms'), where('teamId', '==', teamId)),
+      (snap) => setTeamChecklistForms(snap.docs.map((d) => d.data() as { section: string; name: string; description?: string; url: string })),
+      (error) => console.error('Team checklists subscription failed:', error)
+    );
+    return unsub;
+  }, [user, teamId]);
+
+  // Sections available to this team's Show Board: Dreamland's built-ins (only
+  // for Dreamland) plus any checklists the team has added, grouped by category.
+  const teamSections = useMemo<ChecklistSection[]>(() => {
+    const merged: ChecklistSection[] = isDreamland
+      ? CHECKLIST_SECTIONS.map((s) => ({ name: s.name, forms: s.forms.map((f) => ({ ...f })) }))
+      : [];
+    for (const c of teamChecklistForms) {
+      const target = merged.find((s) => s.name.trim().toLowerCase() === (c.section ?? '').trim().toLowerCase());
+      const entry = { name: c.name, description: c.description, url: c.url };
+      if (target) target.forms.push(entry);
+      else merged.push({ name: c.section, forms: [entry] });
+    }
+    return merged;
+  }, [teamChecklistForms, isDreamland]);
 
   const totalItems = tasks.length + compliances.length;
   const completedItems = tasks.filter((t) => t.status === 'Completed').length + compliances.filter((c) => c.completed).length;
@@ -4814,8 +4869,8 @@ export default function InvictusTrackerPage() {
   // Writes go straight to the shared `shows` collection; the onSnapshot listener
   // above reflects them back (live) for this user and everyone else.
   const handleAddShow = (show: Show) => {
-    if (!user) return;
-    setDoc(doc(db, 'shows', show.id), { date: show.date, type: show.type, title: show.title ?? null, completed: show.completed })
+    if (!user || !teamId) return;
+    setDoc(doc(db, 'shows', show.id), { date: show.date, type: show.type, title: show.title ?? null, completed: show.completed, teamId })
       .catch((e) => console.error('Failed to add show:', e));
   };
   const handleDeleteShow = (id: string) => {
@@ -4867,6 +4922,7 @@ export default function InvictusTrackerPage() {
             {activePage === 'shows' && (
               <ShowsBoard
                 shows={shows}
+                sections={teamSections}
                 signedIn={!!user}
                 onAdd={handleAddShow}
                 onDelete={handleDeleteShow}

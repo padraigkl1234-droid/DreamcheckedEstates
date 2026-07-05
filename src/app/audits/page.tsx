@@ -2,10 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, ExternalLink, ChevronDown, Plus, Trash2, Search } from 'lucide-react';
-import { collection, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, onSnapshot, query as fsQuery, setDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
+import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
+import { DREAMLAND_TEAM_ID } from '@/lib/teams';
 
 // ---------------------------------------------------------------------------
 // Audits — a directory of audit Microsoft Forms in collapsible groups. The
@@ -23,6 +25,7 @@ interface CustomAudit extends Audit {
   id: string;
   category?: string;
   createdAt: number;
+  teamId?: string;
 }
 
 type DisplayAudit = Audit & { custom?: CustomAudit };
@@ -83,6 +86,9 @@ const inputClass =
 
 export default function AuditsPage() {
   const { user } = useAuth();
+  const { profile } = useProfile();
+  const teamId = profile?.teamId ?? null;
+  const isDreamland = teamId === DREAMLAND_TEAM_ID;
   const [custom, setCustom] = useState<CustomAudit[]>([]);
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
@@ -106,18 +112,25 @@ export default function AuditsPage() {
       setCustom([]);
       return;
     }
+    if (!teamId) {
+      setCustom([]);
+      return;
+    }
     const unsub = onSnapshot(
-      collection(db, 'auditForms'),
+      fsQuery(collection(db, 'auditForms'), where('teamId', '==', teamId)),
       (snap) => setCustom(snap.docs.map((d) => ({ ...(d.data() as Omit<CustomAudit, 'id'>), id: d.id }))),
       (error) => console.error('Audits subscription failed:', error)
     );
     return unsub;
-  }, [user]);
+  }, [user, teamId]);
 
   // Core audits first, then team categories in the order they were created.
   // Team audits without a category join the core group.
   const groups = useMemo(() => {
-    const list: { name: string; audits: DisplayAudit[] }[] = [{ name: CORE_GROUP, audits: [...AUDITS] }];
+    // The built-in Core Audits are Dreamland's; other teams start empty.
+    const list: { name: string; audits: DisplayAudit[] }[] = isDreamland
+      ? [{ name: CORE_GROUP, audits: [...AUDITS] }]
+      : [];
     for (const c of [...custom].sort((a, b) => a.createdAt - b.createdAt)) {
       const cat = (c.category ?? '').trim() || CORE_GROUP;
       const entry: DisplayAudit = { name: c.name, url: c.url, custom: c };
@@ -126,7 +139,7 @@ export default function AuditsPage() {
       else list.push({ name: cat, audits: [entry] });
     }
     return list;
-  }, [custom]);
+  }, [custom, isDreamland]);
 
   const totalCount = groups.reduce((sum, g) => sum + g.audits.length, 0);
   const searchResults = useMemo(() => {
@@ -152,11 +165,16 @@ export default function AuditsPage() {
       setFormError('Paste the full form link — it should start with https://');
       return;
     }
+    if (!teamId) {
+      setFormError('You need to be in a team to add audits.');
+      return;
+    }
     setDoc(doc(db, 'auditForms', genId()), {
       name: name.trim(),
       url: link,
       category: category === CORE_GROUP ? '' : category,
       createdAt: Date.now(),
+      teamId,
     }).catch((error) => {
       console.error('Failed to add audit:', error);
       setFormError('Save failed — check your connection and that the database rules allow it.');

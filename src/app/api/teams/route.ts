@@ -52,6 +52,27 @@ async function migrateLegacyUsers(db: Firestore) {
   await batch.commit();
 }
 
+// One-time: stamp all existing shared data (checklists, audits, shows) as
+// Dreamland's so it stays with Dreamland once collections become team-scoped.
+async function migrateTeamData(db: Firestore) {
+  const metaRef = db.collection('appMeta').doc('teams');
+  const meta = await metaRef.get();
+  if (meta.data()?.migratedTeamData) return;
+  for (const coll of ['checklistForms', 'auditForms', 'shows']) {
+    const snap = await db.collection(coll).get();
+    const batch = db.batch();
+    let count = 0;
+    snap.forEach((d) => {
+      if (!d.data()?.teamId) {
+        batch.update(d.ref, { teamId: DREAMLAND_TEAM_ID });
+        count++;
+      }
+    });
+    if (count) await batch.commit();
+  }
+  await metaRef.set({ migratedTeamData: true, migratedTeamDataAt: Date.now() }, { merge: true });
+}
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get('authorization') ?? '';
@@ -78,6 +99,7 @@ export async function POST(req: Request) {
     if (action === 'bootstrap') {
       await ensureDreamland(db);
       await migrateLegacyUsers(db);
+      await migrateTeamData(db);
       // Register / refresh the caller's user doc.
       const userRef = db.collection('users').doc(decoded.uid);
       await userRef.set(

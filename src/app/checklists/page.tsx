@@ -2,11 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, ExternalLink, ChevronRight, ChevronDown, Plus, Trash2 } from 'lucide-react';
-import { collection, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
+import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { CHECKLIST_SECTIONS } from '@/lib/checklists';
+import { DREAMLAND_TEAM_ID } from '@/lib/teams';
 
 // Checklists — a directory of Mobaro / Microsoft Forms checklists, grouped into
 // sections. The built-in sections live in @/lib/checklists (the Show Board
@@ -20,6 +22,7 @@ interface CustomChecklist {
   description?: string;
   url: string;
   createdAt: number;
+  teamId?: string;
 }
 
 interface DisplayForm {
@@ -53,6 +56,9 @@ const inputClass =
 
 export default function ChecklistsPage() {
   const { user } = useAuth();
+  const { profile } = useProfile();
+  const teamId = profile?.teamId ?? null;
+  const isDreamland = teamId === DREAMLAND_TEAM_ID;
   const [custom, setCustom] = useState<CustomChecklist[]>([]);
 
   // Add-checklist form state.
@@ -74,27 +80,27 @@ export default function ChecklistsPage() {
     });
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !teamId) {
       setCustom([]);
       return;
     }
     const unsub = onSnapshot(
-      collection(db, 'checklistForms'),
+      query(collection(db, 'checklistForms'), where('teamId', '==', teamId)),
       (snap) =>
         setCustom(snap.docs.map((d) => ({ ...(d.data() as Omit<CustomChecklist, 'id'>), id: d.id }))),
       (error) => console.error('Checklists subscription failed:', error)
     );
     return unsub;
-  }, [user]);
+  }, [user, teamId]);
 
   // Built-in sections first (in their fixed order), then team-added categories
   // in the order they were created. Team-added checklists slot into an existing
   // section when the category name matches.
   const sections = useMemo(() => {
-    const merged: { name: string; forms: DisplayForm[] }[] = CHECKLIST_SECTIONS.map((s) => ({
-      name: s.name,
-      forms: s.forms.map((f) => ({ ...f })),
-    }));
+    // Built-in sections are Dreamland's; other teams start empty and add their own.
+    const merged: { name: string; forms: DisplayForm[] }[] = isDreamland
+      ? CHECKLIST_SECTIONS.map((s) => ({ name: s.name, forms: s.forms.map((f) => ({ ...f })) }))
+      : [];
     for (const c of [...custom].sort((a, b) => a.createdAt - b.createdAt)) {
       const entry: DisplayForm = { name: c.name, description: c.description, url: c.url, custom: c };
       const target = merged.find((s) => s.name.trim().toLowerCase() === c.section.trim().toLowerCase());
@@ -102,7 +108,7 @@ export default function ChecklistsPage() {
       else merged.push({ name: c.section, forms: [entry] });
     }
     return merged;
-  }, [custom]);
+  }, [custom, isDreamland]);
 
   const sectionNames = sections.map((s) => s.name);
 
@@ -123,6 +129,10 @@ export default function ChecklistsPage() {
       setFormError('Paste the full form link — it should start with https://');
       return;
     }
+    if (!teamId) {
+      setFormError('You need to be in a team to add checklists.');
+      return;
+    }
     const id = genId();
     setDoc(doc(db, 'checklistForms', id), {
       section,
@@ -130,6 +140,7 @@ export default function ChecklistsPage() {
       description: description.trim(),
       url: link,
       createdAt: Date.now(),
+      teamId,
     }).catch((error) => {
       console.error('Failed to add checklist:', error);
       setFormError('Save failed — check your connection and that the database rules allow it.');
