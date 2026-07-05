@@ -6,6 +6,7 @@ import { Orb, type OrbState } from '@/components/Orb';
 import { Clock } from '@/components/Clock';
 import { TrainingHud } from '@/components/TrainingHud';
 import { NutritionHud } from '@/components/NutritionHud';
+import { Onboarding } from '@/components/Onboarding';
 import { useVoice } from '@/components/useVoice';
 import {
   loadStore,
@@ -28,6 +29,7 @@ interface Caption {
 
 export default function JarvisPage() {
   const [store, setStore] = useState<JarvisStore>(DEFAULT_STORE);
+  const [hydrated, setHydrated] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [thinkingAmp, setThinkingAmp] = useState(0);
   const [caption, setCaption] = useState<Caption | null>(null);
@@ -52,7 +54,21 @@ export default function JarvisPage() {
     const loaded = loadStore();
     storeRef.current = loaded;
     setStore(loaded);
+    setHydrated(true);
   }, []);
+
+  const handleOnboardingComplete = useCallback(
+    (patch: Partial<JarvisStore>) => {
+      const cur = storeRef.current;
+      commitStore({
+        ...cur,
+        ...patch,
+        profile: { ...cur.profile, ...(patch.profile ?? {}) },
+        memories: [...cur.memories, ...(patch.memories ?? [])],
+      });
+    },
+    [commitStore]
+  );
 
   const showCaption = useCallback((next: Caption, holdMs = 9000) => {
     if (captionTimeoutRef.current) clearTimeout(captionTimeoutRef.current);
@@ -195,6 +211,12 @@ export default function JarvisPage() {
 
   const iconBtn =
     'flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-white/60 backdrop-blur-md transition-colors hover:border-sky-400/40 hover:text-sky-300';
+
+  // Avoid a flash of onboarding before localStorage has loaded.
+  if (!hydrated) return <div className="h-[100dvh] w-full bg-black" />;
+
+  // First run — require a profile before the console is accessible.
+  if (!store.profile.onboarded) return <Onboarding onComplete={handleOnboardingComplete} />;
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-black font-sans">

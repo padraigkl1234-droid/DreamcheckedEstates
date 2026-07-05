@@ -1,7 +1,7 @@
 'use client';
 
 import { HudFrame, HudSection } from '@/components/HudFrame';
-import { type JarvisStore, todayStr } from '@/lib/store';
+import { type JarvisStore, MEMORY_META, todayStr } from '@/lib/store';
 
 const WEEKDAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -100,16 +100,31 @@ export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: 
         )}
       </HudSection>
 
-      {/* Memory bank */}
+      {/* Memory bank — grouped by category, injuries surfaced first */}
       <HudSection label={`Memory Bank · ${store.memories.length}`}>
         {store.memories.length > 0 ? (
           <div className="space-y-1.5">
-            {store.memories.slice(-6).reverse().map((m, i) => (
-              <div key={i} className="flex gap-1.5 text-[11px] leading-snug text-white/60">
-                <span className="text-sky-400/60">◈</span>
-                <span>{m.note}</span>
-              </div>
-            ))}
+            {[...store.memories]
+              .sort((a, b) => {
+                // Injuries and records float to the top; otherwise newest-first.
+                const rank = (c: string) => (c === 'injury' ? 0 : c === 'record' ? 1 : 2);
+                return rank(a.category) - rank(b.category);
+              })
+              .map((m, i) => {
+                const meta = MEMORY_META[m.category] ?? MEMORY_META.general;
+                const isWarn = m.category === 'injury';
+                return (
+                  <div key={i} className="flex gap-1.5 text-[11px] leading-snug">
+                    <span
+                      className={isWarn ? 'text-amber-400/80' : 'text-sky-400/60'}
+                      title={meta.label}
+                    >
+                      {meta.glyph}
+                    </span>
+                    <span className={isWarn ? 'text-amber-100/80' : 'text-white/60'}>{m.note}</span>
+                  </div>
+                );
+              })}
           </div>
         ) : (
           <div className="text-[12px] italic text-white/35">

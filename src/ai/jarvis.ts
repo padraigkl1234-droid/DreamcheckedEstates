@@ -48,6 +48,13 @@ const updateProfileTool = ai.defineTool(
     inputSchema: z.object({
       name: z.string().optional(),
       goal: z.string().optional().describe('e.g. "build muscle", "lose fat", "improve 5k time"'),
+      experience: z.string().optional().describe('Beginner | Intermediate | Advanced'),
+      daysPerWeek: z.number().optional(),
+      equipment: z.array(z.string()).optional(),
+      bodyweightKg: z.number().optional(),
+      heightCm: z.number().optional(),
+      age: z.number().optional(),
+      sex: z.string().optional(),
       calorieTarget: z.number().optional(),
       proteinTargetG: z.number().optional(),
       carbsTargetG: z.number().optional(),
@@ -203,17 +210,31 @@ const rememberTool = ai.defineTool(
   {
     name: 'remember',
     description:
-      "Saves a durable fact about the athlete to long-term memory so it persists across every future conversation. Use for things worth remembering indefinitely: injuries and limitations, food allergies or dislikes, equipment they own, personal records, schedule constraints, and stated preferences. Do NOT use this for one-off daily logs (meals, sets, water) — those have their own tools.",
+      "Saves a durable fact about the athlete to long-term memory so it persists across every future conversation. Use for things worth remembering indefinitely: injuries and limitations, food allergies or dislikes, equipment they own, personal records, schedule constraints, goals, and stated preferences. Do NOT use this for one-off daily logs (meals, sets, water) — those have their own tools. If a similar memory already exists, this updates it in place rather than duplicating.",
     inputSchema: z.object({
       note: z.string().describe('A concise, self-contained fact, e.g. "Left shoulder impingement — avoid heavy overhead pressing"'),
+      category: z
+        .enum(['injury', 'preference', 'equipment', 'record', 'schedule', 'nutrition', 'goal', 'general'])
+        .describe('The kind of fact this is, so it can be filed correctly'),
+      replaces: z
+        .string()
+        .optional()
+        .describe('If this fact updates an existing memory, text identifying that older memory so it can be replaced'),
     }),
     outputSchema: z.object({ memoryCount: z.number() }),
   },
-  async ({ note }) => {
+  async ({ note, category, replaces }) => {
     const trimmed = note.trim();
-    if (trimmed && !working.memories.some((m) => m.note.toLowerCase() === trimmed.toLowerCase())) {
-      working.memories.push({ date: todayStr(), note: trimmed });
-    }
+    if (!trimmed) return { memoryCount: working.memories.length };
+
+    // Remove any memory this one supersedes, plus exact duplicates.
+    const needle = replaces?.trim().toLowerCase();
+    working.memories = working.memories.filter((m) => {
+      if (m.note.toLowerCase() === trimmed.toLowerCase()) return false;
+      if (needle && m.note.toLowerCase().includes(needle)) return false;
+      return true;
+    });
+    working.memories.push({ date: todayStr(), note: trimmed, category });
     return { memoryCount: working.memories.length };
   }
 );
@@ -312,8 +333,21 @@ function buildContextBlock(now: Date): string {
 
   const memorySummary =
     working.memories.length > 0
-      ? working.memories.map((m) => `• ${m.note}`).join('\n')
+      ? working.memories.map((m) => `• [${m.category}] ${m.note}`).join('\n')
       : 'Nothing saved yet.';
+
+  const p2 = working.profile;
+  const profileLine = [
+    p2.experience ? `${p2.experience} level` : null,
+    p2.daysPerWeek ? `trains ${p2.daysPerWeek} days/week` : null,
+    p2.equipment && p2.equipment.length ? `equipment: ${p2.equipment.join(', ')}` : null,
+    p2.bodyweightKg ? `${p2.bodyweightKg}kg` : null,
+    p2.heightCm ? `${p2.heightCm}cm` : null,
+    p2.age ? `${p2.age}y` : null,
+    p2.sex || null,
+  ]
+    .filter(Boolean)
+    .join(', ');
 
   const setsSummary =
     sets.length > 0
@@ -325,7 +359,7 @@ function buildContextBlock(now: Date): string {
   return `
 CURRENT CONTEXT (ground truth — trust this over anything that contradicts it):
 - Right now: ${now.toLocaleString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-- Athlete: ${p.name}. Goal: ${p.goal || 'not set yet'}.
+- Athlete: ${p.name}. Goal: ${p.goal || 'not set yet'}.${profileLine ? ` Profile: ${profileLine}.` : ''}
 - Weekly plan overview: ${planOverview}
 - Today's session: ${todayPlan ? describePlanDay(todayPlan) : 'No session planned for today.'}
 - Sets logged today: ${setsSummary}
