@@ -5,8 +5,26 @@
 export const DREAMLAND_TEAM_ID = 'dreamland';
 export const DREAMLAND_TEAM_NAME = 'Dreamland';
 
-export interface TeamFeatures {
-  estateRequests?: boolean;
+// Per-team page visibility. A key that's absent or true means the page is on;
+// only an explicit false hides it. The master admin always sees everything.
+export type TeamFeatures = Record<string, boolean | undefined>;
+
+// Every page that can be toggled per team, in display order.
+export const TOGGLEABLE_PAGES: { key: string; label: string }[] = [
+  { key: 'estateRequests', label: 'Estate Requests' },
+  { key: 'checklists', label: 'Checklists' },
+  { key: 'audits', label: 'Audits' },
+  { key: 'calendar', label: 'Calendar' },
+  { key: 'showBoard', label: 'Show Board' },
+  { key: 'siteMap', label: 'Site Map' },
+  { key: 'taskManager', label: 'Task Manager' },
+  { key: 'compliance', label: 'Compliance' },
+  { key: 'archive', label: 'Archive' },
+  { key: 'reports', label: 'Reports' },
+];
+
+export function featureEnabled(features: TeamFeatures | undefined, key: string): boolean {
+  return features?.[key] !== false;
 }
 
 export interface Team {
@@ -15,6 +33,7 @@ export interface Team {
   referralCode: string;
   createdAt: number;
   features?: TeamFeatures;
+  archived?: boolean;
 }
 
 export interface UserProfile {

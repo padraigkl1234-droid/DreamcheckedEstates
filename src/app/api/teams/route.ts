@@ -5,6 +5,7 @@ import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import {
   DREAMLAND_TEAM_ID,
   DREAMLAND_TEAM_NAME,
+  TOGGLEABLE_PAGES,
   generateReferralCode,
   normalizeCode,
 } from '@/lib/teams';
@@ -167,11 +168,42 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, referralCode: code });
     }
 
+    if (action === 'archiveTeam') {
+      const teamId = typeof body.teamId === 'string' ? body.teamId : '';
+      const archived = body.archived === true;
+      if (!teamId) return NextResponse.json({ error: 'Missing teamId' }, { status: 400 });
+      await db.collection('teams').doc(teamId).set({ archived }, { merge: true });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'deleteTeam') {
+      const teamId = typeof body.teamId === 'string' ? body.teamId : '';
+      const deleteData = body.deleteData === true;
+      if (!teamId) return NextResponse.json({ error: 'Missing teamId' }, { status: 400 });
+      if (teamId === DREAMLAND_TEAM_ID) {
+        return NextResponse.json({ error: 'The Dreamland team cannot be deleted' }, { status: 403 });
+      }
+      // Detach members (they'll be prompted to join a team again).
+      const members = await db.collection('users').where('teamId', '==', teamId).get();
+      for (const m of members.docs) await m.ref.update({ teamId: FieldValue.delete() });
+      // Optionally wipe the team's data.
+      if (deleteData) {
+        for (const coll of ['checklistForms', 'auditForms', 'shows']) {
+          const snap = await db.collection(coll).where('teamId', '==', teamId).get();
+          const batch = db.batch();
+          snap.forEach((d) => batch.delete(d.ref));
+          if (snap.size) await batch.commit();
+        }
+      }
+      await db.collection('teams').doc(teamId).delete();
+      return NextResponse.json({ ok: true });
+    }
+
     if (action === 'setFeature') {
       const teamId = typeof body.teamId === 'string' ? body.teamId : '';
       const feature = typeof body.feature === 'string' ? body.feature : '';
       const enabled = body.enabled === true;
-      const allowed = ['estateRequests'];
+      const allowed = TOGGLEABLE_PAGES.map((p) => p.key);
       if (!teamId || !allowed.includes(feature)) {
         return NextResponse.json({ error: 'Missing or unknown feature' }, { status: 400 });
       }

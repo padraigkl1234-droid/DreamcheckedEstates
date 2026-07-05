@@ -135,14 +135,36 @@ function GateSpinner() {
   );
 }
 
+function TeamArchived() {
+  const { user, logout } = useAuth();
+  return (
+    <Shell>
+      <div className="relative border border-neutral-400/25 bg-invictus-surface/70 p-8 text-center shadow-glow-strong backdrop-blur-md">
+        <Users className="mx-auto mb-3 h-10 w-10 text-neutral-500" />
+        <h1 className="font-display text-xl uppercase tracking-[0.2em] text-neutral-100">Team archived</h1>
+        <p className="mt-2 text-xs text-neutral-500">
+          Your team has been archived and is currently inactive. Contact your administrator.
+        </p>
+        <button
+          onClick={() => logout()}
+          className="mt-6 flex w-full items-center justify-center gap-2 text-[11px] uppercase tracking-widest text-neutral-500 transition-colors hover:text-invictus-crimson-bright"
+        >
+          <LogOut className="h-3.5 w-3.5" /> Signed in as {user?.email} · Sign out
+        </button>
+      </div>
+    </Shell>
+  );
+}
+
 export function AppGate({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const { profile, loading: profileLoading, isMaster } = useProfile();
+  const { profile, team, loading: profileLoading, isMaster } = useProfile();
 
   if (authLoading) return <GateSpinner />;
   if (!user) return <LoginLanding />;
   if (profileLoading) return <GateSpinner />;
   // Master admin is above teams — never gated on team membership.
   if (!isMaster && !profile?.teamId) return <JoinTeam />;
+  if (!isMaster && team?.archived) return <TeamArchived />;
   return <>{children}</>;
 }

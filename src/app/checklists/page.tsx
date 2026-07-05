@@ -8,7 +8,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { CHECKLIST_SECTIONS } from '@/lib/checklists';
-import { DREAMLAND_TEAM_ID } from '@/lib/teams';
+import { DREAMLAND_TEAM_ID, featureEnabled } from '@/lib/teams';
 
 // Checklists — a directory of Mobaro / Microsoft Forms checklists, grouped into
 // sections. The built-in sections live in @/lib/checklists (the Show Board
@@ -56,9 +56,10 @@ const inputClass =
 
 export default function ChecklistsPage() {
   const { user } = useAuth();
-  const { profile } = useProfile();
+  const { profile, team, isMaster, loading: profileLoading } = useProfile();
   const teamId = profile?.teamId ?? null;
   const isDreamland = teamId === DREAMLAND_TEAM_ID;
+  const pageEnabled = isMaster || featureEnabled(team?.features, 'checklists');
   const [custom, setCustom] = useState<CustomChecklist[]>([]);
 
   // Add-checklist form state.
@@ -164,6 +165,16 @@ export default function ChecklistsPage() {
       console.error('Failed to delete checklist:', error)
     );
   };
+
+  if (!profileLoading && !pageEnabled) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-invictus-base px-4 text-center font-sans">
+        <p className="max-w-md text-xs uppercase tracking-widest text-neutral-500">
+          Checklists isn&apos;t enabled for your team.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">

@@ -3,6 +3,7 @@
 import React from 'react';
 import { Wrench, FileSpreadsheet, ClipboardList, ExternalLink, ChevronRight } from 'lucide-react';
 import { useProfile } from '@/components/ProfileProvider';
+import { featureEnabled } from '@/lib/teams';
 
 const REQUEST_EXCEL_URL =
   'https://lneallaccess-my.sharepoint.com/:x:/r/personal/padraig_kessonlyons_lyv_livenation_com/_layouts/15/Doc.aspx?sourcedoc=%7B0D9A54B0-596F-4B26-ACA7-3CBEFD452AA4%7D&file=Estates%20Request%20Form.xlsx&action=edit&mobileredirect=true&wdMsFormsCorrelationId=9c4bcf8d-b5ee-4b9a-8f45-d2cce541071d&wdtf=%20Microsoft.Office.Excel.FMsFormsMetadataInWorkbookMetadata%3Atrue';
@@ -48,7 +49,7 @@ function Corners() {
 
 export default function EstateRequestsPage() {
   const { team, isMaster, loading } = useProfile();
-  const enabled = isMaster || team?.features?.estateRequests;
+  const enabled = isMaster || featureEnabled(team?.features, 'estateRequests');
 
   // Enforce the per-team toggle even if someone navigates here directly.
   if (!loading && !enabled) {

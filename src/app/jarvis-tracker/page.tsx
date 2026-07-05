@@ -8,7 +8,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
 import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
 import { CHECKLIST_SECTIONS, type ChecklistSection } from '@/lib/checklists';
-import { DREAMLAND_TEAM_ID } from '@/lib/teams';
+import { DREAMLAND_TEAM_ID, featureEnabled, type TeamFeatures } from '@/lib/teams';
 import { useProfile } from '@/components/ProfileProvider';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { InvictusSelect } from '@/components/InvictusSelect';
@@ -227,100 +227,8 @@ const SEED_TASKS: Task[] = [
   { id: 't4', name: 'Audit fire extinguisher inventory', priority: 'High', dueDate: '2026-06-19', status: 'Completed', completedAt: Date.now() - 2 * DAY_MS },
 ];
 
-// One-off tasks dictated ahead of a return from leave — surfaced via a
-// quick-add button on Task Manager so they land in the user's saved list
-// the next time they're signed in, rather than overwriting it outright.
-const PENDING_RETURN_TASKS: Task[] = [
-  { id: 'pt1', name: 'Sort the PO for welding', priority: 'Medium', dueDate: '2026-06-23', status: 'Not Started' },
-  { id: 'pt2', name: 'Do a meter reading', priority: 'Medium', dueDate: '', status: 'Not Started' },
-  { id: 'pt3', name: 'Catch up with Holly', priority: 'Low', dueDate: '', status: 'Not Started' },
-  { id: 'pt4', name: 'Double check all contractor requirements since being off', priority: 'High', dueDate: '', status: 'Not Started' },
-];
-
-// Inbox triage after annual leave, w/c 22 Jun 2026. Source JSON "Critical" items
-// mapped to the app's top existing tier (High) since there is no Critical tier.
-// Surfaced via a quick-add button (same mechanism as PENDING_RETURN_TASKS) so
-// these land in the user's real saved task list instead of a seed default that
-// gets overwritten on sign-in.
-const INBOX_TASKS: Task[] = [
-  { id: 'it1', name: 'Woodchip — decide order for 25–27 Jun shows', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-22', status: 'Not Started', notes: 'Covered for Fri 19 only. Decide if more needed for 3 shows (Thu 25–Sat 27). Confirm to Hollie.' },
-  { id: 'it2', name: 'Trader power — The Streets / Obi’s House', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: '4x 16amp must be live by 9am Fri 26 for Twerk N Jerk + Kerb traders (load-in 11am Fri, in situ to end of Obi’s House Sat 27). Confirm with Cary & Craig.' },
-  { id: 'it3', name: 'Scenic Railway survey contacts to Jack King', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Send Jack the survey contractor details so identified repairs can be booked. Grade II* listed.' },
-  { id: 'it4', name: 'Walk-in freezer part — reply to Hollie', category: 'Procurement & Quotes', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Perfect Services QU-0733 approved. Confirm freezer size and decide on the ~£4k part.' },
-  { id: 'it5', name: 'CleanSmart Solutions — overdue invoice', category: 'Finance', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'inv-001866, 83 days overdue and being chased. Get paid / respond.' },
-  { id: 'it6', name: 'Quantec — overdue invoice R/30799/5062-01', category: 'Finance', priority: 'High', dueDate: '2026-06-24', status: 'Not Started', notes: 'Second chase from Sharon, no reply yet. Resolve payment.' },
-  { id: 'it7', name: 'Confirm RCBO replacement behind Please Sir', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-25', status: 'Not Started', notes: 'Cary booked Richard (electrician) Fri 26 Jun 8am. Confirm Thu 25 he is still attending — needed for Obi’s House Sat 27.' },
-  { id: 'it8', name: 'Green room showers — arrange gas safe engineer', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: 'Drain Doctor can’t fix — thermostat behind wall. Affects green rooms for shows. Book gas safe engineer.' },
-  { id: 'it9', name: 'Fan replacement (Nitor) — raise/confirm PO', category: 'Events & Ops', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: 'Only date left is Mon 29 Jun; next month fully booked. Align with Cary and raise/confirm PO to secure before summer holidays.' },
-  { id: 'it10', name: 'Kent Water Services — invoice KWS-2764', category: 'Finance', priority: 'High', dueDate: '2026-06-28', status: 'Not Started', notes: '£609.50, due 28 Jun. Approve / pay.' },
-  { id: 'it11', name: 'Fire door replacement & remediation quote (HK Safety)', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-30', status: 'Not Started', notes: 'Quote from fire door inspections. Statutory — review and progress to works.' },
-  { id: 'it12', name: 'Credit card receipts + coding for Julie', category: 'Finance', priority: 'Medium', dueDate: '2026-06-24', status: 'Not Started', notes: 'Provide receipt + coding: B&Q £24.99 (02/06) and Jewson £236.47 (19/05).' },
-  { id: 'it13', name: 'Budget tracker — Drain Doctor cost allocation', category: 'Finance', priority: 'Medium', dueDate: '2026-06-24', status: 'Not Started', notes: 'Unread thread. Advise Kelly/Hollie whether drainage cover is a show cost vs estates cost.' },
-  { id: 'it14', name: 'DNA Pest Control — receipt the POs', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Receipt the POs (per Julie) if happy with them.' },
-  { id: 'it15', name: 'Check invoices 5616 & 5584', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Review both; existing £70 PO can be used against 5584 (Julie).' },
-  { id: 'it16', name: 'James Richards invoice DL002', category: 'Finance', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Electrical cover 30 May. Arrange payment.' },
-  { id: 'it17', name: 'Scenic gate insurance claim — send invoices to Sarah', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-25', status: 'Not Started', notes: 'Send Sarah Boorman the invoices; she is checking the day rate with Hollie.' },
-  { id: 'it18', name: 'Ashford Tarmac PCN — Belgrave Road', category: 'Finance', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'New PCN for Belgrave Road car park. Dispute as with previous fines.' },
-  { id: 'it19', name: 'Vape recycling bins + July recycling contract (Countrystyle)', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'Get actual disposal cost from Harry before buying; confirm budget line; Liz to order ~4 bins. Also confirm status of July recycling contract.' },
-  { id: 'it20', name: 'Riello UPS service — review RAMS', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'RAMS received for HQ UPS service (SO 222568). Review and confirm schedule.' },
-  { id: 'it21', name: 'Quantec open quotes — provide decisions', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'Louisa chasing updates/decisions on all open Dreamland quotes.' },
-  { id: 'it22', name: 'Drain Doctor quote 127634 — review', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: 'Review and decide.' },
-  { id: 'it23', name: 'Water contract — review broker offers', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: 'Review 3 offers (Pozitive, Water Plus, Water2Business) and respond to Laurien (Live Nation).' },
-  { id: 'it24', name: 'CWST clean & water sampling (Kent Water)', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: 'Quote to disinfect tree tops cold water tank + monthly fountain sampling. Legionella — review and decide.' },
-  { id: 'it25', name: 'RiteHite bi-annual service — confirm', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-07-02', status: 'Not Started', notes: 'Provisionally booked 3 Jul. Needs a scissor lift, not a tower — confirm access.' },
-  { id: 'it26', name: 'Prins Forklifts — hire agreement + invoices', category: 'Finance', priority: 'Low', dueDate: '2026-06-26', status: 'Not Started', notes: 'Hollie is lead, I’m cc’d. Hire agreement still unsigned + deposit/hire invoices outstanding.' },
-  { id: 'it27', name: 'UK Creative Festival EMP V1 — skim', category: 'Events & Ops', priority: 'Low', dueDate: '2026-07-01', status: 'Not Started', notes: 'Review V1 EMP for estates input. Event 2 Jul.' },
-  { id: 'it28', name: 'Glass balustrades (decking) — support Cary', category: 'Procurement & Quotes', priority: 'Low', dueDate: '2026-07-01', status: 'Not Started', notes: 'SW Ltd to attend and find a solution; tarmac/concrete around decking makes lifting difficult. Heavy gig calendar.' },
-];
-
-// Outlook inbox triage, w/c 22 Jun 2026 (post-leave catch-up). Genuinely new actionable
-// items found by scanning recent emails — excludes anything that's just an update/confirmation
-// on an already-tracked item (e.g. Nitor fan booking, Prins Forklifts PO, Dreamland Collections,
-// invoice 5584). Surfaced via the same quick-add mechanism as INBOX_TASKS.
-const OUTLOOK_TASKS: Task[] = [
-  { id: 'ot1', name: 'Approve Inspyrus invoice 1578105513 — Live Nation (Music) UK Ltd', category: 'Finance', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: 'Julie: now part of Operations, needs to go on the tracker. Approve via Inspyrus.' },
-  { id: 'ot2', name: 'Approve Inspyrus invoice INV-11541 — VR Sani-Co Ltd', category: 'Finance', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'Awaiting your approval in Inspyrus.' },
-  { id: 'ot3', name: 'Approve Inspyrus invoice 49490 — Total Supplies Ltd', category: 'Finance', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'Awaiting your approval in Inspyrus.' },
-  { id: 'ot4', name: 'Invoice S58509 — confirm for tracker', category: 'Finance', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'Julie flagged this needs to go on the tracker if not already there — check with Hollie or Kelly; will be processed via Inspyrus.' },
-  { id: 'ot5', name: 'Overheating external network cabinets — arrange fix', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-06-26', status: 'Not Started', notes: "David Rigley (Live Nation IT) reports cabinet temps over 55°C against a 45°C hardware max — risk to CCTV, park screens & lighting. Perfect Services' extractor fans aren't enough. Arrange a meeting to agree a solution before peak summer heat." },
-  { id: 'ot6', name: 'Review Arlington Car Park Audit findings (street sweeper)', category: 'Compliance & Safety', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: 'Craig Ellis sent audit findings + suggestions for Arlington Car Park, incl. a pushable street sweeper option. Review PDF and respond with decisions.' },
-  { id: 'ot7', name: 'Confirm on-site contact for KERB Sunday power setup', category: 'Events & Ops', priority: 'Medium', dueDate: '2026-06-27', status: 'Not Started', notes: "Kelsey (KERB) asked who their electrician should liaise with on-site this Sunday morning." },
-  { id: 'ot8', name: 'Complete Action Counters Terrorism 2026-2027 course', category: 'Compliance & Safety', priority: 'High', dueDate: '2026-07-15', status: 'Not Started', notes: 'Mandatory Workday Learning Hub course — complete within 21 days of 24 Jun.' },
-  { id: 'ot9', name: 'Canterbury Lifts — arrange callout for lift issue', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-07-01', status: 'Not Started', notes: "Engineer believes the current fault is unrelated to the Feb works; they've offered to arrange a callout to investigate." },
-  { id: 'ot10', name: "Decide on Stark's MHHS offer — reply to Laurien", category: 'Finance', priority: 'Medium', dueDate: '2026-06-30', status: 'Not Started', notes: "Laurien (Live Nation) needs a final yes/no on Stark's Market-wide Half-Hourly Settlement reform offer." },
-  { id: 'ot11', name: 'DHT container access — confirm for 30 Jun ~9am', category: 'Events & Ops', priority: 'Low', dueDate: '2026-06-29', status: 'Not Started', notes: 'Tamara (Dreamland Heritage Trust) asked for container access early morning 30 Jun so they can sort items inside.' },
-  { id: 'ot12', name: 'Order Screwfix parts for Cary', category: 'Procurement & Quotes', priority: 'Medium', dueDate: '2026-06-26', status: 'Not Started', notes: 'McAlpine basin waste x3, Flomasta 15mm pipe, M9x20 socket countersunk screws.' },
-];
-
 const SEED_EVENTS: CalendarEvent[] = [
   { id: 'e1', title: 'Ansul Meeting', date: '2026-06-20', priority: 'High', notes: 'It is with Paul A.' },
-];
-
-const SEED_COMPLIANCES: ComplianceItem[] = [
-  { id: 'c1', name: 'AC System', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c2', name: 'Ansul fire suppression', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c3', name: 'Asbestos survey', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c4', name: 'Boiler Service', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c5', name: 'Carpentry Machinery Servicing', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c6', name: 'CCTV Maintenance', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c7', name: 'Emergency Lighting Testing', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c8', name: 'Fire Alarm & PAVA', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c9', name: 'Fire Door Inspections', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c10', name: 'Fire extinguishers', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c11', name: 'Fire Shutters', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c12', name: 'Fixed wiring inspection', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c13', name: 'Generator Servicing', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c14', name: 'Kitchen Extract Cleaning', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c15', name: 'Legionella Risk Assessment', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c16', name: 'Lighting Protection', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c17', name: 'LOLER inspections (Cinema roof platform & lifting equipment)', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c18', name: 'Passenger lift & barrel lift Cinque Ports service & LOLER', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c19', name: 'PAT Testing', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c20', name: 'People Counter', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c21', name: 'Pest Control', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c22', name: 'Scaffold Inspections', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c23', name: 'Water Hygiene Testing', completed: false, date: '', nextDueDate: '', comments: '' },
-  { id: 'c24', name: 'Workshop machine LEV', completed: false, date: '', nextDueDate: '', comments: '' },
 ];
 
 // Compliance divisions, shown in this order in the tracker. Items are sorted into
@@ -353,15 +261,15 @@ function classifyComplianceDivision(name: string): string {
 const CARD_REVEAL_STEP_MS = 90;
 const CARD_REVEAL_DURATION_MS = 420;
 
-const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard; gapBefore?: boolean; adminOnly?: boolean }[] = [
+const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard; gapBefore?: boolean; adminOnly?: boolean; feature?: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { key: 'calendar', label: 'Calendar', icon: CalendarDays },
-  { key: 'shows', label: 'Show Board', icon: Clapperboard },
-  { key: 'sitemap', label: 'Site Map', icon: MapIcon },
-  { key: 'tasks', label: 'Task Manager', icon: ListChecks },
-  { key: 'compliance', label: 'Compliance', icon: ShieldCheck },
-  { key: 'archive', label: 'Archive', icon: Archive, gapBefore: true },
-  { key: 'reports', label: 'Reports', icon: FileText },
+  { key: 'calendar', label: 'Calendar', icon: CalendarDays, feature: 'calendar' },
+  { key: 'shows', label: 'Show Board', icon: Clapperboard, feature: 'showBoard' },
+  { key: 'sitemap', label: 'Site Map', icon: MapIcon, feature: 'siteMap' },
+  { key: 'tasks', label: 'Task Manager', icon: ListChecks, feature: 'taskManager' },
+  { key: 'compliance', label: 'Compliance', icon: ShieldCheck, feature: 'compliance' },
+  { key: 'archive', label: 'Archive', icon: Archive, gapBefore: true, feature: 'archive' },
+  { key: 'reports', label: 'Reports', icon: FileText, feature: 'reports' },
   { key: 'admin', label: 'Team Control', icon: UserCog, gapBefore: true, adminOnly: true },
 ];
 
@@ -1036,6 +944,8 @@ function Sidebar({
   syncStatus,
   syncError,
   isAdmin = false,
+  features,
+  isMaster = false,
 }: {
   activePage: PageKey;
   onNavigate: (p: PageKey) => void;
@@ -1043,9 +953,14 @@ function Sidebar({
   syncStatus: 'idle' | 'loading' | 'synced' | 'error';
   syncError?: string | null;
   isAdmin?: boolean;
+  features?: TeamFeatures;
+  isMaster?: boolean;
 }) {
   const { playHover } = useSound();
-  const navItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
+  const navItems = NAV_ITEMS.filter(
+    (item) =>
+      (!item.adminOnly || isAdmin) && (!item.feature || isMaster || featureEnabled(features, item.feature))
+  );
   return (
     <aside className="flex w-16 flex-col border-r border-neutral-400/20 bg-invictus-base/70 shadow-glow-subtle backdrop-blur-xl md:w-60">
       <div className="flex h-16 items-center justify-center gap-2 border-b border-neutral-400/20 px-2 md:justify-start md:px-5">
@@ -3482,9 +3397,6 @@ function TaskManager({
   onDelete,
   onArchive,
   onArchiveAllCompleted,
-  onAddPendingReturn,
-  onAddInboxTasks,
-  onAddOutlookTasks,
   onAcceptOffer,
   onDeclineOffer,
   onEdit,
@@ -3499,9 +3411,6 @@ function TaskManager({
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
   onArchiveAllCompleted: () => void;
-  onAddPendingReturn: () => void;
-  onAddInboxTasks: () => void;
-  onAddOutlookTasks: () => void;
   onAcceptOffer: (id: string) => void;
   onDeclineOffer: (id: string) => void;
   onEdit: (
@@ -3510,19 +3419,6 @@ function TaskManager({
   ) => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
-  // A seed item counts as "already handled" if it's in the live list OR sitting in
-  // the archive — otherwise archiving a quick-add task makes its button reappear and
-  // re-adding it resurrects the archived task. Match by name, case-insensitive.
-  const isAlreadyTracked = (seedName: string) => {
-    const key = seedName.trim().toLowerCase();
-    return (
-      tasks.some((t) => t.name.trim().toLowerCase() === key) ||
-      archivedTasks.some((t) => t.name.trim().toLowerCase() === key)
-    );
-  };
-  const pendingReturnCount = PENDING_RETURN_TASKS.filter((p) => !isAlreadyTracked(p.name)).length;
-  const inboxTaskCount = INBOX_TASKS.filter((i) => !isAlreadyTracked(i.name)).length;
-  const outlookTaskCount = OUTLOOK_TASKS.filter((o) => !isAlreadyTracked(o.name)).length;
   const todayStr = toDateInputValue(new Date());
   const isOverdueOrToday = (t: Task) =>
     t.status !== 'Completed' && Boolean(t.dueDate) && daysFromToday(t.dueDate, todayStr) <= 0;
@@ -3707,30 +3603,6 @@ function TaskManager({
             <Plus className="h-4 w-4" /> Add Task
           </button>
         </form>
-        {pendingReturnCount > 0 && (
-          <button
-            onClick={onAddPendingReturn}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
-          >
-            <ListChecks className="h-3.5 w-3.5" /> Add {pendingReturnCount} Pending Task{pendingReturnCount === 1 ? '' : 's'}
-          </button>
-        )}
-        {inboxTaskCount > 0 && (
-          <button
-            onClick={onAddInboxTasks}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
-          >
-            <ListChecks className="h-3.5 w-3.5" /> Add {inboxTaskCount} Inbox Task{inboxTaskCount === 1 ? '' : 's'}
-          </button>
-        )}
-        {outlookTaskCount > 0 && (
-          <button
-            onClick={onAddOutlookTasks}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
-          >
-            <ListChecks className="h-3.5 w-3.5" /> Add {outlookTaskCount} Outlook Task{outlookTaskCount === 1 ? '' : 's'}
-          </button>
-        )}
       </Panel>
 
       <Panel title={`Active Tasks (${tasks.length})`} icon={ListChecks} refCode="0104-T">
@@ -4175,7 +4047,6 @@ function ComplianceTracker({
   onChangeNextDueDate,
   onChangeComments,
   onDelete,
-  onAddMissingStandard,
   onAddAttachment,
   onRemoveAttachment,
 }: {
@@ -4186,13 +4057,9 @@ function ComplianceTracker({
   onChangeNextDueDate: (id: string, date: string) => void;
   onChangeComments: (id: string, comments: string) => void;
   onDelete: (id: string) => void;
-  onAddMissingStandard: () => void;
   onAddAttachment: (id: string, attachment: ComplianceAttachment) => void;
   onRemoveAttachment: (id: string, path: string) => void;
 }) {
-  const missingStandardCount = SEED_COMPLIANCES.filter(
-    (seed) => !compliances.some((c) => c.name.trim().toLowerCase() === seed.name.trim().toLowerCase())
-  ).length;
   // Group items by division for display, keeping COMPLIANCE_DIVISION_ORDER first
   // and appending any unexpected division at the end. Empty divisions are hidden.
   const divisionGroups = useMemo(() => {
@@ -4310,14 +4177,6 @@ function ComplianceTracker({
             <Plus className="h-4 w-4" /> Add Compliance Item
           </button>
         </form>
-        {missingStandardCount > 0 && (
-          <button
-            onClick={onAddMissingStandard}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
-          >
-            <ShieldCheck className="h-3.5 w-3.5" /> Add {missingStandardCount} Missing Standard Item{missingStandardCount === 1 ? '' : 's'}
-          </button>
-        )}
       </Panel>
 
       <Panel title="Compliance Tracker" icon={ShieldCheck} refCode="0200-C">
@@ -4478,7 +4337,7 @@ function BootSplash() {
 
 export default function InvictusTrackerPage() {
   const { user } = useAuth();
-  const { profile } = useProfile();
+  const { profile, team: myTeam } = useProfile();
   const teamId = profile?.teamId ?? null;
   const isDreamland = teamId === DREAMLAND_TEAM_ID;
   const [teamChecklistForms, setTeamChecklistForms] = useState<{ section: string; name: string; description?: string; url: string }[]>([]);
@@ -4723,6 +4582,14 @@ export default function InvictusTrackerPage() {
   const isMaster = (user?.email ?? '').toLowerCase() === MASTER_ADMIN_EMAIL;
   const isAdmin = isMaster || (!!user && team.some((m) => m.uid === user.uid && m.role === 'admin'));
 
+  // If the current page gets disabled for this team, fall back to the dashboard.
+  useEffect(() => {
+    const item = NAV_ITEMS.find((n) => n.key === activePage);
+    if (item?.feature && !isMaster && !featureEnabled(myTeam?.features, item.feature)) {
+      setActivePage('dashboard');
+    }
+  }, [activePage, myTeam?.features, isMaster]);
+
   // All task mutations write straight to the shared `tasks` collection; the
   // live subscriptions above reflect them back into local state (for everyone
   // who can see the task, not just this device).
@@ -4764,21 +4631,6 @@ export default function InvictusTrackerPage() {
     if (!user) return;
     updateDoc(doc(db, 'tasks', id), updates).catch(logTaskError('edit task'));
   };
-  // A quick-add seed item is "missing" only if it's absent from BOTH the live list
-  // and the archive — so an archived task is never resurrected by these buttons.
-  const isTaskTracked = (seedName: string) => {
-    const key = seedName.trim().toLowerCase();
-    return (
-      tasks.some((t) => t.name.trim().toLowerCase() === key) ||
-      archivedTasks.some((t) => t.name.trim().toLowerCase() === key)
-    );
-  };
-  const addSeedTasks = (seeds: Omit<Task, 'id'>[]) => {
-    seeds.filter((s) => !isTaskTracked(s.name)).forEach((item) => handleAddTask({ ...item, id: genId() }));
-  };
-  const handleAddPendingReturnTasks = () => addSeedTasks(PENDING_RETURN_TASKS);
-  const handleAddInboxTasks = () => addSeedTasks(INBOX_TASKS);
-  const handleAddOutlookTasks = () => addSeedTasks(OUTLOOK_TASKS);
 
   const handleArchiveTask = (id: string) => {
     if (!user) return;
@@ -4844,14 +4696,6 @@ export default function InvictusTrackerPage() {
       )
     );
   const handleDeleteCompliance = (id: string) => setCompliances((prev) => prev.filter((c) => c.id !== id));
-  const handleAddMissingStandardCompliances = () => {
-    setCompliances((prev) => {
-      const missing = SEED_COMPLIANCES.filter(
-        (seed) => !prev.some((c) => c.name.trim().toLowerCase() === seed.name.trim().toLowerCase())
-      );
-      return [...prev, ...missing.map((item) => ({ ...item, id: genId() }))];
-    });
-  };
 
   const handleAddEvent = (event: CalendarEvent) => setEvents((prev) => [...prev, event]);
   const handleDeleteEvent = (id: string) => setEvents((prev) => prev.filter((e) => e.id !== id));
@@ -4901,7 +4745,7 @@ export default function InvictusTrackerPage() {
 
       {mounted && !booting && (
         <div className="relative flex h-full">
-          <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} syncError={syncError} isAdmin={isAdmin} />
+          <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} syncError={syncError} isAdmin={isAdmin} features={myTeam?.features} isMaster={isMaster} />
           <main className="flex-1 overflow-y-auto p-5">
             {activePage === 'dashboard' && (
               <Dashboard
@@ -4944,9 +4788,6 @@ export default function InvictusTrackerPage() {
                 onDelete={handleDeleteTask}
                 onArchive={handleArchiveTask}
                 onArchiveAllCompleted={handleArchiveAllCompleted}
-                onAddPendingReturn={handleAddPendingReturnTasks}
-                onAddInboxTasks={handleAddInboxTasks}
-                onAddOutlookTasks={handleAddOutlookTasks}
                 onAcceptOffer={handleAcceptOffer}
                 onDeclineOffer={handleDeclineOffer}
                 onEdit={handleEditTask}
@@ -4968,7 +4809,6 @@ export default function InvictusTrackerPage() {
                 onChangeNextDueDate={handleChangeNextDueDate}
                 onChangeComments={handleChangeComments}
                 onDelete={handleDeleteCompliance}
-                onAddMissingStandard={handleAddMissingStandardCompliances}
                 onAddAttachment={handleAddComplianceAttachment}
                 onRemoveAttachment={handleRemoveComplianceAttachment}
               />

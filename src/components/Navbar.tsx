@@ -36,14 +36,14 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
-import { profileName } from '@/lib/teams';
+import { profileName, featureEnabled } from '@/lib/teams';
 import { useSound } from '@/components/SoundProvider';
 
 const NAV_ITEMS = [
   { name: 'Home', href: '/jarvis-tracker', icon: Pinwheel },
-  { name: 'Estate Requests', href: '/estate-requests', icon: Wrench, feature: 'estateRequests' as const },
-  { name: 'Checklists', href: '/checklists', icon: ClipboardCheck },
-  { name: 'Audits', href: '/audits', icon: ClipboardList },
+  { name: 'Estate Requests', href: '/estate-requests', icon: Wrench, feature: 'estateRequests' },
+  { name: 'Checklists', href: '/checklists', icon: ClipboardCheck, feature: 'checklists' },
+  { name: 'Audits', href: '/audits', icon: ClipboardList, feature: 'audits' },
 ];
 
 export function Navbar() {
@@ -55,7 +55,7 @@ export function Navbar() {
   // A feature-gated nav item shows only when this team has it enabled (the
   // master admin always sees everything).
   const navItems = NAV_ITEMS.filter(
-    (item) => !item.feature || isMaster || team?.features?.[item.feature]
+    (item) => !item.feature || isMaster || featureEnabled(team?.features, item.feature)
   );
 
   return (
