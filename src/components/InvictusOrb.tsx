@@ -1,0 +1,159 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+
+export type OrbState = 'idle' | 'listening' | 'speaking';
+
+interface Particle {
+  angle: number;
+  baseRadius: number;
+  speed: number;
+  size: number;
+  phase: number;
+}
+
+const GREEN_CORE = [4, 28, 18];
+const GREEN_ACCENT = [16, 185, 129];
+const YELLOW_CORE = [56, 42, 4];
+const YELLOW_ACCENT = [250, 204, 21];
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function lerpColor(c1: number[], c2: number[], t: number): string {
+  return `rgb(${Math.round(lerp(c1[0], c2[0], t))}, ${Math.round(lerp(c1[1], c2[1], t))}, ${Math.round(lerp(c1[2], c2[2], t))})`;
+}
+
+export function InvictusOrb({
+  state,
+  amplitude,
+  size = 280,
+}: {
+  state: OrbState;
+  amplitude: number;
+  size?: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const particlesRef = useRef<Particle[]>([]);
+  const colorMixRef = useRef(0);
+  const ampSmoothRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const stateRef = useRef(state);
+  const ampRef = useRef(amplitude);
+
+  stateRef.current = state;
+  ampRef.current = amplitude;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+
+    if (particlesRef.current.length === 0) {
+      const R = size / 2;
+      particlesRef.current = Array.from({ length: 64 }, () => {
+        const baseRadius = R * (0.12 + Math.random() * 0.74);
+        return {
+          angle: Math.random() * Math.PI * 2,
+          baseRadius,
+          speed: (Math.random() * 0.45 + 0.12) * (Math.random() < 0.5 ? 1 : -1),
+          size: Math.random() * 1.7 + 0.6,
+          phase: Math.random() * Math.PI * 2,
+        };
+      });
+    }
+
+    let last = performance.now();
+
+    const tick = (t: number) => {
+      const dt = Math.min((t - last) / 1000, 0.05);
+      last = t;
+
+      const targetMix = stateRef.current === 'speaking' ? 1 : 0;
+      colorMixRef.current = lerp(colorMixRef.current, targetMix, 1 - Math.pow(0.0015, dt));
+
+      const idleBreath = 0.08 + 0.05 * Math.sin(t / 1000 * 1.1);
+      const targetAmp = stateRef.current === 'idle' ? idleBreath : ampRef.current;
+      ampSmoothRef.current = lerp(ampSmoothRef.current, targetAmp, 1 - Math.pow(0.0008, dt));
+
+      const mix = colorMixRef.current;
+      const amp = ampSmoothRef.current;
+      const core = lerpColor(GREEN_CORE, YELLOW_CORE, mix);
+      const accent = lerpColor(GREEN_ACCENT, YELLOW_ACCENT, mix);
+
+      const R = size / 2;
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      ctx.translate(R, R);
+
+      for (let i = 0; i < 3; i++) {
+        const ringR = R * (0.8 + i * 0.07) * (1 + amp * 0.05);
+        ctx.beginPath();
+        ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+        ctx.strokeStyle = accent;
+        ctx.globalAlpha = (0.14 - i * 0.035) * (0.5 + amp);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      const coreR = R * 0.9 * (1 + amp * 0.06);
+      const gradient = ctx.createRadialGradient(0, 0, coreR * 0.05, 0, 0, coreR);
+      gradient.addColorStop(0, accent);
+      gradient.addColorStop(0.42, core);
+      gradient.addColorStop(1, 'rgba(2,6,4,0.04)');
+      ctx.beginPath();
+      ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+      ctx.clip();
+
+      for (const p of particlesRef.current) {
+        p.angle += p.speed * dt * (1 + amp * 2.4);
+        const wobble = Math.sin(t / 1000 * 1.3 + p.phase) * (4 + amp * 14);
+        const r = p.baseRadius + wobble;
+        const x = Math.cos(p.angle) * r;
+        const y = Math.sin(p.angle) * r;
+        ctx.beginPath();
+        ctx.arc(x, y, p.size * (1 + amp * 0.9), 0, Math.PI * 2);
+        ctx.fillStyle = accent;
+        ctx.globalAlpha = 0.32 + amp * 0.45;
+        ctx.shadowColor = accent;
+        ctx.shadowBlur = 6;
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+      ctx.strokeStyle = accent;
+      ctx.globalAlpha = 0.55 + amp * 0.35;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      ctx.restore();
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [size]);
+
+  return <canvas ref={canvasRef} style={{ width: size, height: size }} className="block" />;
+}
