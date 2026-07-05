@@ -1,16 +1,30 @@
 'use client';
 
-import React from 'react';
-import { ClipboardList, ExternalLink } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ClipboardList, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { collection, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/components/AuthProvider';
 
 // ---------------------------------------------------------------------------
 // Audits — a directory of audit Microsoft Forms. Compact cards, two columns,
-// each linking out to the live form.
+// each linking out to the live form. The built-in list is below; anything the
+// team adds is stored in the shared `auditForms` collection and shows for
+// everyone, live.
 // ---------------------------------------------------------------------------
 
 interface Audit {
   name: string;
   url: string;
+}
+
+interface CustomAudit extends Audit {
+  id: string;
+  createdAt: number;
+}
+
+function genId() {
+  return `af-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 const AUDITS: Audit[] = [
@@ -57,7 +71,68 @@ function Corners() {
   );
 }
 
+const inputClass =
+  'w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-surface/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50';
+
 export default function AuditsPage() {
+  const { user } = useAuth();
+  const [custom, setCustom] = useState<CustomAudit[]>([]);
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setCustom([]);
+      return;
+    }
+    const unsub = onSnapshot(
+      collection(db, 'auditForms'),
+      (snap) => setCustom(snap.docs.map((d) => ({ ...(d.data() as Omit<CustomAudit, 'id'>), id: d.id }))),
+      (error) => console.error('Audits subscription failed:', error)
+    );
+    return unsub;
+  }, [user]);
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!name.trim()) {
+      setFormError('Give the audit a title.');
+      return;
+    }
+    const link = url.trim();
+    if (!/^https:\/\/.+/i.test(link)) {
+      setFormError('Paste the full form link — it should start with https://');
+      return;
+    }
+    setDoc(doc(db, 'auditForms', genId()), {
+      name: name.trim(),
+      url: link,
+      createdAt: Date.now(),
+    }).catch((error) => {
+      console.error('Failed to add audit:', error);
+      setFormError('Save failed — check your connection and that the database rules allow it.');
+    });
+    setName('');
+    setUrl('');
+  };
+
+  const handleDelete = (a: CustomAudit) => {
+    if (confirmDeleteId !== a.id) {
+      setConfirmDeleteId(a.id);
+      return;
+    }
+    setConfirmDeleteId(null);
+    deleteDoc(doc(db, 'auditForms', a.id)).catch((error) => console.error('Failed to delete audit:', error));
+  };
+
+  const allAudits: (Audit & { custom?: CustomAudit })[] = [
+    ...AUDITS,
+    ...[...custom].sort((a, b) => a.createdAt - b.createdAt).map((c) => ({ name: c.name, url: c.url, custom: c })),
+  ];
+
   return (
     <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
@@ -79,26 +154,84 @@ export default function AuditsPage() {
               Audits
             </h1>
             <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">
-              {AUDITS.length} audits · opens in Microsoft Forms
+              {allAudits.length} audits · opens in Microsoft Forms
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {AUDITS.map((audit) => (
-            <a
-              key={audit.url}
-              href={audit.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative flex items-center justify-between gap-3 border border-neutral-400/25 bg-invictus-surface/60 px-4 py-3 shadow-glow-subtle backdrop-blur-sm transition-all hover:border-invictus-crimson-bright/60 hover:shadow-glow-strong"
+        {/* Add an audit */}
+        {user ? (
+          <form
+            onSubmit={handleAdd}
+            className="relative mb-8 space-y-3 border border-neutral-400/25 bg-invictus-surface/60 p-5 shadow-glow-subtle backdrop-blur-sm"
+          >
+            <Corners />
+            <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
+              <Plus className="mr-1 inline h-4 w-4 text-invictus-crimson-bright" />
+              Add an audit
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Audit title (e.g. Scaffold Register Audit)"
+                className={inputClass}
+              />
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Microsoft Forms link (https://forms.office.com/…)"
+                className={inputClass}
+              />
+            </div>
+            {formError && <p className="text-xs text-red-400">{formError}</p>}
+            <button
+              type="submit"
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
             >
-              <Corners />
-              <span className="font-display text-[11px] uppercase leading-snug tracking-[0.08em] text-neutral-100">
-                {audit.name}
-              </span>
-              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-neutral-600 transition-colors group-hover:text-invictus-crimson-bright" />
-            </a>
+              <Plus className="h-4 w-4" /> Add Audit
+            </button>
+            <p className="text-center text-[10px] uppercase tracking-widest text-neutral-600">
+              Added audits appear for the whole team
+            </p>
+          </form>
+        ) : (
+          <p className="mb-8 text-center text-xs uppercase tracking-widest text-neutral-600">
+            Sign in to add audits
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {allAudits.map((audit) => (
+            <div key={audit.custom?.id ?? audit.url} className="relative">
+              <a
+                href={audit.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative flex h-full items-center justify-between gap-3 border border-neutral-400/25 bg-invictus-surface/60 px-4 py-3 shadow-glow-subtle backdrop-blur-sm transition-all hover:border-invictus-crimson-bright/60 hover:shadow-glow-strong"
+              >
+                <Corners />
+                <span className={`font-display text-[11px] uppercase leading-snug tracking-[0.08em] text-neutral-100 ${audit.custom ? 'pr-14' : ''}`}>
+                  {audit.name}
+                </span>
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 text-neutral-600 transition-colors group-hover:text-invictus-crimson-bright" />
+              </a>
+              {audit.custom && user && (
+                <button
+                  onClick={() => handleDelete(audit.custom!)}
+                  onMouseLeave={() => setConfirmDeleteId((cur) => (cur === audit.custom!.id ? null : cur))}
+                  title={confirmDeleteId === audit.custom.id ? 'Click again to delete' : `Delete ${audit.name}`}
+                  className={`absolute right-9 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 rounded-md border px-1.5 py-1 text-[9px] font-semibold uppercase tracking-widest transition-all ${
+                    confirmDeleteId === audit.custom.id
+                      ? 'border-red-500/70 bg-red-500/20 text-red-300'
+                      : 'border-neutral-400/30 bg-invictus-base/70 text-neutral-500 hover:border-red-500/50 hover:text-red-400'
+                  }`}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  {confirmDeleteId === audit.custom.id ? 'Sure?' : ''}
+                </button>
+              )}
+            </div>
           ))}
         </div>
 
