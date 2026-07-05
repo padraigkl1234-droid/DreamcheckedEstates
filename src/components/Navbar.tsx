@@ -29,8 +29,8 @@ import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
 
 const NAV_ITEMS = [
-  { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
   { name: 'Home', href: '/jarvis-tracker', icon: Pinwheel },
+  { name: 'Estate Requests', href: '/estate-requests', icon: Wrench },
   { name: 'Checklists', href: '/checklists', icon: ClipboardCheck },
   { name: 'Audits', href: '/audits', icon: ClipboardList },
 ];

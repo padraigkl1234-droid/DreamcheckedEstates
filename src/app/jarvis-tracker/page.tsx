@@ -9,6 +9,7 @@ import { useSound } from '@/components/SoundProvider';
 import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
 import { CHECKLIST_SECTIONS } from '@/lib/checklists';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
+import { InvictusSelect } from '@/components/InvictusSelect';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import {
   type ComplianceItem,
@@ -2265,32 +2266,34 @@ function CalendarPage({
             onChange={(e) => setDate(e.target.value)}
             className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
           />
-          <select
+          <InvictusSelect
             value={priority}
-            onChange={(e) => setPriority(e.target.value as Priority)}
-            className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-          >
-            <option>High</option>
-            <option>Medium</option>
-            <option>Low</option>
-          </select>
+            onChange={(v) => setPriority(v as Priority)}
+            className="bg-invictus-base/60"
+            options={[
+              { value: 'High', label: 'High' },
+              { value: 'Medium', label: 'Medium' },
+              { value: 'Low', label: 'Low' },
+            ]}
+          />
           <input
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Notes, e.g. it is with Paul A"
             className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
           />
-          <select
+          <InvictusSelect
             value={repeatFreq}
-            onChange={(e) => setRepeatFreq(e.target.value as RecurrenceFreq | 'none')}
-            className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+            onChange={(v) => setRepeatFreq(v as RecurrenceFreq | 'none')}
+            className="bg-invictus-base/60"
             title="Repeats"
-          >
-            <option value="none">Does not repeat</option>
-            <option value="weekly">Repeats weekly</option>
-            <option value="fortnightly">Repeats fortnightly</option>
-            <option value="monthly">Repeats monthly</option>
-          </select>
+            options={[
+              { value: 'none', label: 'Does not repeat' },
+              { value: 'weekly', label: 'Repeats weekly' },
+              { value: 'fortnightly', label: 'Repeats fortnightly' },
+              { value: 'monthly', label: 'Repeats monthly' },
+            ]}
+          />
           {repeatFreq !== 'none' && (
             <input
               type="date"
@@ -3207,15 +3210,16 @@ function SiteMapPage({
                   className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
                 />
                 <div className="grid grid-cols-2 gap-2">
-                  <select
+                  <InvictusSelect
                     value={priority}
-                    onChange={(e) => setPriority(e.target.value as Priority)}
-                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-                  >
-                    <option>High</option>
-                    <option>Medium</option>
-                    <option>Low</option>
-                  </select>
+                    onChange={(v) => setPriority(v as Priority)}
+                    className="bg-invictus-base/60"
+                    options={[
+                      { value: 'High', label: 'High' },
+                      { value: 'Medium', label: 'Medium' },
+                      { value: 'Low', label: 'Low' },
+                    ]}
+                  />
                   <input
                     type="date"
                     value={dueDate}
@@ -3223,19 +3227,16 @@ function SiteMapPage({
                     className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
                   />
                 </div>
-                <select
+                <InvictusSelect
                   value={assigneeUid}
-                  onChange={(e) => setAssigneeUid(e.target.value)}
+                  onChange={setAssigneeUid}
                   title="Assign this task to a teammate — they'll get it as an offer to accept"
-                  className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-                >
-                  <option value="">Keep to myself</option>
-                  {teammates.map((m) => (
-                    <option key={m.uid} value={m.uid}>
-                      Assign to {m.name}
-                    </option>
-                  ))}
-                </select>
+                  className="bg-invictus-base/60"
+                  options={[
+                    { value: '', label: 'Keep to myself' },
+                    ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
+                  ]}
+                />
                 <button
                   type="submit"
                   className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
@@ -3333,15 +3334,12 @@ function ShowsBoard({
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] uppercase tracking-widest text-neutral-600">Show Type</label>
-            <select
+            <InvictusSelect
               value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-            >
-              {CHECKLIST_SECTIONS.map((s) => (
-                <option key={s.name}>{s.name}</option>
-              ))}
-            </select>
+              onChange={setType}
+              className="bg-invictus-base/60"
+              options={CHECKLIST_SECTIONS.map((s) => ({ value: s.name, label: s.name }))}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] uppercase tracking-widest text-neutral-600">Label (optional)</label>
@@ -3645,43 +3643,42 @@ function TaskManager({
             placeholder="Task name"
             className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-2"
           />
-          <select
+          <InvictusSelect
             value={priority}
-            onChange={(e) => setPriority(e.target.value as Priority)}
-            className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-          >
-            <option>High</option>
-            <option>Medium</option>
-            <option>Low</option>
-          </select>
+            onChange={(v) => setPriority(v as Priority)}
+            className="bg-invictus-base/60"
+            options={[
+              { value: 'High', label: 'High' },
+              { value: 'Medium', label: 'Medium' },
+              { value: 'Low', label: 'Low' },
+            ]}
+          />
           <input
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
             className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
           />
-          <select
+          <InvictusSelect
             value={status}
-            onChange={(e) => setStatus(e.target.value as TaskStatus)}
-            className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-          >
-            <option>Not Started</option>
-            <option>In Progress</option>
-            <option>Completed</option>
-          </select>
-          <select
+            onChange={(v) => setStatus(v as TaskStatus)}
+            className="bg-invictus-base/60"
+            options={[
+              { value: 'Not Started', label: 'Not Started' },
+              { value: 'In Progress', label: 'In Progress' },
+              { value: 'Completed', label: 'Completed' },
+            ]}
+          />
+          <InvictusSelect
             value={assigneeUid}
-            onChange={(e) => setAssigneeUid(e.target.value)}
+            onChange={setAssigneeUid}
             title="Assign this task to a teammate — they'll get it as an offer to accept"
-            className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-          >
-            <option value="">Keep to myself</option>
-            {teammates.map((m) => (
-              <option key={m.uid} value={m.uid}>
-                Assign to {m.name}
-              </option>
-            ))}
-          </select>
+            className="bg-invictus-base/60"
+            options={[
+              { value: '', label: 'Keep to myself' },
+              ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
+            ]}
+          />
           <button
             type="submit"
             className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong sm:col-span-2 lg:col-span-6"
@@ -3757,34 +3754,32 @@ function TaskManager({
                     placeholder="Task name"
                     className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-2"
                   />
-                  <select
+                  <InvictusSelect
                     value={editPriority}
-                    onChange={(e) => setEditPriority(e.target.value as Priority)}
-                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-                  >
-                    <option>High</option>
-                    <option>Medium</option>
-                    <option>Low</option>
-                  </select>
+                    onChange={(v) => setEditPriority(v as Priority)}
+                    className="bg-invictus-base/60"
+                    options={[
+                      { value: 'High', label: 'High' },
+                      { value: 'Medium', label: 'Medium' },
+                      { value: 'Low', label: 'Low' },
+                    ]}
+                  />
                   <input
                     type="date"
                     value={editDueDate}
                     onChange={(e) => setEditDueDate(e.target.value)}
                     className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
                   />
-                  <select
+                  <InvictusSelect
                     value={editAssigneeUid}
-                    onChange={(e) => setEditAssigneeUid(e.target.value)}
+                    onChange={setEditAssigneeUid}
                     title="Assign this task to a teammate — they'll get it as an offer to accept"
-                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-                  >
-                    <option value="">No assignment</option>
-                    {teammates.map((m) => (
-                      <option key={m.uid} value={m.uid}>
-                        Assign to {m.name}
-                      </option>
-                    ))}
-                  </select>
+                    className="bg-invictus-base/60"
+                    options={[
+                      { value: '', label: 'No assignment' },
+                      ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
+                    ]}
+                  />
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => saveEdit(task)}
@@ -3846,15 +3841,17 @@ function TaskManager({
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
                   {task.priority}
                 </span>
-                <select
+                <InvictusSelect
                   value={task.status}
-                  onChange={(e) => onUpdateStatus(task.id, e.target.value as TaskStatus)}
-                  className={`rounded-md border bg-black/40 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide focus:outline-none ${STATUS_STYLES[task.status]}`}
-                >
-                  <option>Not Started</option>
-                  <option>In Progress</option>
-                  <option>Completed</option>
-                </select>
+                  onChange={(v) => onUpdateStatus(task.id, v as TaskStatus)}
+                  compact
+                  className={`w-auto ${STATUS_STYLES[task.status]}`}
+                  options={[
+                    { value: 'Not Started', label: 'Not Started' },
+                    { value: 'In Progress', label: 'In Progress' },
+                    { value: 'Completed', label: 'Completed' },
+                  ]}
+                />
                 <button
                   onClick={() => startEdit(task)}
                   className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
