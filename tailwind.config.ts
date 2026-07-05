@@ -52,9 +52,9 @@ export default {
       },
       colors: {
         invictus: {
-          base: '#0A0A0C',
-          surface: '#121215',
-          raised: '#17171B',
+          base: 'rgb(var(--invictus-base) / <alpha-value>)',
+          surface: 'rgb(var(--invictus-surface) / <alpha-value>)',
+          raised: 'rgb(var(--invictus-raised) / <alpha-value>)',
           crimson: '#9A2236',
           'crimson-bright': '#C2304A',
         },

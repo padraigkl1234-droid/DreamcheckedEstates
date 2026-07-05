@@ -24,7 +24,7 @@ import {
   SheetTrigger,
   SheetClose,
 } from '@/components/ui/sheet';
-import { Users, Settings, Crown } from 'lucide-react';
+import { Users, Settings, Crown, Sun, Moon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +36,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
+import { useTheme } from '@/components/ThemeProvider';
 import { profileName, featureEnabled } from '@/lib/teams';
 import { useSound } from '@/components/SoundProvider';
 
@@ -50,6 +51,7 @@ export function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { profile, team, isMaster } = useProfile();
+  const { resolved, setTheme } = useTheme();
   const { muted, toggleMute } = useSound();
   const isActive = (href: string) => pathname === href || (href === '/jarvis-tracker' && pathname === '/');
   // A feature-gated nav item shows only when this team has it enabled (the
@@ -186,6 +188,14 @@ export function Navbar() {
                     <Link href="/master" className="cursor-pointer gap-2"><Crown className="h-4 w-4 text-amber-400" /> Master Console</Link>
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => { e.preventDefault(); setTheme(resolved === 'dark' ? 'light' : 'dark'); }}
+                  className="cursor-pointer gap-2"
+                >
+                  {resolved === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {resolved === 'dark' ? 'Light mode' : 'Dark mode'}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => logout()} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
                   <LogOut className="h-4 w-4" /> Sign Out

@@ -1,20 +1,30 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Settings as SettingsIcon, User as UserFallback, Loader2, Check, LogOut } from 'lucide-react';
+import { Settings as SettingsIcon, User as UserFallback, Loader2, Check, LogOut, Moon, Sun, Monitor, Volume2, VolumeX } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
+import { useTheme, type ThemePref } from '@/components/ThemeProvider';
+import { useSound } from '@/components/SoundProvider';
 import { profileName } from '@/lib/teams';
 
 const inputClass =
   'w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50';
 
+const THEME_OPTIONS: { value: ThemePref; label: string; icon: typeof Moon }[] = [
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'system', label: 'System', icon: Monitor },
+];
+
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { profile, team } = useProfile();
+  const { theme, setTheme } = useTheme();
+  const { muted, toggleMute } = useSound();
   const [displayName, setDisplayName] = useState('');
   const [teamRole, setTeamRole] = useState('');
   const [photoURL, setPhotoURL] = useState<string | null>(null);
@@ -148,6 +158,73 @@ export default function SettingsPage() {
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : null}
             {saved ? 'Saved' : 'Save changes'}
           </button>
+        </div>
+
+        {/* Appearance */}
+        <div className="mt-6 space-y-4 border border-neutral-400/25 bg-invictus-surface/60 p-6 shadow-glow-subtle">
+          <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
+            Appearance
+          </p>
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase tracking-widest text-neutral-500">Theme</label>
+            <div className="grid grid-cols-3 gap-2">
+              {THEME_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const active = theme === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setTheme(opt.value)}
+                    className={`flex flex-col items-center gap-1.5 rounded-md border py-3 text-[10px] font-semibold uppercase tracking-widest transition-all ${
+                      active
+                        ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 text-neutral-100 shadow-glow-subtle'
+                        : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-500 hover:border-invictus-crimson-bright/40 hover:text-neutral-300'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="pt-1 text-[10px] text-neutral-600">
+              INVICTUS is designed dark-first; light mode is a lighter take on the same theme.
+            </p>
+          </div>
+        </div>
+
+        {/* Preferences */}
+        <div className="mt-6 space-y-4 border border-neutral-400/25 bg-invictus-surface/60 p-6 shadow-glow-subtle">
+          <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
+            Preferences
+          </p>
+          <button
+            onClick={toggleMute}
+            className="flex w-full items-center justify-between rounded-md border border-neutral-400/25 bg-invictus-base/40 px-4 py-3 text-left transition-colors hover:border-invictus-crimson-bright/40"
+          >
+            <span className="flex items-center gap-3">
+              {muted ? <VolumeX className="h-4 w-4 text-neutral-500" /> : <Volume2 className="h-4 w-4 text-invictus-crimson-bright" />}
+              <span className="text-sm text-neutral-200">Interface sounds</span>
+            </span>
+            <span className={`text-[10px] font-semibold uppercase tracking-widest ${muted ? 'text-neutral-600' : 'text-emerald-300'}`}>
+              {muted ? 'Off' : 'On'}
+            </span>
+          </button>
+        </div>
+
+        {/* About */}
+        <div className="mt-6 space-y-2 border border-neutral-400/25 bg-invictus-surface/60 p-6 shadow-glow-subtle">
+          <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
+            About
+          </p>
+          <div className="flex justify-between text-xs text-neutral-500">
+            <span>Application</span>
+            <span className="text-neutral-300">INVICTUS · Estate Operations Platform</span>
+          </div>
+          <div className="flex justify-between text-xs text-neutral-500">
+            <span>Version</span>
+            <span className="font-mono text-neutral-300">2.0</span>
+          </div>
         </div>
 
         <div className="mt-6 flex items-center justify-between text-[11px] text-neutral-600">

@@ -4,6 +4,19 @@
 
 @layer base {
   :root {
+    /* INVICTUS surface tokens (space-separated RGB channels so Tailwind can
+       apply the /alpha modifiers used throughout the app). Dark by default. */
+    --invictus-base: 10 10 12;
+    --invictus-surface: 18 18 21;
+    --invictus-raised: 23 23 27;
+  }
+  :root[data-theme='light'] {
+    --invictus-base: 244 244 245;
+    --invictus-surface: 255 255 255;
+    --invictus-raised: 233 233 236;
+  }
+
+  :root {
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
@@ -105,3 +118,19 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* --- Light mode --------------------------------------------------------- */
+/* The app is designed dark-first with near-white neutral text. In light mode
+   the surface tokens above flip to light; here we flip the common neutral text
+   shades to dark equivalents so everything stays legible without touching each
+   component. Higher specificity than Tailwind's own utility, so it wins. */
+:root[data-theme='light'] .text-neutral-50 { color: #09090b; }
+:root[data-theme='light'] .text-neutral-100 { color: #18181b; }
+:root[data-theme='light'] .text-neutral-200 { color: #27272a; }
+:root[data-theme='light'] .text-neutral-300 { color: #3f3f46; }
+:root[data-theme='light'] .text-neutral-400 { color: #52525b; }
+:root[data-theme='light'] .text-neutral-500 { color: #71717a; }
+:root[data-theme='light'] .text-neutral-600 { color: #a1a1aa; }
+:root[data-theme='light'] .text-neutral-700 { color: #c4c4cc; }
+/* Soften the dark-mode scanline/grain overlays that would look harsh on light. */
+:root[data-theme='light'] .animate-scanlines { opacity: 0.03 !important; }
