@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ClipboardCheck, ExternalLink, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ClipboardCheck, ExternalLink, ChevronRight, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { collection, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
@@ -62,6 +62,15 @@ export default function ChecklistsPage() {
   const [url, setUrl] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // Which category sections are expanded — all start collapsed for a tidy page.
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  const toggleSection = (name: string) =>
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
 
   useEffect(() => {
     if (!user) {
@@ -241,19 +250,42 @@ export default function ChecklistsPage() {
           </p>
         )}
 
-        <div className="space-y-8">
-          {sections.map((section) => (
+        <div className="mb-3 flex justify-end">
+          <button
+            onClick={() =>
+              setOpenSections((prev) =>
+                prev.size === sections.length ? new Set() : new Set(sections.map((s) => s.name))
+              )
+            }
+            className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 transition-colors hover:text-invictus-crimson-bright"
+          >
+            {openSections.size === sections.length ? 'Collapse all' : 'Expand all'}
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {sections.map((section) => {
+            const isOpen = openSections.has(section.name);
+            return (
             <section key={section.name} className="space-y-3">
-              <div className="flex items-center gap-3">
-                <h2 className="font-display text-xl uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-strong)] sm:text-2xl">
+              <button
+                onClick={() => toggleSection(section.name)}
+                className="group/hdr flex w-full items-center gap-3 text-left"
+                aria-expanded={isOpen}
+              >
+                <ChevronDown
+                  className={`h-5 w-5 shrink-0 text-invictus-crimson-bright transition-transform ${isOpen ? '' : '-rotate-90'}`}
+                />
+                <h2 className="font-display text-xl uppercase tracking-[0.2em] text-neutral-100 transition-colors [text-shadow:var(--glow-text-strong)] group-hover/hdr:text-invictus-crimson-bright sm:text-2xl">
                   {section.name}
                 </h2>
                 <span className="rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-200">
                   {section.forms.length}
                 </span>
                 <span className="h-px flex-1 bg-invictus-crimson-bright/25" />
-              </div>
+              </button>
 
+              {isOpen && (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {section.forms.map((form) => (
                   <div key={form.custom?.id ?? form.url} className="relative">
@@ -293,8 +325,10 @@ export default function ChecklistsPage() {
                   </div>
                 ))}
               </div>
+              )}
             </section>
-          ))}
+            );
+          })}
         </div>
 
         <p className="pt-8 text-center text-[10px] uppercase tracking-widest text-neutral-700">
