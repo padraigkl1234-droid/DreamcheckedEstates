@@ -4494,7 +4494,14 @@ export default function InvictusTrackerPage() {
   const [teamChecklistForms, setTeamChecklistForms] = useState<{ section: string; name: string; description?: string; url: string }[]>([]);
   const [mounted, setMounted] = useState(false);
   const [booting, setBooting] = useState(true);
-  const [activePage, setActivePage] = useState<PageKey>('dashboard');
+  // Open on the page named in ?page= (used by notification deep-links), else
+  // the dashboard. Validated against the known page keys.
+  const [activePage, setActivePage] = useState<PageKey>(() => {
+    if (typeof window === 'undefined') return 'dashboard';
+    const wanted = new URLSearchParams(window.location.search).get('page');
+    const keys: PageKey[] = ['dashboard', 'calendar', 'shows', 'sitemap', 'tasks', 'archive', 'compliance', 'reports', 'admin'];
+    return wanted && (keys as string[]).includes(wanted) ? (wanted as PageKey) : 'dashboard';
+  });
   // Everyone starts with a clean slate — no example tasks/events/compliances.
   // A signed-in user's own saved data loads from Firestore below and replaces
   // these, and anything they add persists to their account from then on.
@@ -4745,6 +4752,22 @@ export default function InvictusTrackerPage() {
   // live subscriptions above reflect them back into local state (for everyone
   // who can see the task, not just this device).
   const logTaskError = (what: string) => (error: unknown) => console.error(`Failed to ${what}:`, error);
+  // Fire a push notification to whoever a task is offered to. Best-effort —
+  // the assignment itself is already saved; a failed push is only logged.
+  const notifyAssignment = async (targetUid: string, taskName: string, taskId: string) => {
+    if (!user || !targetUid || targetUid === user.uid) return;
+    try {
+      const token = await user.getIdToken();
+      await fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetUid, taskName, taskId }),
+      });
+    } catch (error) {
+      console.error('Task-assignment notification failed:', error);
+    }
+  };
+
   const handleAddTask = (task: Task) => {
     if (!user) return;
     const ownerName = user.displayName || user.email || 'Unknown';
@@ -4759,7 +4782,11 @@ export default function InvictusTrackerPage() {
       pendingUid: task.pendingUid ?? null,
       pendingName: task.pendingName ?? null,
       archived: false,
-    }).catch(logTaskError('add task'));
+    })
+      .then(() => {
+        if (task.pendingUid) notifyAssignment(task.pendingUid, task.name, id);
+      })
+      .catch(logTaskError('add task'));
   };
   const handleUpdateStatus = (id: string, status: TaskStatus) => {
     if (!user) return;
@@ -4780,7 +4807,15 @@ export default function InvictusTrackerPage() {
     updates: { name: string; notes: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
   ) => {
     if (!user) return;
-    updateDoc(doc(db, 'tasks', id), updates).catch(logTaskError('edit task'));
+    const prev = tasks.find((t) => t.id === id);
+    updateDoc(doc(db, 'tasks', id), updates)
+      .then(() => {
+        // Only notify when this edit sets a NEW offer (not on unrelated edits).
+        if (updates.pendingUid && updates.pendingUid !== prev?.pendingUid) {
+          notifyAssignment(updates.pendingUid, updates.name, id);
+        }
+      })
+      .catch(logTaskError('edit task'));
   };
   const handleSetTaskImages = (id: string, images: TaskImage[]) => {
     if (!user) return;

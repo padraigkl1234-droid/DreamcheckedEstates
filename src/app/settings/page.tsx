@@ -9,11 +9,12 @@ import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useTheme, type ThemePref } from '@/components/ThemeProvider';
 import { useSound } from '@/components/SoundProvider';
-import { usePreferences, type Preferences } from '@/components/PreferencesProvider';
+import { usePreferences } from '@/components/PreferencesProvider';
 import { useLang } from '@/components/LanguageProvider';
 import { LANGUAGES } from '@/lib/i18n';
 import { InvictusSelect } from '@/components/InvictusSelect';
-import { profileName } from '@/lib/teams';
+import { profileName, notifEnabled, type NotifPrefs } from '@/lib/teams';
+import { enablePush, disablePush, notificationPermission } from '@/lib/messaging';
 
 const inputClass =
   'w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50';
@@ -73,6 +74,55 @@ export default function SettingsPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Push-notification state. `permission` mirrors the browser's grant; `pushBusy`
+  // guards the enable/disable button while a request is in flight.
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('unsupported');
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+  useEffect(() => {
+    setPermission(notificationPermission());
+  }, []);
+
+  const notifPrefs = profile?.notifPrefs;
+  const setNotifPref = async (key: keyof NotifPrefs, value: boolean) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'users', user.uid), { notifPrefs: { [key]: value } }, { merge: true });
+    } catch (e) {
+      console.error('Save notification pref failed:', e);
+    }
+  };
+
+  const pushEnabled = permission === 'granted';
+  const togglePush = async () => {
+    if (!user || pushBusy) return;
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      if (pushEnabled) {
+        await disablePush(user.uid);
+        // Permission can't be revoked programmatically; we just drop the token.
+        // Reflect that devices won't receive pushes by leaving permission as-is
+        // but the token is gone. Re-enabling re-registers a token.
+      } else {
+        const res = await enablePush(user.uid);
+        if (!res.ok) {
+          const messages: Record<string, string> = {
+            unsupported: 'This browser/device does not support push notifications.',
+            denied: 'Notifications are blocked. Enable them in your browser settings.',
+            'no-vapid': 'Push is not configured yet (missing VAPID key).',
+            'no-token': 'Could not register this device. Try again.',
+            error: 'Something went wrong enabling notifications.',
+          };
+          setPushError(messages[res.reason || 'error'] || messages.error);
+        }
+      }
+      setPermission(notificationPermission());
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   // Seed the form from the profile once it loads.
   useEffect(() => {
@@ -277,24 +327,48 @@ export default function SettingsPage() {
           <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
             {t('settings.notifications')}
           </p>
-          {(
-            [
-              ['notifUrgentCompliance', 'settings.notifUrgentCompliance'],
-              ['notifTaskAssignments', 'settings.notifTaskAssignments'],
-              ['notifDailySummary', 'settings.notifDailySummary'],
-            ] as [keyof Preferences, string][]
-          ).map(([key, labelKey]) => (
+
+          {/* Master push enable/disable for this device. */}
+          {permission === 'unsupported' ? (
+            <p className="rounded-md border border-neutral-400/25 bg-invictus-base/40 px-4 py-3 text-[11px] text-neutral-500">
+              {t('settings.pushUnsupported')}
+            </p>
+          ) : (
             <ToggleRow
-              key={key}
-              label={t(labelKey)}
-              on={prefs[key]}
-              onToggle={() => setPref(key, !prefs[key])}
+              label={t('settings.pushEnable')}
+              on={pushEnabled}
+              onToggle={togglePush}
               onLabel={t('common.on')}
               offLabel={t('common.off')}
-              icon={<Bell className={`h-4 w-4 ${prefs[key] ? 'text-invictus-crimson-bright' : 'text-neutral-500'}`} />}
+              disabled={pushBusy}
+              icon={<Bell className={`h-4 w-4 ${pushEnabled ? 'text-invictus-crimson-bright' : 'text-neutral-500'}`} />}
             />
-          ))}
-          <p className="text-[10px] text-amber-300/90">{t('settings.notifPending')}</p>
+          )}
+          {pushError && <p className="text-[10px] text-alert">{pushError}</p>}
+          <p className="text-[10px] text-neutral-600">{t('settings.pushHint')}</p>
+
+          {/* Which categories to receive. Only meaningful once push is on. */}
+          {(
+            [
+              ['urgentCompliance', 'settings.notifUrgentCompliance'],
+              ['taskAssignments', 'settings.notifTaskAssignments'],
+              ['dailySummary', 'settings.notifDailySummary'],
+            ] as [keyof NotifPrefs, string][]
+          ).map(([key, labelKey]) => {
+            const on = notifEnabled(notifPrefs, key);
+            return (
+              <ToggleRow
+                key={key}
+                label={t(labelKey)}
+                on={on}
+                onToggle={() => setNotifPref(key, !on)}
+                onLabel={t('common.on')}
+                offLabel={t('common.off')}
+                disabled={!pushEnabled}
+                icon={<Bell className={`h-4 w-4 ${on ? 'text-invictus-crimson-bright' : 'text-neutral-500'}`} />}
+              />
+            );
+          })}
         </div>
 
         {/* Data & sync */}

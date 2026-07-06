@@ -47,6 +47,29 @@ export interface UserProfile {
   role?: string; // 'admin' = team-level admin (existing field)
   blocked?: boolean;
   lastSeen?: number;
+  fcmTokens?: string[]; // registered device push tokens (Cloud Messaging)
+  notifPrefs?: NotifPrefs; // which push categories this user wants
+}
+
+// Which push-notification categories a user opts into. Stored on the user
+// profile (not device-local) so the server can respect them when sending.
+export interface NotifPrefs {
+  urgentCompliance?: boolean;
+  taskAssignments?: boolean;
+  dailySummary?: boolean;
+}
+
+// Default opt-ins for a brand-new profile / when a field is unset.
+export const DEFAULT_NOTIF_PREFS: Required<NotifPrefs> = {
+  urgentCompliance: true,
+  taskAssignments: true,
+  dailySummary: false,
+};
+
+// Whether a user wants a given category. An unset field uses that category's
+// default (task/compliance default on, daily summary default off).
+export function notifEnabled(prefs: NotifPrefs | undefined, key: keyof NotifPrefs): boolean {
+  return prefs?.[key] ?? DEFAULT_NOTIF_PREFS[key];
 }
 
 // The name to show for a user — their chosen display name, else Google name.

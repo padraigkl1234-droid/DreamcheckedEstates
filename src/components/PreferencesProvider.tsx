@@ -2,21 +2,17 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-// Device-level preferences (stored per browser): haptics, notification filters,
-// plus a live online/offline signal for the offline-sync indicator.
+// Device-level preferences (stored per browser): haptics, plus a live
+// online/offline signal for the offline-sync indicator. Notification-category
+// filters live on the user profile in Firestore (so the push server can
+// respect them) — see NotifPrefs in lib/teams.ts.
 
 export interface Preferences {
   haptics: boolean;
-  notifUrgentCompliance: boolean;
-  notifTaskAssignments: boolean;
-  notifDailySummary: boolean;
 }
 
 const DEFAULTS: Preferences = {
   haptics: true,
-  notifUrgentCompliance: true,
-  notifTaskAssignments: true,
-  notifDailySummary: false,
 };
 
 const STORAGE_KEY = 'invictus-prefs';

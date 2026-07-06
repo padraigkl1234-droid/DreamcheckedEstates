@@ -37,6 +37,7 @@ import { SoundProvider } from "@/components/SoundProvider";
 import { PointerCaptureFix } from "@/components/PointerCaptureFix";
 import { Navbar } from "@/components/Navbar";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { PushListener } from "@/components/PushListener";
 
 const inter = Inter({
   subsets: ['latin'],
@@ -77,6 +78,7 @@ export default function RootLayout({
         <AuthProvider>
           <ProfileProvider>
             <SoundProvider>
+              <PushListener />
               <AppGate>
                 <Navbar />
                 <div className="pt-16">

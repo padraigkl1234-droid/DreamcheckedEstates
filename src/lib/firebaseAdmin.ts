@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { getAuth, type Auth } from 'firebase-admin/auth';
+import { getMessaging, type Messaging } from 'firebase-admin/messaging';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Server-side Firebase Admin, used by the Show Board webhook to flip checklist
@@ -33,4 +34,9 @@ export function getAdminDb(): Firestore {
 // disable/enable user accounts.
 export function getAdminAuth(): Auth {
   return getAuth(getAdminApp());
+}
+
+// Admin Cloud Messaging — used to send push notifications to device tokens.
+export function getAdminMessaging(): Messaging {
+  return getMessaging(getAdminApp());
 }
