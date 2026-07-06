@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Send, Volume2, Download, Upload, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, Download, Upload, PanelLeftOpen, PanelRightOpen, UserRound } from 'lucide-react';
 import { Orb, type OrbState } from '@/components/Orb';
 import { Clock } from '@/components/Clock';
 import { TrainingHud } from '@/components/TrainingHud';
 import { NutritionHud } from '@/components/NutritionHud';
 import { Onboarding } from '@/components/Onboarding';
+import { ProfilePanel } from '@/components/ProfilePanel';
 import { useVoice } from '@/components/useVoice';
 import {
   loadStore,
@@ -15,6 +16,7 @@ import {
   parseImportedStore,
   DEFAULT_STORE,
   type JarvisStore,
+  type Profile,
 } from '@/lib/store';
 
 interface ChatTurn {
@@ -37,6 +39,7 @@ export default function JarvisPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const storeRef = useRef<JarvisStore>(DEFAULT_STORE);
   const historyRef = useRef<ChatTurn[]>([]);
@@ -66,6 +69,14 @@ export default function JarvisPage() {
         profile: { ...cur.profile, ...(patch.profile ?? {}) },
         memories: [...cur.memories, ...(patch.memories ?? [])],
       });
+    },
+    [commitStore]
+  );
+
+  const handleProfileSave = useCallback(
+    (patch: Partial<Profile>) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, profile: { ...cur.profile, ...patch } });
     },
     [commitStore]
   );
@@ -234,6 +245,9 @@ export default function JarvisPage() {
         </button>
 
         <div className="flex items-center gap-2">
+          <button className={iconBtn} onClick={() => setProfileOpen(true)} title="Edit profile" aria-label="Edit profile">
+            <UserRound className="h-4 w-4" />
+          </button>
           <input ref={fileInputRef} type="file" accept="application/json" onChange={handleImportFile} className="hidden" />
           <button className={iconBtn} onClick={() => fileInputRef.current?.click()} title="Restore backup" aria-label="Import backup">
             <Upload className="h-4 w-4" />
@@ -246,6 +260,10 @@ export default function JarvisPage() {
           </button>
         </div>
       </div>
+
+      {profileOpen && (
+        <ProfilePanel profile={store.profile} onSave={handleProfileSave} onClose={() => setProfileOpen(false)} />
+      )}
 
       {/* Left HUD */}
       <aside
