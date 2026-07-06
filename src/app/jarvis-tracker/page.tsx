@@ -11,6 +11,7 @@ import { CHECKLIST_SECTIONS, type ChecklistSection } from '@/lib/checklists';
 import { DREAMLAND_TEAM_ID, featureEnabled, type TeamFeatures } from '@/lib/teams';
 import { useProfile } from '@/components/ProfileProvider';
 import { useT } from '@/components/LanguageProvider';
+import { usePreferences } from '@/components/PreferencesProvider';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { Pinwheel } from '@/components/icons/Pinwheel';
@@ -967,6 +968,7 @@ function Sidebar({
 }) {
   const { playHover } = useSound();
   const t = useT();
+  const { online } = usePreferences();
   const navItems = NAV_ITEMS.filter(
     (item) =>
       (!item.adminOnly || isAdmin) && (!item.feature || isMaster || featureEnabled(features, item.feature))
@@ -1019,11 +1021,11 @@ function Sidebar({
       <div className="mt-auto border-t border-neutral-400/20 p-3">
         <div className="flex items-center justify-center gap-2 md:justify-start">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+            {online && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
+            <span className={`relative inline-flex h-2 w-2 rounded-full ${online ? 'bg-emerald-400' : 'bg-amber-400'}`} />
           </span>
-          <span className="hidden text-[10px] uppercase tracking-widest text-emerald-400 md:inline">
-            {t('status.online')}
+          <span className={`hidden text-[10px] uppercase tracking-widest md:inline ${online ? 'text-emerald-400' : 'text-amber-400'}`}>
+            {online ? t('status.online') : t('settings.offline')}
           </span>
         </div>
         <div className="mt-2 flex items-center justify-center gap-2 md:justify-start">
@@ -3478,6 +3480,7 @@ function TaskManager({
   const [status, setStatus] = useState<TaskStatus>('Not Started');
   const [assigneeUid, setAssigneeUid] = useState('');
   const { playConfirm } = useSound();
+  const { haptic } = usePreferences();
   const teammates = team.filter((m) => m.uid !== currentUid);
 
   // Inline editing of an existing task.
@@ -3829,7 +3832,10 @@ function TaskManager({
                 </span>
                 <InvictusSelect
                   value={task.status}
-                  onChange={(v) => onUpdateStatus(task.id, v as TaskStatus)}
+                  onChange={(v) => {
+                    if (v === 'Completed' && task.status !== 'Completed') haptic();
+                    onUpdateStatus(task.id, v as TaskStatus);
+                  }}
                   compact
                   className={`w-auto ${STATUS_STYLES[task.status]}`}
                   options={[
@@ -4220,6 +4226,7 @@ function ComplianceTracker({
   const [nextDueDate, setNextDueDate] = useState('');
   const [comments, setComments] = useState('');
   const { playConfirm } = useSound();
+  const { haptic } = usePreferences();
 
   // Attach a document (e.g. the latest inspection report) to a compliance item.
   // The file goes to Firebase Storage; the item stores its name + download URL.
@@ -4359,7 +4366,10 @@ function ComplianceTracker({
                     <MicroCorners />
                     <button
                       onClick={() => {
-                        if (!item.completed) playConfirm();
+                        if (!item.completed) {
+                          playConfirm();
+                          haptic();
+                        }
                         onToggle(item.id);
                       }}
                       className="flex items-center justify-center"

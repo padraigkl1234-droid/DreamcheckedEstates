@@ -31,6 +31,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { ProfileProvider } from "@/components/ProfileProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { LanguageProvider } from "@/components/LanguageProvider";
+import { PreferencesProvider } from "@/components/PreferencesProvider";
 import { AppGate } from "@/components/AppGate";
 import { SoundProvider } from "@/components/SoundProvider";
 import { PointerCaptureFix } from "@/components/PointerCaptureFix";
@@ -72,6 +73,7 @@ export default function RootLayout({
         <PointerCaptureFix />
         <ThemeProvider>
         <LanguageProvider>
+        <PreferencesProvider>
         <AuthProvider>
           <ProfileProvider>
             <SoundProvider>
@@ -84,6 +86,7 @@ export default function RootLayout({
             </SoundProvider>
           </ProfileProvider>
         </AuthProvider>
+        </PreferencesProvider>
         </LanguageProvider>
         </ThemeProvider>
         <Toaster />

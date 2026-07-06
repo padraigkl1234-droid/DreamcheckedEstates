@@ -78,6 +78,18 @@ const en: Record<string, string> = {
   'settings.version': 'Version',
   'settings.language': 'Language',
   'settings.languageHint': 'Applies across the app; some areas are still being translated.',
+  'settings.haptics': 'Haptic feedback',
+  'settings.hapticsHint': 'A short vibration when you complete a task or compliance check (Android only).',
+  'settings.notifications': 'Notifications',
+  'settings.notifUrgentCompliance': 'Urgent compliance',
+  'settings.notifTaskAssignments': 'New task assignments',
+  'settings.notifDailySummary': 'Daily summary log',
+  'settings.notifPending': 'Push notifications are coming soon — these preferences will apply once they go live.',
+  'settings.dataSync': 'Data & sync',
+  'settings.connection': 'Connection',
+  'settings.online': 'Online',
+  'settings.offline': 'Offline — changes saved on device',
+  'settings.offlineHint': 'Your data is cached on this device, so the app keeps working with no signal and syncs automatically when you reconnect.',
 };
 
 const pl: Record<string, string> = {
@@ -142,6 +154,18 @@ const pl: Record<string, string> = {
   'settings.version': 'Wersja',
   'settings.language': 'Język',
   'settings.languageHint': 'Obowiązuje w całej aplikacji; niektóre obszary są jeszcze tłumaczone.',
+  'settings.haptics': 'Wibracje',
+  'settings.hapticsHint': 'Krótka wibracja po ukończeniu zadania lub kontroli zgodności (tylko Android).',
+  'settings.notifications': 'Powiadomienia',
+  'settings.notifUrgentCompliance': 'Pilna zgodność',
+  'settings.notifTaskAssignments': 'Nowe przydzielone zadania',
+  'settings.notifDailySummary': 'Dzienne podsumowanie',
+  'settings.notifPending': 'Powiadomienia push wkrótce — te ustawienia zadziałają po ich uruchomieniu.',
+  'settings.dataSync': 'Dane i synchronizacja',
+  'settings.connection': 'Połączenie',
+  'settings.online': 'Online',
+  'settings.offline': 'Offline — zmiany zapisane na urządzeniu',
+  'settings.offlineHint': 'Dane są zapisywane na tym urządzeniu, więc aplikacja działa bez sygnału i synchronizuje się po ponownym połączeniu.',
 };
 
 const ro: Record<string, string> = {
@@ -206,6 +230,18 @@ const ro: Record<string, string> = {
   'settings.version': 'Versiune',
   'settings.language': 'Limbă',
   'settings.languageHint': 'Se aplică în toată aplicația; unele zone sunt încă în traducere.',
+  'settings.haptics': 'Feedback haptic',
+  'settings.hapticsHint': 'O scurtă vibrație când finalizezi o sarcină sau o verificare de conformitate (doar Android).',
+  'settings.notifications': 'Notificări',
+  'settings.notifUrgentCompliance': 'Conformitate urgentă',
+  'settings.notifTaskAssignments': 'Sarcini noi atribuite',
+  'settings.notifDailySummary': 'Rezumat zilnic',
+  'settings.notifPending': 'Notificările push vor veni în curând — aceste preferințe se vor aplica după activare.',
+  'settings.dataSync': 'Date și sincronizare',
+  'settings.connection': 'Conexiune',
+  'settings.online': 'Online',
+  'settings.offline': 'Offline — modificări salvate pe dispozitiv',
+  'settings.offlineHint': 'Datele sunt stocate pe acest dispozitiv, deci aplicația funcționează fără semnal și se sincronizează automat la reconectare.',
 };
 
 const es: Record<string, string> = {
@@ -270,6 +306,18 @@ const es: Record<string, string> = {
   'settings.version': 'Versión',
   'settings.language': 'Idioma',
   'settings.languageHint': 'Se aplica en toda la app; algunas áreas aún se están traduciendo.',
+  'settings.haptics': 'Vibración',
+  'settings.hapticsHint': 'Una vibración corta al completar una tarea o control de cumplimiento (solo Android).',
+  'settings.notifications': 'Notificaciones',
+  'settings.notifUrgentCompliance': 'Cumplimiento urgente',
+  'settings.notifTaskAssignments': 'Nuevas tareas asignadas',
+  'settings.notifDailySummary': 'Resumen diario',
+  'settings.notifPending': 'Las notificaciones push llegarán pronto; estas preferencias se aplicarán al activarse.',
+  'settings.dataSync': 'Datos y sincronización',
+  'settings.connection': 'Conexión',
+  'settings.online': 'En línea',
+  'settings.offline': 'Sin conexión — cambios guardados en el dispositivo',
+  'settings.offlineHint': 'Tus datos se guardan en este dispositivo, así que la app sigue funcionando sin señal y se sincroniza al reconectar.',
 };
 
 const fr: Record<string, string> = {
@@ -334,6 +382,18 @@ const fr: Record<string, string> = {
   'settings.version': 'Version',
   'settings.language': 'Langue',
   'settings.languageHint': "S'applique à toute l'application ; certaines zones sont encore en cours de traduction.",
+  'settings.haptics': 'Retour haptique',
+  'settings.hapticsHint': "Une courte vibration lorsque vous terminez une tâche ou un contrôle de conformité (Android uniquement).",
+  'settings.notifications': 'Notifications',
+  'settings.notifUrgentCompliance': 'Conformité urgente',
+  'settings.notifTaskAssignments': 'Nouvelles tâches assignées',
+  'settings.notifDailySummary': 'Résumé quotidien',
+  'settings.notifPending': "Les notifications push arrivent bientôt — ces préférences s'appliqueront une fois activées.",
+  'settings.dataSync': 'Données et synchro',
+  'settings.connection': 'Connexion',
+  'settings.online': 'En ligne',
+  'settings.offline': "Hors ligne — modifications enregistrées sur l'appareil",
+  'settings.offlineHint': "Vos données sont mises en cache sur cet appareil : l'application fonctionne sans signal et se synchronise à la reconnexion.",
 };
 
 const dictionaries: Record<LangCode, Record<string, string>> = { en, pl, ro, es, fr };

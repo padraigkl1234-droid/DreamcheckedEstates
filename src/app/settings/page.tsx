@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Settings as SettingsIcon, User as UserFallback, Loader2, Check, LogOut, Moon, Sun, Monitor, Volume2, VolumeX } from 'lucide-react';
+import { Settings as SettingsIcon, User as UserFallback, Loader2, Check, LogOut, Moon, Sun, Monitor, Volume2, VolumeX, Vibrate, Bell, Wifi, WifiOff } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
@@ -9,6 +9,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useTheme, type ThemePref } from '@/components/ThemeProvider';
 import { useSound } from '@/components/SoundProvider';
+import { usePreferences, type Preferences } from '@/components/PreferencesProvider';
 import { useLang } from '@/components/LanguageProvider';
 import { LANGUAGES } from '@/lib/i18n';
 import { InvictusSelect } from '@/components/InvictusSelect';
@@ -23,11 +24,46 @@ const THEME_OPTIONS: { value: ThemePref; label: string; icon: typeof Moon }[] = 
   { value: 'system', label: 'System', icon: Monitor },
 ];
 
+function ToggleRow({
+  label,
+  on,
+  onToggle,
+  onLabel,
+  offLabel,
+  icon,
+  disabled = false,
+}: {
+  label: string;
+  on: boolean;
+  onToggle: () => void;
+  onLabel: string;
+  offLabel: string;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      disabled={disabled}
+      className="flex w-full items-center justify-between rounded-md border border-neutral-400/25 bg-invictus-base/40 px-4 py-3 text-left transition-colors hover:border-invictus-crimson-bright/40 disabled:opacity-50"
+    >
+      <span className="flex items-center gap-3">
+        {icon}
+        <span className="text-sm text-neutral-200">{label}</span>
+      </span>
+      <span className={`text-[10px] font-semibold uppercase tracking-widest ${on ? 'text-emerald-300' : 'text-neutral-600'}`}>
+        {on ? onLabel : offLabel}
+      </span>
+    </button>
+  );
+}
+
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { profile, team } = useProfile();
   const { theme, setTheme } = useTheme();
   const { muted, toggleMute } = useSound();
+  const { prefs, setPref, haptic, online } = usePreferences();
   const { lang, setLang, t } = useLang();
   const [displayName, setDisplayName] = useState('');
   const [teamRole, setTeamRole] = useState('');
@@ -221,6 +257,61 @@ export default function SettingsPage() {
               {muted ? t('common.off') : t('common.on')}
             </span>
           </button>
+          <ToggleRow
+            label={t('settings.haptics')}
+            on={prefs.haptics}
+            onToggle={() => {
+              const next = !prefs.haptics;
+              setPref('haptics', next);
+              if (next) haptic(); // buzz once so they feel it when turning it on
+            }}
+            onLabel={t('common.on')}
+            offLabel={t('common.off')}
+            icon={<Vibrate className={`h-4 w-4 ${prefs.haptics ? 'text-invictus-crimson-bright' : 'text-neutral-500'}`} />}
+          />
+          <p className="text-[10px] text-neutral-600">{t('settings.hapticsHint')}</p>
+        </div>
+
+        {/* Notifications */}
+        <div className="mt-6 space-y-3 border border-neutral-400/25 bg-invictus-surface/60 p-6 shadow-glow-subtle">
+          <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
+            {t('settings.notifications')}
+          </p>
+          {(
+            [
+              ['notifUrgentCompliance', 'settings.notifUrgentCompliance'],
+              ['notifTaskAssignments', 'settings.notifTaskAssignments'],
+              ['notifDailySummary', 'settings.notifDailySummary'],
+            ] as [keyof Preferences, string][]
+          ).map(([key, labelKey]) => (
+            <ToggleRow
+              key={key}
+              label={t(labelKey)}
+              on={prefs[key]}
+              onToggle={() => setPref(key, !prefs[key])}
+              onLabel={t('common.on')}
+              offLabel={t('common.off')}
+              icon={<Bell className={`h-4 w-4 ${prefs[key] ? 'text-invictus-crimson-bright' : 'text-neutral-500'}`} />}
+            />
+          ))}
+          <p className="text-[10px] text-amber-300/90">{t('settings.notifPending')}</p>
+        </div>
+
+        {/* Data & sync */}
+        <div className="mt-6 space-y-3 border border-neutral-400/25 bg-invictus-surface/60 p-6 shadow-glow-subtle">
+          <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
+            {t('settings.dataSync')}
+          </p>
+          <div className="flex items-center justify-between rounded-md border border-neutral-400/25 bg-invictus-base/40 px-4 py-3">
+            <span className="flex items-center gap-3">
+              {online ? <Wifi className="h-4 w-4 text-emerald-400" /> : <WifiOff className="h-4 w-4 text-amber-400" />}
+              <span className="text-sm text-neutral-200">{t('settings.connection')}</span>
+            </span>
+            <span className={`text-[10px] font-semibold uppercase tracking-widest ${online ? 'text-emerald-300' : 'text-amber-300'}`}>
+              {online ? t('settings.online') : t('settings.offline')}
+            </span>
+          </div>
+          <p className="text-[10px] text-neutral-600">{t('settings.offlineHint')}</p>
         </div>
 
         {/* About */}

@@ -2,7 +2,13 @@
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { initializeFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  doc,
+  getDocFromServer,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -20,6 +26,10 @@ export const db = initializeFirestore(app, {
   ignoreUndefinedProperties: true,
   host: 'firestore.googleapis.com',
   ssl: true,
+  // Offline data sync: cache reads and queue writes on-device so the app keeps
+  // working in dead zones (theme parks / event fields) and syncs when signal
+  // returns. Multi-tab manager keeps several open tabs consistent.
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 }, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth(app);
