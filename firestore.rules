@@ -32,9 +32,9 @@ service cloud.firestore {
     // Collection: jarvisState
     // Document ID: {userId} (matches request.auth.uid)
     // Fields:
-    //   - tasks: list (required, max 1000 items)
+    //   - tasks: list (optional/legacy, max 1000 items) - tasks now live in the shared `tasks` collection
     //   - compliances: list (required, max 1000 items)
-    //   - events: list (required, max 1000 items) - diary entries: { id, title, date, priority, notes }
+    //   - events: list (required, max 1000 items) - diary entries: { id, title, date, time?, priority, notes }
     //   - updatedAt: number (required)
     //
     // ===============================================================
@@ -84,7 +84,10 @@ service cloud.firestore {
     }
 
     function isValidJarvisState(data) {
-      return data.tasks is list && data.tasks.size() <= 1000 &&
+      // `tasks` used to live here but now lives in the shared `tasks`
+      // collection, so the app writes only compliances/events/updatedAt.
+      // `tasks` is therefore optional (validated only if still present).
+      return (!('tasks' in data) || (data.tasks is list && data.tasks.size() <= 1000)) &&
              data.compliances is list && data.compliances.size() <= 1000 &&
              data.events is list && data.events.size() <= 1000 &&
              data.updatedAt is number;
