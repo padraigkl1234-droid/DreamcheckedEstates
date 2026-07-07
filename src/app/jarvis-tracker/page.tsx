@@ -156,10 +156,21 @@ interface CalendarEvent {
   id: string;
   title: string;
   date: string; // first occurrence
+  time?: string; // optional start time, "HH:MM" 24h
   priority: Priority;
   notes: string;
   recurrence?: EventRecurrence;
   completedDates?: string[]; // occurrence dates (YYYY-MM-DD) ticked off as done
+}
+
+// Turn a 24h "HH:MM" string into a friendly "2:30 PM". Returns '' if empty/bad.
+function formatDisplayTime(time: string | undefined): string {
+  if (!time) return '';
+  const [h, m] = time.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return '';
+  const period = h < 12 ? 'AM' : 'PM';
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
 function addRecurrenceStep(d: Date, freq: RecurrenceFreq): Date {
@@ -1254,7 +1265,12 @@ function Dashboard({
   const todayStr = useMemo(() => toDateInputValue(new Date()), []);
   const todaysMeetings = events
     .filter((ev) => getOccurrencesInRange(ev, todayStr, todayStr).length > 0)
-    .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+    // Earliest time first (untimed last), then higher priority as a tiebreak.
+    .sort((a, b) => {
+      const byTime = (a.time || '99:99').localeCompare(b.time || '99:99');
+      if (byTime !== 0) return byTime;
+      return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+    });
 
   return (
     <div className="space-y-6">
@@ -1291,6 +1307,7 @@ function Dashboard({
                 <div className="min-w-0 flex-1">
                   <p className={`flex items-center gap-1.5 text-sm ${done ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>
                     {ev.recurrence && <Repeat className="h-3 w-3 shrink-0 text-neutral-400" />}
+                    {ev.time && <span className="shrink-0 font-mono text-xs font-semibold text-invictus-crimson-bright">{formatDisplayTime(ev.time)}</span>}
                     <span className="truncate">{ev.title}</span>
                   </p>
                   {ev.notes && <Kicker>{ev.notes}</Kicker>}
@@ -2093,6 +2110,7 @@ function CalendarPage({
 
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(toDateInputValue(today));
+  const [time, setTime] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [notes, setNotes] = useState('');
   const [repeatFreq, setRepeatFreq] = useState<RecurrenceFreq | 'none'>('none');
@@ -2129,11 +2147,14 @@ function CalendarPage({
       date,
       priority,
       notes: notes.trim(),
+      // Only attach a time when one was picked — never store an empty string.
+      ...(time ? { time } : {}),
       // Only attach recurrence when it actually repeats — never store `undefined`.
       ...(repeatFreq !== 'none' ? { recurrence: { freq: repeatFreq, until: repeatUntil } } : {}),
     });
     playConfirm();
     setTitle('');
+    setTime('');
     setPriority('Medium');
     setNotes('');
     setRepeatFreq('none');
@@ -2162,6 +2183,10 @@ function CalendarPage({
       for (const occurrenceDate of getOccurrencesInRange(ev, rangeStart, rangeEnd)) {
         (map[occurrenceDate] ??= []).push(ev);
       }
+    }
+    // Within a day, show earliest times first; untimed (all-day) entries last.
+    for (const date of Object.keys(map)) {
+      map[date].sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
     }
     return map;
   }, [events, cells]);
@@ -2205,6 +2230,13 @@ function CalendarPage({
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+          />
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            title="Start time (optional)"
             className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
           />
           <InvictusSelect
@@ -2314,7 +2346,10 @@ function CalendarPage({
                     >
                       <span className="flex min-w-0 items-start gap-1">
                         {ev.recurrence && <Repeat className="mt-0.5 h-2.5 w-2.5 shrink-0" />}
-                        <span className="line-clamp-2 min-w-0">{ev.title}</span>
+                        <span className="line-clamp-2 min-w-0">
+                          {ev.time && <span className="font-mono font-semibold">{formatDisplayTime(ev.time)} </span>}
+                          {ev.title}
+                        </span>
                       </span>
                       <div className="shrink-0" data-confirm-delete={ev.id}>
                         {confirmDeleteId === ev.id ? (
@@ -2395,7 +2430,10 @@ function CalendarPage({
                     >
                       <span className="flex min-w-0 items-start gap-1.5">
                         {ev.recurrence && <Repeat className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
-                        <span className="min-w-0">{ev.title}</span>
+                        <span className="min-w-0">
+                          {ev.time && <span className="font-mono font-semibold">{formatDisplayTime(ev.time)} · </span>}
+                          {ev.title}
+                        </span>
                       </span>
                       <div className="shrink-0" data-confirm-delete={ev.id}>
                         {confirmDeleteId === ev.id ? (
@@ -2469,7 +2507,10 @@ function CalendarPage({
             <div className="mt-3 space-y-2.5 text-sm">
               <div className="flex items-center gap-2 text-neutral-300">
                 <CalendarDays className="h-3.5 w-3.5" />
-                <span>{formatDisplayDate(selectedEvent.occurrenceDate)}</span>
+                <span>
+                  {formatDisplayDate(selectedEvent.occurrenceDate)}
+                  {selectedEvent.event.time && ` · ${formatDisplayTime(selectedEvent.event.time)}`}
+                </span>
               </div>
               <span
                 className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[selectedEvent.event.priority]}`}
