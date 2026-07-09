@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Settings as SettingsIcon, User as UserFallback, Loader2, Check, LogOut, Moon, Sun, Monitor, Volume2, VolumeX, Vibrate, Bell, Wifi, WifiOff } from 'lucide-react';
+import { Settings as SettingsIcon, User as UserFallback, Loader2, Check, LogOut, Moon, Sun, Monitor, Volume2, VolumeX, Vibrate, Bell, BellRing, Wifi, WifiOff } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
@@ -91,6 +91,35 @@ export default function SettingsPage() {
       await setDoc(doc(db, 'users', user.uid), { notifPrefs: { [key]: value } }, { merge: true });
     } catch (e) {
       console.error('Save notification pref failed:', e);
+    }
+  };
+
+  // Self-test: push a notification to this user's own devices.
+  const [testState, setTestState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+  const sendTest = async () => {
+    if (!user || testState === 'sending') return;
+    setTestState('sending');
+    setTestMsg(null);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/notify/test', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        setTestState('sent');
+        setTestMsg(t('settings.pushTestSent'));
+      } else {
+        setTestState('error');
+        setTestMsg(data.reason === 'no-devices' ? t('settings.pushTestNoDevices') : t('settings.pushTestFailed'));
+      }
+    } catch {
+      setTestState('error');
+      setTestMsg(t('settings.pushTestFailed'));
+    } finally {
+      setTimeout(() => setTestState('idle'), 4000);
     }
   };
 
@@ -346,6 +375,29 @@ export default function SettingsPage() {
           )}
           {pushError && <p className="text-[10px] text-alert">{pushError}</p>}
           <p className="text-[10px] text-neutral-600">{t('settings.pushHint')}</p>
+
+          {/* One-tap self-test so a user can verify delivery on their own device. */}
+          {pushEnabled && (
+            <>
+              <button
+                onClick={sendTest}
+                disabled={testState === 'sending'}
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-50"
+              >
+                {testState === 'sending' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : testState === 'sent' ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <BellRing className="h-3.5 w-3.5" />
+                )}
+                {t('settings.pushTest')}
+              </button>
+              {testMsg && (
+                <p className={`text-[10px] ${testState === 'error' ? 'text-alert' : 'text-emerald-300'}`}>{testMsg}</p>
+              )}
+            </>
+          )}
 
           {/* Which categories to receive. Only meaningful once push is on. */}
           {(
