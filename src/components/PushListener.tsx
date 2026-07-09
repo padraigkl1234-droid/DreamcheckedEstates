@@ -20,9 +20,17 @@ export function PushListener() {
     let unsub: (() => void) | undefined;
     let cancelled = false;
 
-    // Keep this device's token fresh (no permission prompt — enablePush only
-    // requests if not already granted, and here it already is).
-    if (notificationPermission() === 'granted') {
+    // Keep this device's token fresh on load — but only if the user has this
+    // device turned ON (the per-user flag Settings sets). Without that gate we'd
+    // re-register a token every load even after the user turned notifications
+    // off. No permission prompt here: permission is already granted.
+    let deviceOn = false;
+    try {
+      deviceOn = window.localStorage.getItem(`invictus-push-${user.uid}`) === '1';
+    } catch {
+      /* ignore */
+    }
+    if (deviceOn && notificationPermission() === 'granted') {
       enablePush(user.uid).catch(() => {});
     }
 

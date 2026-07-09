@@ -75,14 +75,26 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Push-notification state. `permission` mirrors the browser's grant; `pushBusy`
+  // Push-notification state. `permission` mirrors the browser's grant.
+  // `deviceOn` tracks whether THIS device actually has a token registered
+  // (persisted per-user in localStorage) — permission alone isn't enough, since
+  // token registration can fail even after permission is granted. `pushBusy`
   // guards the enable/disable button while a request is in flight.
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('unsupported');
+  const [deviceOn, setDeviceOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
+  const deviceFlagKey = user ? `invictus-push-${user.uid}` : null;
   useEffect(() => {
     setPermission(notificationPermission());
-  }, []);
+    if (deviceFlagKey) {
+      try {
+        setDeviceOn(window.localStorage.getItem(deviceFlagKey) === '1');
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [deviceFlagKey]);
 
   const notifPrefs = profile?.notifPrefs;
   const setNotifPref = async (key: keyof NotifPrefs, value: boolean) => {
@@ -123,7 +135,20 @@ export default function SettingsPage() {
     }
   };
 
-  const pushEnabled = permission === 'granted';
+  // "On" means this device is actually registered — permission granted AND a
+  // token stored. That's what gates the test button and category filters.
+  const pushEnabled = deviceOn && permission === 'granted';
+  const setDeviceFlag = (on: boolean) => {
+    setDeviceOn(on);
+    if (deviceFlagKey) {
+      try {
+        if (on) window.localStorage.setItem(deviceFlagKey, '1');
+        else window.localStorage.removeItem(deviceFlagKey);
+      } catch {
+        /* ignore */
+      }
+    }
+  };
   const togglePush = async () => {
     if (!user || pushBusy) return;
     setPushBusy(true);
@@ -131,12 +156,12 @@ export default function SettingsPage() {
     try {
       if (pushEnabled) {
         await disablePush(user.uid);
-        // Permission can't be revoked programmatically; we just drop the token.
-        // Reflect that devices won't receive pushes by leaving permission as-is
-        // but the token is gone. Re-enabling re-registers a token.
+        setDeviceFlag(false);
       } else {
         const res = await enablePush(user.uid);
-        if (!res.ok) {
+        if (res.ok) {
+          setDeviceFlag(true);
+        } else {
           const messages: Record<string, string> = {
             unsupported: 'This browser/device does not support push notifications.',
             denied: 'Notifications are blocked. Enable them in your browser settings.',
