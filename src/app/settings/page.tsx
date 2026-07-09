@@ -144,7 +144,10 @@ export default function SettingsPage() {
             'no-token': 'Could not register this device. Try again.',
             error: 'Something went wrong enabling notifications.',
           };
-          setPushError(messages[res.reason || 'error'] || messages.error);
+          const base = messages[res.reason || 'error'] || messages.error;
+          // Show the underlying error so config problems (e.g. a bad VAPID key)
+          // are diagnosable instead of a generic message.
+          setPushError(res.detail ? `${base} (${res.detail})` : base);
         }
       }
       setPermission(notificationPermission());

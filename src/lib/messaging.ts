@@ -15,7 +15,9 @@
 import { arrayUnion, arrayRemove, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+// Strip any whitespace/newlines that may have crept in when the key was copied
+// out of the Firebase console (it's displayed wrapped across many lines there).
+const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.replace(/\s+/g, '');
 
 export function pushSupported(): boolean {
   return (
@@ -52,6 +54,7 @@ export interface EnableResult {
   ok: boolean;
   token?: string;
   reason?: 'unsupported' | 'denied' | 'no-vapid' | 'no-token' | 'error';
+  detail?: string; // the underlying error message, for diagnostics
 }
 
 // Ask permission, get a token, and save it to the user's profile. Idempotent:
@@ -83,7 +86,9 @@ export async function enablePush(uid: string): Promise<EnableResult> {
     return { ok: true, token };
   } catch (error) {
     console.error('enablePush failed:', error);
-    return { ok: false, reason: 'error' };
+    const detail =
+      (error as { code?: string })?.code || (error as Error)?.message || String(error);
+    return { ok: false, reason: 'error', detail };
   }
 }
 
