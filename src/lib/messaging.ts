@@ -72,10 +72,24 @@ export async function enablePush(uid: string): Promise<EnableResult> {
 
     const registration = await registerSw();
     const { getToken } = await import('firebase/messaging');
-    const token = await getToken(messaging, {
-      vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: registration,
-    });
+    const opts = { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration };
+
+    let token: string;
+    try {
+      token = await getToken(messaging, opts);
+    } catch (err) {
+      // InvalidAccessError (DOMException code 15) / "applicationServerKey ...
+      // different" means this browser already has a push subscription tied to a
+      // DIFFERENT VAPID key (a previous attempt or the project's other key
+      // pair). Firebase can't re-subscribe until the stale one is removed —
+      // drop it and try once more with the current key.
+      const code = (err as { code?: number | string })?.code;
+      const isStaleSub = code === 15 || (err as Error)?.name === 'InvalidAccessError';
+      if (!isStaleSub) throw err;
+      const sub = await registration.pushManager.getSubscription();
+      if (sub) await sub.unsubscribe();
+      token = await getToken(messaging, opts);
+    }
     if (!token) return { ok: false, reason: 'no-token' };
 
     await setDoc(
