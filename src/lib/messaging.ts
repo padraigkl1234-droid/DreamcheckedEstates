@@ -100,8 +100,15 @@ export async function enablePush(uid: string): Promise<EnableResult> {
     return { ok: true, token };
   } catch (error) {
     console.error('enablePush failed:', error);
-    const detail =
-      (error as { code?: string })?.code || (error as Error)?.message || String(error);
+    const code = (error as { code?: number | string })?.code;
+    let detail = String(code || (error as Error)?.message || error);
+    // Code 15 / InvalidAccessError after our retry means the VAPID key itself is
+    // rejected. A valid key is ~87 base64url chars starting with "B" — surface
+    // the length so a truncated/malformed key is obvious.
+    if (code === 15 || (error as Error)?.name === 'InvalidAccessError') {
+      const len = VAPID_KEY?.length ?? 0;
+      detail = `invalid VAPID key — check NEXT_PUBLIC_FIREBASE_VAPID_KEY in Vercel (current length ${len}, expected ~87)`;
+    }
     return { ok: false, reason: 'error', detail };
   }
 }
