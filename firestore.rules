@@ -68,11 +68,13 @@ service cloud.firestore {
     function myProfile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
+    // Default to 'member' / '' when the field is absent, so users who predate
+    // the rank feature don't error out (a missing key would fail the rule).
     function myRank() {
-      return isAuthenticated() ? myProfile().rank : null;
+      return isAuthenticated() ? myProfile().get('rank', 'member') : 'member';
     }
     function myTeam() {
-      return isAuthenticated() ? myProfile().teamId : null;
+      return isAuthenticated() ? myProfile().get('teamId', '') : '';
     }
     // A commander of the given team (chain-of-command oversight).
     function isCommanderOf(teamId) {
