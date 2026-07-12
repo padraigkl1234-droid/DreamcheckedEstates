@@ -1,212 +1,105 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {userId} (matches request.auth.uid)
-    // Fields:
-    //   - uid: string (required)
-    //   - email: string (required)
-    //   - displayName: string (optional)
-    //   - role: string (required, ['admin', 'user'])
-    //
-    // Collection: assignments
-    // Document ID: {assignmentId}
-    // Fields:
-    //   - title: string (required, 1-200 chars)
-    //   - assignee: string (required, 1-100 chars)
-    //   - priority: string (required, ['LOW', 'MED', 'HIGH', 'CRIT'])
-    //   - location: string (required, 1-100 chars)
-    //   - description: string (optional, 0-2000 chars)
-    //   - status: string (required, ['Not Started', 'In Progress', 'Awaiting Parts', 'On Hold', 'Completed'])
-    //   - createdAt: number (required)
-    //   - isArchived: bool (required)
-    //   - attachments: list (optional, max 10 items)
-    //   - completionComment: string (optional, 0-1000 chars)
-    //   - createdBy: string (optional, UID)
-    //
-    // Collection: jarvisState
-    // Document ID: {userId} (matches request.auth.uid)
-    // Fields:
-    //   - tasks: list (optional/legacy, max 1000 items) - tasks now live in the shared `tasks` collection
-    //   - compliances: list (required, max 1000 items)
-    //   - events: list (required, max 1000 items) - diary entries: { id, title, date, time?, priority, notes }
-    //   - updatedAt: number (required)
-    //
-    // ===============================================================
 
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         (request.auth.token.email == "padraigkl1234@gmail.com" && request.auth.token.email_verified == true));
-    }
-
-    // The fixed master admin (global, above every team).
+    // ---- Helpers ---------------------------------------------------------
     function isMasterAdmin() {
-      return isAuthenticated() &&
+      return request.auth != null &&
         request.auth.token.email == "padraigkl1234@gmail.com" &&
         request.auth.token.email_verified == true;
     }
-
-    // The signed-in user's own profile fields (rank / team), read once per rule.
     function myProfile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     // Default to 'member' / '' when the field is absent, so users who predate
     // the rank feature don't error out (a missing key would fail the rule).
     function myRank() {
-      return isAuthenticated() ? myProfile().get('rank', 'member') : 'member';
+      return request.auth != null ? myProfile().get('rank', 'member') : 'member';
     }
     function myTeam() {
-      return isAuthenticated() ? myProfile().get('teamId', '') : '';
+      return request.auth != null ? myProfile().get('teamId', '') : '';
     }
     // A commander of the given team (chain-of-command oversight).
     function isCommanderOf(teamId) {
-      return isAuthenticated() && myRank() == 'commander' && myTeam() == teamId;
+      return request.auth != null && myRank() == 'commander' && myTeam() == teamId;
     }
 
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
+    // ---- Collections -----------------------------------------------------
+
+    // Shared team show board — any signed-in user can read/update shows.
+    match /shows/{showId} {
+      allow read, write: if request.auth != null;
     }
 
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    // User profiles. Anyone signed in can read the roster; you write only your
+    // own doc. Rank is written server-side (Admin SDK), which bypasses rules.
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
     }
 
-    function isValidAttachment(attachment) {
-      return attachment is map && 
-             attachment.url is string && attachment.url.matches("^https://.*") &&
-             attachment.name is string && attachment.name.size() < 255 &&
-             attachment.type is string;
-    }
-
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-
-    function isValidUser(data) {
-      return data.uid is string && 
-             data.email is string && isValidEmail(data.email) &&
-             data.role in ['admin', 'user'] &&
-             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100));
-    }
-
-    function isValidJarvisState(data) {
-      // `tasks` used to live here but now lives in the shared `tasks`
-      // collection, so the app writes only compliances/events/updatedAt.
-      // `tasks` is therefore optional (validated only if still present).
-      return (!('tasks' in data) || (data.tasks is list && data.tasks.size() <= 1000)) &&
-             data.compliances is list && data.compliances.size() <= 1000 &&
-             data.events is list && data.events.size() <= 1000 &&
-             data.updatedAt is number;
-    }
-
-    function isValidAssignment(data) {
-      return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
-             data.assignee is string && data.assignee.size() > 0 && data.assignee.size() <= 100 &&
-             data.priority in ['LOW', 'MED', 'HIGH', 'CRIT'] &&
-             data.location is string && data.location.size() > 0 && data.location.size() <= 100 &&
-             (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
-             data.status in ['Not Started', 'In Progress', 'Awaiting Parts', 'On Hold', 'Completed'] &&
-             data.createdAt is number &&
-             data.isArchived is bool &&
-             (!('attachments' in data) || (data.attachments is list && data.attachments.size() <= 10)) &&
-             (!('completionComment' in data) || (data.completionComment is string && data.completionComment.size() <= 1000)) &&
-             (!('createdBy' in data) || (data.createdBy is string));
-    }
-
-    // ===============================================================
-    // Match Rules
-    // ===============================================================
-
-    match /users/{userId} {
-      // Users can only read their own profile, unless they are admin
-      // Note: If we need a public directory, we'd split this.
-      allow read: if isOwner(userId) || isAdmin();
-      
-      // Users can create their own profile as 'user' role. Admin can do anything.
-      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
-                    ((isOwner(userId) && request.resource.data.role == 'user') || isAdmin());
-      
-      // Users can update their own profile but NOT their role. Admin can update anything.
-      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
-                    ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
-      
-      allow delete: if isAdmin();
-    }
-
-    match /assignments/{assignmentId} {
-      // All authenticated team members can read and write assignments
-      allow read: if isAuthenticated();
-      
-      allow create: if isAuthenticated() && isValidAssignment(request.resource.data);
-      
-      allow update: if isAuthenticated() && isValidAssignment(request.resource.data);
-      
-      allow delete: if isAuthenticated(); // Or restrict to admin/creator if needed
-    }
-
-    match /jarvisState/{userId} {
-      // Each user's JARVIS tasks/compliance progress is private to them.
-      allow read: if isOwner(userId);
-      allow write: if isOwner(userId) && isValidJarvisState(request.resource.data);
-    }
-
-    // Shared tasks. Visible to their participants and to the person a task is
-    // offered to; a team commander (and the master) can oversee every task
-    // stamped with their team's id.
+    // Shared tasks. Visible to participants and to the person a task is offered
+    // to; a team commander (and the master) can oversee every task stamped with
+    // their team's id.
     match /tasks/{taskId} {
       function canAccessTask() {
-        return isAuthenticated() && (
+        return request.auth != null && (
           request.auth.uid in resource.data.participants ||
           resource.data.pendingUid == request.auth.uid ||
           isMasterAdmin() ||
-          (resource.data.teamId != null && isCommanderOf(resource.data.teamId))
+          (resource.data.get('teamId', null) != null && isCommanderOf(resource.data.teamId))
         );
       }
-      allow read: if canAccessTask();
-      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if canAccessTask();
+      allow read, update, delete: if canAccessTask();
+      allow create: if request.auth != null && request.resource.data.ownerUid == request.auth.uid;
     }
 
     // Authored reports. "team" reports are visible team-wide; "command" reports
-    // only to their author, team commanders and the master.
+    // only to their author, team commanders and the master. Viewers can't file.
     match /reports/{reportId} {
-      allow read: if isAuthenticated() && (
+      allow read: if request.auth != null && (
         resource.data.createdBy == request.auth.uid ||
         isMasterAdmin() ||
         (resource.data.teamId == myTeam() &&
           (resource.data.visibility == 'team' || isCommanderOf(resource.data.teamId)))
       );
-      allow create: if isAuthenticated() &&
+      allow create: if request.auth != null &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.teamId == myTeam() &&
         myRank() != 'viewer' &&
         request.resource.data.title is string &&
         request.resource.data.visibility in ['command', 'team'];
-      allow update, delete: if isAuthenticated() && (
+      allow update, delete: if request.auth != null && (
         resource.data.createdBy == request.auth.uid ||
         isMasterAdmin() ||
         isCommanderOf(resource.data.teamId)
       );
     }
 
+    // Each user's private compliance/diary state.
+    match /jarvisState/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Team-scoped shared forms.
+    match /checklistForms/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /auditForms/{id} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Team docs are read by members; writes go through the Admin SDK.
+    match /teams/{teamId} {
+      allow read: if request.auth != null;
+    }
+
+    // Estates assignments module.
+    match /assignments/{assignmentId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Connectivity probe.
     match /test/connection {
       allow read: if true;
     }
