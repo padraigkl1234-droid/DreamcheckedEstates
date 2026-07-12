@@ -3905,10 +3905,11 @@ function TaskManager({
                 </button>
                 <button
                   onClick={() => onFileReport(task)}
-                  className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+                  className="flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-invictus-crimson-bright shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
                   title="File a report for this task"
                 >
                   <FileText className="h-3.5 w-3.5" />
+                  Report
                 </button>
                 {task.status === 'Completed' && (
                   <button
