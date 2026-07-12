@@ -27,6 +27,56 @@ export function featureEnabled(features: TeamFeatures | undefined, key: string):
   return features?.[key] !== false;
 }
 
+// ---------------------------------------------------------------------------
+// Rank ladder (chain of command within a team). The master admin (admin.ts)
+// sits above every team. Within a team:
+//   commander — team leadership: sees all team tasks + reports, can create,
+//               edit and reassign any member's task, and promote/demote members.
+//   member    — standard operator: own & shared tasks, files reports.
+//   viewer    — read-only: can view reports (per visibility) but not act.
+// ---------------------------------------------------------------------------
+export type Rank = 'commander' | 'member' | 'viewer';
+
+export const RANKS: { value: Rank; label: string; blurb: string }[] = [
+  { value: 'commander', label: 'Commander', blurb: 'Leads the team — full task oversight and can manage members.' },
+  { value: 'member', label: 'Member', blurb: 'Standard operator — handles tasks and files reports.' },
+  { value: 'viewer', label: 'Viewer', blurb: 'Read-only access to reports shared with the team.' },
+];
+
+export const RANK_LABELS: Record<Rank, string> = {
+  commander: 'Commander',
+  member: 'Member',
+  viewer: 'Viewer',
+};
+
+// Higher number = more authority. Used only for display ordering of the ladder.
+export const RANK_ORDER: Record<Rank, number> = { commander: 3, member: 2, viewer: 1 };
+
+// A missing rank means a standard member (the default for everyone).
+export function rankOf(p: Partial<UserProfile> | null | undefined): Rank {
+  return p?.rank ?? 'member';
+}
+
+export function isCommander(p: Partial<UserProfile> | null | undefined): boolean {
+  return rankOf(p) === 'commander';
+}
+
+// Whether `actor` (with master override) may change `target`'s rank to `next`.
+// Master can do anything. A commander may manage members/viewers but cannot
+// touch another commander, nor promote anyone to commander.
+export function canManageRank(
+  actor: { rank?: Rank } | null | undefined,
+  target: { rank?: Rank } | null | undefined,
+  next: Rank,
+  isMaster: boolean
+): boolean {
+  if (isMaster) return true;
+  if (rankOf(actor) !== 'commander') return false;
+  if (rankOf(target) === 'commander') return false; // can't manage peers
+  if (next === 'commander') return false; // only master appoints commanders
+  return true;
+}
+
 export interface Team {
   id: string;
   name: string;
@@ -45,6 +95,7 @@ export interface UserProfile {
   photoURL?: string | null;
   teamId?: string | null; // which team they belong to
   role?: string; // 'admin' = team-level admin (existing field)
+  rank?: Rank; // chain-of-command rank within the team (default 'member')
   blocked?: boolean;
   lastSeen?: number;
   fcmTokens?: string[]; // registered device push tokens (Cloud Messaging)

@@ -52,9 +52,31 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
+      return isAuthenticated() &&
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
          (request.auth.token.email == "padraigkl1234@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // The fixed master admin (global, above every team).
+    function isMasterAdmin() {
+      return isAuthenticated() &&
+        request.auth.token.email == "padraigkl1234@gmail.com" &&
+        request.auth.token.email_verified == true;
+    }
+
+    // The signed-in user's own profile fields (rank / team), read once per rule.
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function myRank() {
+      return isAuthenticated() ? myProfile().rank : null;
+    }
+    function myTeam() {
+      return isAuthenticated() ? myProfile().teamId : null;
+    }
+    // A commander of the given team (chain-of-command oversight).
+    function isCommanderOf(teamId) {
+      return isAuthenticated() && myRank() == 'commander' && myTeam() == teamId;
     }
 
     function hasOnlyAllowedFields(fields) {
@@ -142,6 +164,45 @@ service cloud.firestore {
       // Each user's JARVIS tasks/compliance progress is private to them.
       allow read: if isOwner(userId);
       allow write: if isOwner(userId) && isValidJarvisState(request.resource.data);
+    }
+
+    // Shared tasks. Visible to their participants and to the person a task is
+    // offered to; a team commander (and the master) can oversee every task
+    // stamped with their team's id.
+    match /tasks/{taskId} {
+      function canAccessTask() {
+        return isAuthenticated() && (
+          request.auth.uid in resource.data.participants ||
+          resource.data.pendingUid == request.auth.uid ||
+          isMasterAdmin() ||
+          (resource.data.teamId != null && isCommanderOf(resource.data.teamId))
+        );
+      }
+      allow read: if canAccessTask();
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if canAccessTask();
+    }
+
+    // Authored reports. "team" reports are visible team-wide; "command" reports
+    // only to their author, team commanders and the master.
+    match /reports/{reportId} {
+      allow read: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        isMasterAdmin() ||
+        (resource.data.teamId == myTeam() &&
+          (resource.data.visibility == 'team' || isCommanderOf(resource.data.teamId)))
+      );
+      allow create: if isAuthenticated() &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.teamId == myTeam() &&
+        myRank() != 'viewer' &&
+        request.resource.data.title is string &&
+        request.resource.data.visibility in ['command', 'team'];
+      allow update, delete: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        isMasterAdmin() ||
+        isCommanderOf(resource.data.teamId)
+      );
     }
 
     match /test/connection {

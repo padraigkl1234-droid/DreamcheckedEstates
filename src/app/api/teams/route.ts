@@ -6,8 +6,11 @@ import {
   DREAMLAND_TEAM_ID,
   DREAMLAND_TEAM_NAME,
   TOGGLEABLE_PAGES,
+  RANKS,
+  canManageRank,
   generateReferralCode,
   normalizeCode,
+  type Rank,
 } from '@/lib/teams';
 
 export const runtime = 'nodejs';
@@ -84,6 +87,36 @@ async function migrateTeamData(db: Firestore) {
   await metaRef.set({ migratedTeamData: true, migratedTeamDataAt: Date.now() }, { merge: true });
 }
 
+// One-time: stamp existing shared tasks with their owner's teamId, so commanders
+// (who query tasks by teamId) can see work created before task-scoping existed.
+async function migrateTaskTeamIds(db: Firestore) {
+  const metaRef = db.collection('appMeta').doc('teams');
+  const meta = await metaRef.get();
+  if (meta.data()?.migratedTaskTeamIds) return;
+  // Map each user to their team once, to avoid a lookup per task.
+  const usersSnap = await db.collection('users').get();
+  const teamByUid = new Map<string, string>();
+  usersSnap.forEach((u) => {
+    const t = u.data()?.teamId;
+    if (typeof t === 'string') teamByUid.set(u.id, t);
+  });
+  const tasks = await db.collection('tasks').get();
+  const batch = db.batch();
+  let count = 0;
+  tasks.forEach((d) => {
+    const data = d.data();
+    if (data?.teamId) return;
+    const owner = typeof data?.ownerUid === 'string' ? data.ownerUid : '';
+    const team = teamByUid.get(owner);
+    if (team) {
+      batch.update(d.ref, { teamId: team });
+      count++;
+    }
+  });
+  if (count) await batch.commit();
+  await metaRef.set({ migratedTaskTeamIds: true, migratedTaskTeamIdsAt: Date.now() }, { merge: true });
+}
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get('authorization') ?? '';
@@ -111,6 +144,7 @@ export async function POST(req: Request) {
       await ensureDreamland(db);
       await migrateLegacyUsers(db);
       await migrateTeamData(db);
+      await migrateTaskTeamIds(db);
       // Register / refresh the caller's user doc.
       const userRef = db.collection('users').doc(decoded.uid);
       await userRef.set(
@@ -133,6 +167,36 @@ export async function POST(req: Request) {
       const team = match.docs[0];
       await db.collection('users').doc(decoded.uid).set({ teamId: team.id }, { merge: true });
       return NextResponse.json({ ok: true, teamId: team.id, teamName: team.data().name });
+    }
+
+    // --- Rank management (master, or a commander managing their own team) ---
+    if (action === 'setRank') {
+      const targetUid = typeof body.targetUid === 'string' ? body.targetUid : '';
+      const nextRank = typeof body.rank === 'string' ? (body.rank as Rank) : '';
+      if (!targetUid || !RANKS.some((r) => r.value === nextRank)) {
+        return NextResponse.json({ error: 'Missing targetUid or invalid rank' }, { status: 400 });
+      }
+      const [callerSnap, targetSnap] = await Promise.all([
+        db.collection('users').doc(decoded.uid).get(),
+        db.collection('users').doc(targetUid).get(),
+      ]);
+      const caller = callerSnap.data() ?? {};
+      const target = targetSnap.data() ?? {};
+      if (!targetSnap.exists) return NextResponse.json({ error: 'No such user' }, { status: 404 });
+      // The master account's rank is untouchable.
+      const targetAuth = await adminAuth.getUser(targetUid).catch(() => null);
+      if ((targetAuth?.email ?? '').toLowerCase() === MASTER_ADMIN_EMAIL) {
+        return NextResponse.json({ error: 'The master account cannot be modified' }, { status: 403 });
+      }
+      // A commander may only manage users on their own team.
+      if (!isMaster && caller.teamId && caller.teamId !== target.teamId) {
+        return NextResponse.json({ error: 'You can only manage your own team' }, { status: 403 });
+      }
+      if (!canManageRank(caller as { rank?: Rank }, target as { rank?: Rank }, nextRank as Rank, isMaster)) {
+        return NextResponse.json({ error: 'You do not have permission to set that rank' }, { status: 403 });
+      }
+      await db.collection('users').doc(targetUid).set({ rank: nextRank }, { merge: true });
+      return NextResponse.json({ ok: true });
     }
 
     // --- Master-only actions ---

@@ -8,12 +8,13 @@ import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
 import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
 import { CHECKLIST_SECTIONS, type ChecklistSection } from '@/lib/checklists';
-import { DREAMLAND_TEAM_ID, featureEnabled, type TeamFeatures } from '@/lib/teams';
+import { DREAMLAND_TEAM_ID, featureEnabled, isCommander, type TeamFeatures } from '@/lib/teams';
 import { useProfile } from '@/components/ProfileProvider';
 import { useT } from '@/components/LanguageProvider';
 import { usePreferences } from '@/components/PreferencesProvider';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { InvictusSelect } from '@/components/InvictusSelect';
+import { ReportsView, type ReportDraft } from '@/components/ReportsView';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import {
   type ComplianceItem,
@@ -3466,6 +3467,7 @@ function TaskManager({
   onDeclineOffer,
   onEdit,
   onSetImages,
+  onFileReport,
 }: {
   tasks: Task[];
   archivedTasks: Task[];
@@ -3484,6 +3486,7 @@ function TaskManager({
     updates: { name: string; notes: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
   ) => void;
   onSetImages: (id: string, images: TaskImage[]) => void;
+  onFileReport: (task: Task) => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
   const todayStr = toDateInputValue(new Date());
@@ -3899,6 +3902,13 @@ function TaskManager({
                   title="Edit task"
                 >
                   <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onFileReport(task)}
+                  className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+                  title="File a report for this task"
+                >
+                  <FileText className="h-3.5 w-3.5" />
                 </button>
                 {task.status === 'Completed' && (
                   <button
@@ -4532,6 +4542,7 @@ export default function InvictusTrackerPage() {
   const { profile, team: myTeam } = useProfile();
   const teamId = profile?.teamId ?? null;
   const isDreamland = teamId === DREAMLAND_TEAM_ID;
+  const amCommander = isCommander(profile);
   const [teamChecklistForms, setTeamChecklistForms] = useState<{ section: string; name: string; description?: string; url: string }[]>([]);
   const [mounted, setMounted] = useState(false);
   const [booting, setBooting] = useState(true);
@@ -4543,6 +4554,8 @@ export default function InvictusTrackerPage() {
     const keys: PageKey[] = ['dashboard', 'calendar', 'shows', 'sitemap', 'tasks', 'archive', 'compliance', 'reports', 'admin'];
     return wanted && (keys as string[]).includes(wanted) ? (wanted as PageKey) : 'dashboard';
   });
+  // When set, the Reports view opens with its form pre-filled to back this task.
+  const [reportDraft, setReportDraft] = useState<ReportDraft | null>(null);
   // Everyone starts with a clean slate — no example tasks/events/compliances.
   // A signed-in user's own saved data loads from Firestore below and replaces
   // these, and anything they add persists to their account from then on.
@@ -4706,7 +4719,13 @@ export default function InvictusTrackerPage() {
       setTaskOffers([]);
       return;
     }
-    const mineQ = query(collection(db, 'tasks'), where('participants', 'array-contains', user.uid));
+    // Commanders oversee the whole team's tasks; everyone else sees only tasks
+    // they participate in. (A commander's own tasks carry the same teamId, so
+    // the team query is a superset of the participant query for them.)
+    const mineQ =
+      amCommander && teamId
+        ? query(collection(db, 'tasks'), where('teamId', '==', teamId))
+        : query(collection(db, 'tasks'), where('participants', 'array-contains', user.uid));
     const unsubMine = onSnapshot(
       mineQ,
       (snap) => {
@@ -4726,7 +4745,7 @@ export default function InvictusTrackerPage() {
       unsubMine();
       unsubOffers();
     };
-  }, [user]);
+  }, [user, amCommander, teamId]);
 
   // The Show Board is a SHARED, live team board scoped to this user's team:
   // shows live in a top-level `shows` collection that everyone in the team
@@ -4818,6 +4837,7 @@ export default function InvictusTrackerPage() {
       createdAt: Date.now(),
       ownerUid: user.uid,
       ownerName,
+      teamId: teamId ?? null, // stamp the team so commanders can oversee it
       participants: [user.uid],
       participantNames: { [user.uid]: ownerName },
       pendingUid: task.pendingUid ?? null,
@@ -4861,6 +4881,11 @@ export default function InvictusTrackerPage() {
   const handleSetTaskImages = (id: string, images: TaskImage[]) => {
     if (!user) return;
     updateDoc(doc(db, 'tasks', id), { images }).catch(logTaskError('update task images'));
+  };
+  // Jump to the Reports view with the form pre-filled to back this task.
+  const handleFileReport = (task: Task) => {
+    setReportDraft({ taskId: task.id, taskName: task.name, title: task.name });
+    setActivePage('reports');
   };
 
   const handleArchiveTask = (id: string) => {
@@ -5023,6 +5048,7 @@ export default function InvictusTrackerPage() {
                 onDeclineOffer={handleDeclineOffer}
                 onEdit={handleEditTask}
                 onSetImages={handleSetTaskImages}
+                onFileReport={handleFileReport}
               />
             )}
             {activePage === 'archive' && (
@@ -5046,7 +5072,11 @@ export default function InvictusTrackerPage() {
               />
             )}
             {activePage === 'reports' && (
-              <ReportsPage tasks={tasks} archivedTasks={archivedTasks} compliances={compliances} />
+              <ReportsView
+                tasks={tasks.map((t) => ({ id: t.id, name: t.name }))}
+                initialDraft={reportDraft}
+                onDraftConsumed={() => setReportDraft(null)}
+              />
             )}
           </main>
         </div>
