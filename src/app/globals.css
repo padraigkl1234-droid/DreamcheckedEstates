@@ -9,11 +9,27 @@
     --invictus-base: 10 10 12;
     --invictus-surface: 18 18 21;
     --invictus-raised: 23 23 27;
+    /* Brand accent (crimson in the dark theme). */
+    --invictus-crimson: 154 34 54;
+    --invictus-crimson-bright: 194 48 74;
+    /* Active typefaces — dark theme keeps the HUD look. */
+    --font-display-active: var(--font-orbitron);
+    --font-sans-active: var(--font-inter);
+    --font-body-active: 'Poppins';
   }
+  /* Light = "scrapbook" theme: warm paper background, white card stock,
+     dark-blue ink for text and accents, black for emphasis, and a natural
+     handwritten display face. */
   :root[data-theme='light'] {
-    --invictus-base: 244 244 245;
-    --invictus-surface: 255 255 255;
-    --invictus-raised: 233 233 236;
+    --invictus-base: 247 243 233; /* warm paper cream */
+    --invictus-surface: 255 255 255; /* white card stock */
+    --invictus-raised: 240 234 220; /* kraft-paper raised */
+    /* Accent swaps to dark-blue ink. */
+    --invictus-crimson: 22 50 79; /* deep navy ink */
+    --invictus-crimson-bright: 29 78 137; /* brighter marker blue */
+    --font-display-active: var(--font-caveat);
+    --font-sans-active: var(--font-nunito);
+    --font-body-active: var(--font-nunito);
   }
 
   :root {
@@ -119,21 +135,22 @@
   }
 }
 
-/* --- Light mode --------------------------------------------------------- */
-/* The app is designed dark-first with near-white neutral text. In light mode
-   the surface tokens above flip to light; here we flip the common neutral text
-   shades to dark equivalents so everything stays legible without touching each
-   component. Higher specificity than Tailwind's own utility, so it wins. */
-:root[data-theme='light'] .text-neutral-50 { color: #09090b; }
-:root[data-theme='light'] .text-neutral-100 { color: #18181b; }
-:root[data-theme='light'] .text-neutral-200 { color: #27272a; }
-:root[data-theme='light'] .text-neutral-300 { color: #3f3f46; }
-:root[data-theme='light'] .text-neutral-400 { color: #52525b; }
-:root[data-theme='light'] .text-neutral-500 { color: #71717a; }
-:root[data-theme='light'] .text-neutral-600 { color: #a1a1aa; }
-:root[data-theme='light'] .text-neutral-700 { color: #c4c4cc; }
-/* Yellow/amber and green text are near-invisible on white — darken the light
-   shades (the 600–800 shades are already legible on light). */
+/* --- Light mode: the "scrapbook" theme ----------------------------------- */
+/* The app is designed dark-first with near-white neutral text. The light theme
+   restyles it as a paper scrapbook: navy-ink text, black for emphasis, paper
+   textures and sticker-style cards. Higher specificity than Tailwind's own
+   utilities, so these win without touching each component. */
+
+/* Neutral text shades -> navy ink (darkest) through faded pencil (lightest). */
+:root[data-theme='light'] .text-neutral-50 { color: #0b1523; }
+:root[data-theme='light'] .text-neutral-100 { color: #14273f; }
+:root[data-theme='light'] .text-neutral-200 { color: #1b3252; }
+:root[data-theme='light'] .text-neutral-300 { color: #274565; }
+:root[data-theme='light'] .text-neutral-400 { color: #3d587a; }
+:root[data-theme='light'] .text-neutral-500 { color: #5b7291; }
+:root[data-theme='light'] .text-neutral-600 { color: #8fa2ba; }
+:root[data-theme='light'] .text-neutral-700 { color: #b9c5d4; }
+/* Yellow/amber and green text are near-invisible on paper — darken them. */
 :root[data-theme='light'] .text-amber-200,
 :root[data-theme='light'] .text-amber-300,
 :root[data-theme='light'] .text-amber-400,
@@ -145,3 +162,62 @@
 :root[data-theme='light'] .text-emerald-400 { color: #047857; }
 /* Soften the dark-mode scanline/grain overlays that would look harsh on light. */
 :root[data-theme='light'] .animate-scanlines { opacity: 0.03 !important; }
+
+/* Glow text: paper doesn't glow — drop the neon and use soft ink shadows. */
+:root[data-theme='light'] {
+  --glow-text-subtle: none;
+  --glow-text-strong: none;
+  --glow-text-strong-amber: none;
+  --glow-text-strong-red: none;
+}
+
+/* Scrapbook paper: warm cream with a faint dot grid, like craft paper. Applied
+   to the exact base-surface class used by page wrappers (alpha variants like
+   bg-invictus-base/60 are separate classnames and stay flat). */
+:root[data-theme='light'] .bg-invictus-base {
+  background-image: radial-gradient(rgba(22, 50, 79, 0.07) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+
+/* Handwritten display face: Caveat reads terribly in forced uppercase with wide
+   HUD tracking — let it breathe in its natural case, larger, with a slight tilt
+   of personality via tighter tracking. */
+:root[data-theme='light'] .font-display {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+/* Sticker cards: heavier ink borders and offset paper shadows instead of neon
+   glows. Black is the emphasis colour, navy the ink. */
+:root[data-theme='light'] .shadow-glow-subtle {
+  box-shadow: 3px 3px 0 rgba(20, 33, 51, 0.1);
+}
+:root[data-theme='light'] .shadow-glow-strong {
+  box-shadow: 4px 4px 0 rgba(29, 78, 137, 0.3);
+}
+:root[data-theme='light'] .shadow-glow-caution {
+  box-shadow: 4px 4px 0 rgba(180, 83, 9, 0.3);
+}
+:root[data-theme='light'] .shadow-glow-alert {
+  box-shadow: 4px 4px 0 rgba(190, 30, 45, 0.3);
+}
+:root[data-theme='light'] .drop-shadow-glow-subtle,
+:root[data-theme='light'] .drop-shadow-glow-strong,
+:root[data-theme='light'] .drop-shadow-glow-caution {
+  filter: none;
+}
+
+/* Heavier, more deliberate borders: faint hairlines become visible ink lines. */
+:root[data-theme='light'] [class*='border-neutral-400/'] {
+  border-color: rgba(27, 50, 82, 0.4);
+}
+:root[data-theme='light'] .border-neutral-400\/15,
+:root[data-theme='light'] .border-neutral-400\/20 {
+  border-color: rgba(27, 50, 82, 0.28);
+}
+/* Panels and cards get a chunkier 2px edge, like taped-down card stock. */
+:root[data-theme='light'] .border:not(.rounded-full) {
+  border-width: 2px;
+}

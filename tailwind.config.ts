@@ -10,16 +10,19 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Poppins', 'sans-serif'],
-        headline: ['Poppins', 'sans-serif'],
+        // Indirection vars so the active theme can swap typefaces: dark keeps
+        // Poppins/Orbitron/Inter; the scrapbook light theme switches to
+        // Caveat (handwritten display) + Nunito (warm rounded body).
+        body: ['var(--font-body-active)', 'sans-serif'],
+        headline: ['var(--font-body-active)', 'sans-serif'],
         code: ['monospace'],
         display: [
-          'var(--font-orbitron)',
+          'var(--font-display-active)',
           'ui-sans-serif',
           'sans-serif',
         ],
         sans: [
-          'var(--font-inter)',
+          'var(--font-sans-active)',
           'ui-sans-serif',
           'system-ui',
           '-apple-system',
@@ -55,8 +58,10 @@ export default {
           base: 'rgb(var(--invictus-base) / <alpha-value>)',
           surface: 'rgb(var(--invictus-surface) / <alpha-value>)',
           raised: 'rgb(var(--invictus-raised) / <alpha-value>)',
-          crimson: '#9A2236',
-          'crimson-bright': '#C2304A',
+          // Brand accent as channels so the light (scrapbook) theme can swap
+          // crimson for its dark-blue ink without touching components.
+          crimson: 'rgb(var(--invictus-crimson) / <alpha-value>)',
+          'crimson-bright': 'rgb(var(--invictus-crimson-bright) / <alpha-value>)',
         },
         alert: {
           DEFAULT: '#FF3B4E',

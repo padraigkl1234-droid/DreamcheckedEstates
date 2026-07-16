@@ -1,5 +1,5 @@
 import type {Metadata, Viewport} from 'next';
-import { Inter, Orbitron } from 'next/font/google';
+import { Inter, Orbitron, Caveat, Nunito } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -51,13 +51,27 @@ const orbitron = Orbitron({
   display: 'swap',
 });
 
+// Scrapbook (light) theme fonts: a natural, almost handwritten display face and
+// a warm rounded body face. The active theme picks fonts via CSS variables.
+const caveat = Caveat({
+  subsets: ['latin'],
+  variable: '--font-caveat',
+  display: 'swap',
+});
+
+const nunito = Nunito({
+  subsets: ['latin'],
+  variable: '--font-nunito',
+  display: 'swap',
+});
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${orbitron.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${orbitron.variable} ${caveat.variable} ${nunito.variable}`} suppressHydrationWarning>
       <head>
         {/* Apply the saved theme before paint to avoid a flash of the wrong theme. */}
         <script
