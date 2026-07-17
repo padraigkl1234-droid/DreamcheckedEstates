@@ -11,8 +11,7 @@ export default {
     extend: {
       fontFamily: {
         // Indirection vars so the active theme can swap typefaces: dark keeps
-        // Poppins/Orbitron/Inter; the scrapbook light theme switches to
-        // Caveat (handwritten display) + Nunito (warm rounded body).
+        // Poppins/Orbitron/Inter; the light theme switches to Nunito throughout.
         body: ['var(--font-body-active)', 'sans-serif'],
         headline: ['var(--font-body-active)', 'sans-serif'],
         code: ['monospace'],
