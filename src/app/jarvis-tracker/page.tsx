@@ -77,7 +77,14 @@ import {
   Paperclip,
   Loader2,
   ImagePlus,
+  ChevronDown,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Area,
   AreaChart,
@@ -294,6 +301,28 @@ const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard; ga
   { key: 'reports', label: 'Reports', icon: FileText, feature: 'reports' },
   { key: 'admin', label: 'Team Control', icon: UserCog, gapBefore: true, adminOnly: true },
 ];
+
+// Maps each sidebar page to its i18n key — shared by the desktop Sidebar and
+// the mobile section-picker dropdown so both stay in sync.
+const NAV_LABEL_KEYS: Record<PageKey, string> = {
+  dashboard: 'nav.dashboard',
+  calendar: 'nav.calendar',
+  shows: 'nav.showBoard',
+  sitemap: 'nav.siteMap',
+  tasks: 'nav.taskManager',
+  compliance: 'nav.compliance',
+  archive: 'nav.archive',
+  reports: 'nav.reports',
+  admin: 'nav.teamControl',
+};
+
+// Nav items visible to this user: admin-only entries need isAdmin, and
+// feature-gated entries need the team feature enabled (master sees all).
+function getVisibleNavItems(isAdmin: boolean, features: TeamFeatures | undefined, isMaster: boolean) {
+  return NAV_ITEMS.filter(
+    (item) => (!item.adminOnly || isAdmin) && (!item.feature || isMaster || featureEnabled(features, item.feature))
+  );
+}
 
 const PRIORITY_STYLES: Record<Priority, string> = {
   High: 'text-alert border-alert/40 bg-alert/10 shadow-glow-subtle',
@@ -889,7 +918,9 @@ function CircularProgress({ percentage }: { percentage: number }) {
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="relative flex h-56 w-56 items-center justify-center">
+    // Shrinks below md so it fits a half-width mobile dashboard card without
+    // overflowing; unchanged at md and up.
+    <div className="relative flex h-56 w-56 max-md:h-32 max-md:w-32 items-center justify-center">
       <svg viewBox="0 0 200 200" className="absolute h-full w-full -rotate-90">
         <defs>
           <linearGradient id="invictusProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -947,7 +978,7 @@ function CircularProgress({ percentage }: { percentage: number }) {
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-4xl font-normal tabular-nums tracking-tight text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
+        <span className="font-display text-4xl max-md:text-2xl font-normal tabular-nums tracking-tight text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
           {percentage}%
         </span>
       </div>
@@ -981,24 +1012,12 @@ function Sidebar({
   const { playHover } = useSound();
   const t = useT();
   const { online } = usePreferences();
-  const navItems = NAV_ITEMS.filter(
-    (item) =>
-      (!item.adminOnly || isAdmin) && (!item.feature || isMaster || featureEnabled(features, item.feature))
-  );
-  // Map each sidebar page to its i18n key.
-  const navLabelKey: Record<PageKey, string> = {
-    dashboard: 'nav.dashboard',
-    calendar: 'nav.calendar',
-    shows: 'nav.showBoard',
-    sitemap: 'nav.siteMap',
-    tasks: 'nav.taskManager',
-    compliance: 'nav.compliance',
-    archive: 'nav.archive',
-    reports: 'nav.reports',
-    admin: 'nav.teamControl',
-  };
+  const navItems = getVisibleNavItems(isAdmin, features, isMaster);
+  const navLabelKey = NAV_LABEL_KEYS;
   return (
-    <aside className="flex w-16 flex-col border-r border-neutral-400/20 bg-invictus-base/70 shadow-glow-subtle backdrop-blur-xl md:w-60">
+    // Desktop-only: the permanent icon/label rail. Hidden below md — mobile
+    // gets its own compact dropdown nav instead (see MobileTrackerNav).
+    <aside className="hidden md:flex md:w-60 flex-col border-r border-neutral-400/20 bg-invictus-base/70 shadow-glow-subtle backdrop-blur-xl">
       <div className="flex h-16 items-center justify-center gap-2 border-b border-neutral-400/20 px-2 md:justify-start md:px-5">
         <Pinwheel className="h-7 w-7 text-invictus-crimson-bright drop-shadow-glow-subtle" />
         <div className="hidden md:block">
@@ -1079,6 +1098,61 @@ function Sidebar({
         )}
       </div>
     </aside>
+  );
+}
+
+// Mobile-only section picker: replaces the desktop Sidebar's permanent rail
+// with a compact dropdown so the section list doesn't eat screen width on a
+// phone. Hidden at md and up, where the real Sidebar takes over.
+function MobileTrackerNav({
+  activePage,
+  onNavigate,
+  isAdmin = false,
+  features,
+  isMaster = false,
+}: {
+  activePage: PageKey;
+  onNavigate: (p: PageKey) => void;
+  isAdmin?: boolean;
+  features?: TeamFeatures;
+  isMaster?: boolean;
+}) {
+  const t = useT();
+  const navItems = getVisibleNavItems(isAdmin, features, isMaster);
+  const current = navItems.find((item) => item.key === activePage) ?? navItems[0];
+  const CurrentIcon = current?.icon ?? LayoutDashboard;
+
+  return (
+    <div className="flex items-center border-b border-neutral-400/20 bg-invictus-base/70 px-3 py-2 shadow-glow-subtle backdrop-blur-xl md:hidden">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="flex min-h-[44px] items-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-200 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+            aria-label="Choose section"
+          >
+            <CurrentIcon className="h-4 w-4 shrink-0 text-invictus-crimson-bright" />
+            <span className="truncate">{current ? t(NAV_LABEL_KEYS[current.key]) : ''}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = item.key === activePage;
+            return (
+              <DropdownMenuItem
+                key={item.key}
+                onClick={() => onNavigate(item.key)}
+                className={`min-h-[44px] cursor-pointer gap-3 text-sm ${active ? 'bg-accent text-accent-foreground' : ''}`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {t(NAV_LABEL_KEYS[item.key])}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
@@ -1323,7 +1397,9 @@ function Dashboard({
         </Panel>
       </Reveal>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {/* 2 columns from the base breakpoint up (true mobile <640px); sm/lg
+          keep their original tablet/desktop behaviour untouched. */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Reveal index={2} animate={animateCardsIn}>
         <Panel title="Overall Tasks Completed" icon={Gauge} refCode="0012-A" tier="primary">
           <div className="flex flex-1 items-center justify-center py-2">
@@ -1406,7 +1482,9 @@ function Dashboard({
         </Reveal>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {/* 2 columns from the base breakpoint up (true mobile <640px); sm/lg
+          keep their original tablet/desktop behaviour untouched. */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Reveal index={7} animate={animateCardsIn}>
           <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
         </Reveal>
@@ -1843,34 +1921,36 @@ function Panel({
 }) {
   const isAmbient = tier === 'ambient';
   return (
+    // Padding/header spacing shrink below md so cards read cleanly in a
+    // 2-column mobile grid; unchanged at md and up.
     <div
       className={
         isAmbient
-          ? 'relative flex h-full flex-col border border-neutral-400/10 bg-invictus-base/50 p-6 shadow-glow-none backdrop-blur-xl'
-          : 'relative flex h-full flex-col border border-neutral-400/30 bg-invictus-base/50 p-6 shadow-glow-subtle backdrop-blur-xl'
+          ? 'relative flex h-full flex-col border border-neutral-400/10 bg-invictus-base/50 p-6 max-md:p-4 shadow-glow-none backdrop-blur-xl'
+          : 'relative flex h-full flex-col border border-neutral-400/30 bg-invictus-base/50 p-6 max-md:p-4 shadow-glow-subtle backdrop-blur-xl'
       }
     >
       <HudCorners />
       <div
         className={
           isAmbient
-            ? 'mb-4 flex items-center justify-between gap-2 border-b border-neutral-400/15 pb-4'
-            : 'mb-4 flex items-center justify-between gap-2 border-b border-neutral-400/20 pb-4'
+            ? 'mb-4 max-md:mb-3 flex items-center justify-between gap-2 border-b border-neutral-400/15 pb-4 max-md:pb-3'
+            : 'mb-4 max-md:mb-3 flex items-center justify-between gap-2 border-b border-neutral-400/20 pb-4 max-md:pb-3'
         }
       >
         <div className="flex items-center gap-2">
           <Icon
             className={
               isAmbient
-                ? 'h-4 w-4 text-neutral-500/70'
-                : 'h-4 w-4 text-neutral-300 drop-shadow-glow-subtle'
+                ? 'h-4 w-4 max-md:h-3.5 max-md:w-3.5 text-neutral-500/70'
+                : 'h-4 w-4 max-md:h-3.5 max-md:w-3.5 text-neutral-300 drop-shadow-glow-subtle'
             }
           />
           <h2
             className={
               isAmbient
-                ? 'font-display text-[11px] font-normal uppercase tracking-[0.2em] text-neutral-500/70'
-                : 'font-display text-sm font-normal uppercase tracking-[0.2em] text-neutral-300 [text-shadow:var(--glow-text-subtle)]'
+                ? 'font-display text-[11px] font-normal uppercase tracking-[0.2em] max-md:tracking-[0.12em] text-neutral-500/70'
+                : 'font-display text-sm max-md:text-xs font-normal uppercase tracking-[0.2em] max-md:tracking-[0.12em] text-neutral-300 [text-shadow:var(--glow-text-subtle)]'
             }
           >
             {title}
@@ -5000,9 +5080,10 @@ export default function InvictusTrackerPage() {
       {mounted && booting && <BootSplash />}
 
       {mounted && !booting && (
-        <div className="relative flex h-full">
+        <div className="relative flex h-full flex-col md:flex-row">
+          <MobileTrackerNav activePage={activePage} onNavigate={setActivePage} isAdmin={isAdmin} features={myTeam?.features} isMaster={isMaster} />
           <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} syncError={syncError} isAdmin={isAdmin} features={myTeam?.features} isMaster={isMaster} />
-          <main className="flex-1 overflow-y-auto p-5">
+          <main className="flex-1 overflow-y-auto p-5 max-md:p-3">
             {activePage === 'dashboard' && (
               <Dashboard
                 tasks={tasks}
