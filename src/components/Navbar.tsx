@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import {
   Menu,
   LogOut,
@@ -10,7 +9,6 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { Pinwheel } from '@/components/icons/Pinwheel';
 import { InstallPwaButton } from '@/components/InstallPwaButton';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,7 +28,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useTheme } from '@/components/ThemeProvider';
@@ -38,18 +35,12 @@ import { useT } from '@/components/LanguageProvider';
 import { profileName } from '@/lib/teams';
 import { useSound } from '@/components/SoundProvider';
 
-// Estate Requests / Checklists / Audits moved into the persistent left
-// sidebar (AppSidebar) — Home is the only section left in the top bar.
-const NAV_ITEMS = [{ key: 'home', href: '/jarvis-tracker', icon: Pinwheel }];
-
 export function Navbar() {
-  const pathname = usePathname();
   const { user, logout } = useAuth();
   const { profile, team, isMaster } = useProfile();
   const { resolved, setTheme } = useTheme();
   const t = useT();
   const { muted, toggleMute } = useSound();
-  const isActive = (href: string) => pathname === href || (href === '/jarvis-tracker' && pathname === '/');
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 border-b bg-background/80 backdrop-blur-md">
@@ -68,22 +59,6 @@ export function Navbar() {
                   <span className="font-headline text-lg font-bold uppercase tracking-[0.2em]">INVICTUS</span>
                 </SheetTitle>
               </SheetHeader>
-              <nav className="flex flex-col gap-2 py-6">
-                {NAV_ITEMS.map((item) => (
-                  <SheetClose asChild key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium uppercase tracking-[0.15em] transition-colors hover:bg-accent hover:text-accent-foreground",
-                        isActive(item.href) ? "bg-accent text-accent-foreground" : "text-muted-foreground"
-                      )}
-                    >
-                      <item.icon className={cn("h-5 w-5", isActive(item.href) ? "text-primary" : "")} />
-                      {t(`nav.${item.key}`)}
-                    </Link>
-                  </SheetClose>
-                ))}
-              </nav>
               <div className="px-2">
                 <InstallPwaButton />
               </div>
@@ -112,22 +87,6 @@ export function Navbar() {
           </Sheet>
 
         </div>
-
-        {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-1 md:flex">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "rounded-md px-3 py-2 text-sm font-medium uppercase tracking-[0.15em] transition-colors hover:bg-accent hover:text-accent-foreground",
-                isActive(item.href) ? "bg-accent text-accent-foreground" : "text-muted-foreground"
-              )}
-            >
-              {t(`nav.${item.key}`)}
-            </Link>
-          ))}
-        </nav>
 
         <div className="flex items-center gap-2">
           <InstallPwaButton />
