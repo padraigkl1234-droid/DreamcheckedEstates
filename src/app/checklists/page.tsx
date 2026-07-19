@@ -9,6 +9,7 @@ import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { CHECKLIST_SECTIONS } from '@/lib/checklists';
 import { DREAMLAND_TEAM_ID, featureEnabled } from '@/lib/teams';
+import { AppSidebar, AppMobileNav } from '@/components/AppSidebar';
 
 // Checklists — a directory of Mobaro / Microsoft Forms checklists, grouped into
 // sections. The built-in sections live in @/lib/checklists (the Show Board
@@ -168,25 +169,25 @@ export default function ChecklistsPage() {
 
   if (!profileLoading && !pageEnabled) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-invictus-base px-4 text-center font-sans">
-        <p className="max-w-md text-xs uppercase tracking-widest text-neutral-500">
-          Checklists isn&apos;t enabled for your team.
-        </p>
+      <div className="flex h-[calc(100vh-4rem)] flex-col md:flex-row">
+        <AppMobileNav features={team?.features} isMaster={isMaster} />
+        <AppSidebar features={team?.features} isMaster={isMaster} />
+        <div className="flex flex-1 items-center justify-center bg-invictus-base px-4 text-center font-sans">
+          <p className="max-w-md text-xs uppercase tracking-widest text-neutral-500">
+            Checklists isn&apos;t enabled for your team.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
+    <div className="flex h-[calc(100vh-4rem)] flex-col md:flex-row">
+      <AppMobileNav features={team?.features} isMaster={isMaster} />
+      <AppSidebar features={team?.features} isMaster={isMaster} />
+      <main className="relative flex-1 overflow-y-auto bg-invictus-base font-sans text-neutral-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
-      <div
-        className="pointer-events-none absolute inset-0 z-0 animate-scanlines opacity-[0.06] mix-blend-screen"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(to bottom, rgba(255,255,255,0.6) 0px, rgba(255,255,255,0.6) 1px, transparent 1px, transparent 8px)',
-        }}
-      />
 
       <div className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:py-10">
         {/* Header */}
@@ -354,6 +355,7 @@ export default function ChecklistsPage() {
           Each checklist opens its live Microsoft Form in a new tab
         </p>
       </div>
+      </main>
     </div>
   );
 }

@@ -5,9 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Menu,
-  Wrench,
-  ClipboardCheck,
-  ClipboardList,
   LogOut,
   User as UserIcon,
   Volume2,
@@ -38,15 +35,12 @@ import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { useT } from '@/components/LanguageProvider';
-import { profileName, featureEnabled } from '@/lib/teams';
+import { profileName } from '@/lib/teams';
 import { useSound } from '@/components/SoundProvider';
 
-const NAV_ITEMS = [
-  { key: 'home', href: '/jarvis-tracker', icon: Pinwheel },
-  { key: 'estateRequests', href: '/estate-requests', icon: Wrench, feature: 'estateRequests' },
-  { key: 'checklists', href: '/checklists', icon: ClipboardCheck, feature: 'checklists' },
-  { key: 'audits', href: '/audits', icon: ClipboardList, feature: 'audits' },
-];
+// Estate Requests / Checklists / Audits moved into the persistent left
+// sidebar (AppSidebar) — Home is the only section left in the top bar.
+const NAV_ITEMS = [{ key: 'home', href: '/jarvis-tracker', icon: Pinwheel }];
 
 export function Navbar() {
   const pathname = usePathname();
@@ -56,11 +50,6 @@ export function Navbar() {
   const t = useT();
   const { muted, toggleMute } = useSound();
   const isActive = (href: string) => pathname === href || (href === '/jarvis-tracker' && pathname === '/');
-  // A feature-gated nav item shows only when this team has it enabled (the
-  // master admin always sees everything).
-  const navItems = NAV_ITEMS.filter(
-    (item) => !item.feature || isMaster || featureEnabled(team?.features, item.feature)
-  );
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 border-b bg-background/80 backdrop-blur-md">
@@ -80,7 +69,7 @@ export function Navbar() {
                 </SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-2 py-6">
-                {navItems.map((item) => (
+                {NAV_ITEMS.map((item) => (
                   <SheetClose asChild key={item.href}>
                     <Link
                       href={item.href}
@@ -126,7 +115,7 @@ export function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-1 md:flex">
-          {navItems.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
               href={item.href}

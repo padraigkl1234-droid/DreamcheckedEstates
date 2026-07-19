@@ -16,6 +16,7 @@ import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { ReportsView, type ReportDraft } from '@/components/ReportsView';
 import { Pinwheel } from '@/components/icons/Pinwheel';
+import { AppSidebar, AppMobileNav, NAV_ITEMS, type PageKey } from '@/components/AppSidebar';
 import {
   type ComplianceItem,
   type ComplianceAttachment,
@@ -85,8 +86,6 @@ import {
 
 type Priority = 'High' | 'Medium' | 'Low';
 type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
-type PageKey = 'dashboard' | 'calendar' | 'shows' | 'sitemap' | 'tasks' | 'archive' | 'compliance' | 'reports' | 'admin';
-
 // A scheduled show. `type` matches a CHECKLIST_SECTIONS name and `completed`
 // maps each checklist's name to whether its light is green. Structured this way
 // so a future Power Automate feed can flip lights by writing to `completed`.
@@ -234,40 +233,6 @@ function classifyComplianceDivision(name: string): string {
 // Per-card stagger timing for the dashboard's reveal animation.
 const CARD_REVEAL_STEP_MS = 90;
 const CARD_REVEAL_DURATION_MS = 420;
-
-const NAV_ITEMS: { key: PageKey; label: string; icon: typeof LayoutDashboard; gapBefore?: boolean; adminOnly?: boolean; feature?: string }[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { key: 'calendar', label: 'Calendar', icon: CalendarDays, feature: 'calendar' },
-  { key: 'shows', label: 'Show Board', icon: Clapperboard, feature: 'showBoard' },
-  { key: 'sitemap', label: 'Site Map', icon: MapIcon, feature: 'siteMap' },
-  { key: 'tasks', label: 'Task Manager', icon: ListChecks, feature: 'taskManager' },
-  { key: 'compliance', label: 'Compliance', icon: ShieldCheck, feature: 'compliance' },
-  { key: 'archive', label: 'Archive', icon: Archive, gapBefore: true, feature: 'archive' },
-  { key: 'reports', label: 'Reports', icon: FileText, feature: 'reports' },
-  { key: 'admin', label: 'Team Control', icon: UserCog, gapBefore: true, adminOnly: true },
-];
-
-// Maps each sidebar page to its i18n key — shared by the desktop Sidebar and
-// the mobile section-picker dropdown so both stay in sync.
-const NAV_LABEL_KEYS: Record<PageKey, string> = {
-  dashboard: 'nav.dashboard',
-  calendar: 'nav.calendar',
-  shows: 'nav.showBoard',
-  sitemap: 'nav.siteMap',
-  tasks: 'nav.taskManager',
-  compliance: 'nav.compliance',
-  archive: 'nav.archive',
-  reports: 'nav.reports',
-  admin: 'nav.teamControl',
-};
-
-// Nav items visible to this user: admin-only entries need isAdmin, and
-// feature-gated entries need the team feature enabled (master sees all).
-function getVisibleNavItems(isAdmin: boolean, features: TeamFeatures | undefined, isMaster: boolean) {
-  return NAV_ITEMS.filter(
-    (item) => (!item.adminOnly || isAdmin) && (!item.feature || isMaster || featureEnabled(features, item.feature))
-  );
-}
 
 const PRIORITY_STYLES: Record<Priority, string> = {
   High: 'text-alert border-alert/30 bg-alert/10',
@@ -912,174 +877,6 @@ function CircularProgress({ percentage }: { percentage: number }) {
           {percentage}%
         </span>
       </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sidebar
-// ---------------------------------------------------------------------------
-
-function Sidebar({
-  activePage,
-  onNavigate,
-  user,
-  syncStatus,
-  syncError,
-  isAdmin = false,
-  features,
-  isMaster = false,
-}: {
-  activePage: PageKey;
-  onNavigate: (p: PageKey) => void;
-  user: User | null;
-  syncStatus: 'idle' | 'loading' | 'synced' | 'error';
-  syncError?: string | null;
-  isAdmin?: boolean;
-  features?: TeamFeatures;
-  isMaster?: boolean;
-}) {
-  const { playHover } = useSound();
-  const t = useT();
-  const { online } = usePreferences();
-  const navItems = getVisibleNavItems(isAdmin, features, isMaster);
-  const navLabelKey = NAV_LABEL_KEYS;
-  return (
-    // Desktop-only: the permanent icon/label rail. Hidden below md — mobile
-    // gets its own compact dropdown nav instead (see MobileTrackerNav).
-    <aside className="hidden md:flex md:w-60 flex-col border-r border-neutral-400/20 bg-invictus-base/70 shadow-glow-subtle backdrop-blur-xl">
-      <div className="flex h-16 items-center justify-center gap-2.5 border-b border-neutral-400/20 px-2 md:justify-start md:px-5">
-        <Pinwheel className="h-6 w-6 text-neutral-100" />
-        <p className="hidden text-lg font-bold tracking-tight text-neutral-100 md:block">Invictus</p>
-      </div>
-
-      <nav className="flex flex-col gap-1 p-2 md:p-3">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = activePage === item.key;
-          return (
-            <React.Fragment key={item.key}>
-              {item.gapBefore && <div className="mx-1 my-2 border-t border-neutral-400/15" />}
-              <button
-                onClick={() => onNavigate(item.key)}
-                onMouseEnter={playHover}
-                className={`flex items-center justify-center gap-3 rounded-[10px] px-3 py-2.5 text-sm transition-colors md:justify-start ${
-                  active
-                    ? 'bg-invictus-crimson-bright/[0.16] text-invictus-crimson-bright'
-                    : 'text-neutral-500 hover:bg-invictus-crimson-bright/[0.06] hover:text-neutral-200'
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="hidden md:inline">{t(navLabelKey[item.key])}</span>
-              </button>
-            </React.Fragment>
-          );
-        })}
-      </nav>
-
-      <div className="mt-auto border-t border-neutral-400/20 p-3">
-        <div className="flex items-center justify-center gap-2 md:justify-start">
-          <span className="relative flex h-2 w-2">
-            {online && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
-            <span className={`relative inline-flex h-2 w-2 rounded-full ${online ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-          </span>
-          <span className={`hidden text-[10px] uppercase tracking-widest md:inline ${online ? 'text-emerald-400' : 'text-amber-400'}`}>
-            {online ? t('status.online') : t('settings.offline')}
-          </span>
-        </div>
-        <div className="mt-2 flex items-center justify-center gap-2 md:justify-start">
-          <Cloud
-            className={`h-3.5 w-3.5 ${
-              !user
-                ? 'text-neutral-700'
-                : syncStatus === 'error'
-                ? 'text-alert'
-                : syncStatus === 'loading'
-                ? 'animate-pulse text-invictus-crimson-bright'
-                : 'text-emerald-400'
-            }`}
-          />
-          <span
-            className={`hidden text-[10px] uppercase tracking-widest md:inline ${
-              !user
-                ? 'text-neutral-700'
-                : syncStatus === 'error'
-                ? 'text-alert'
-                : syncStatus === 'loading'
-                ? 'text-invictus-crimson-bright'
-                : 'text-emerald-400'
-            }`}
-          >
-            {!user
-              ? t('status.signInToSave')
-              : syncStatus === 'error'
-              ? t('status.syncError')
-              : syncStatus === 'loading'
-              ? t('status.syncing')
-              : t('status.progressSaved')}
-          </span>
-        </div>
-        {user && syncStatus === 'error' && syncError && (
-          <p className="mt-1 hidden break-words text-[9px] leading-snug text-alert/80 md:block" title={syncError}>
-            {syncError}
-          </p>
-        )}
-      </div>
-    </aside>
-  );
-}
-
-// Mobile-only section picker: replaces the desktop Sidebar's permanent rail
-// with a compact dropdown so the section list doesn't eat screen width on a
-// phone. Hidden at md and up, where the real Sidebar takes over.
-function MobileTrackerNav({
-  activePage,
-  onNavigate,
-  isAdmin = false,
-  features,
-  isMaster = false,
-}: {
-  activePage: PageKey;
-  onNavigate: (p: PageKey) => void;
-  isAdmin?: boolean;
-  features?: TeamFeatures;
-  isMaster?: boolean;
-}) {
-  const t = useT();
-  const navItems = getVisibleNavItems(isAdmin, features, isMaster);
-  const current = navItems.find((item) => item.key === activePage) ?? navItems[0];
-  const CurrentIcon = current?.icon ?? LayoutDashboard;
-
-  return (
-    <div className="flex items-center border-b border-neutral-400/20 bg-invictus-base/70 px-3 py-2 shadow-glow-subtle backdrop-blur-xl md:hidden">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            className="flex min-h-[44px] items-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-200 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
-            aria-label="Choose section"
-          >
-            <CurrentIcon className="h-4 w-4 shrink-0 text-invictus-crimson-bright" />
-            <span className="truncate">{current ? t(NAV_LABEL_KEYS[current.key]) : ''}</span>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = item.key === activePage;
-            return (
-              <DropdownMenuItem
-                key={item.key}
-                onClick={() => onNavigate(item.key)}
-                className={`min-h-[44px] cursor-pointer gap-3 text-sm ${active ? 'bg-accent text-accent-foreground' : ''}`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {t(NAV_LABEL_KEYS[item.key])}
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }
@@ -2917,6 +2714,9 @@ function TaskManager({
   const teammates = team.filter((m) => m.uid !== currentUid);
   const [filter, setFilter] = useState<'all' | 'overdue' | TaskStatus>('all');
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
+  // Board view drag state — native HTML5 drag-and-drop between status columns.
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
 
   // Strictly overdue (due date in the past) — distinct from isOverdueOrToday
   // above, which also pins today's-due tasks to the top of the sort order.
@@ -3047,65 +2847,71 @@ function TaskManager({
 
   // One task row — shared by every group/filter view below so the edit form,
   // photo grid, and action buttons are defined (and kept in sync) once.
+  // Shared inline edit form — used by both the List row and the Board card,
+  // so there's exactly one place that renders it.
+  const renderEditForm = (task: Task) => (
+    <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
+      <input
+        value={editName}
+        onChange={(e) => setEditName(e.target.value)}
+        placeholder="Task name"
+        className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-2"
+      />
+      <InvictusSelect
+        value={editPriority}
+        onChange={(v) => setEditPriority(v as Priority)}
+        className="bg-invictus-base/60"
+        options={[
+          { value: 'High', label: 'High' },
+          { value: 'Medium', label: 'Medium' },
+          { value: 'Low', label: 'Low' },
+        ]}
+      />
+      <input
+        type="date"
+        value={editDueDate}
+        onChange={(e) => setEditDueDate(e.target.value)}
+        className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+      />
+      <InvictusSelect
+        value={editAssigneeUid}
+        onChange={setEditAssigneeUid}
+        title="Assign this task to a teammate — they'll get it as an offer to accept"
+        className="bg-invictus-base/60"
+        options={[
+          { value: '', label: 'No assignment' },
+          ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
+        ]}
+      />
+      <textarea
+        value={editNotes}
+        onChange={(e) => setEditNotes(e.target.value)}
+        placeholder="Description (optional)"
+        rows={2}
+        className="w-full min-w-0 resize-y rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-6"
+      />
+      <div className="flex items-center gap-2 lg:col-span-6">
+        <button
+          onClick={() => saveEdit(task)}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-300 transition-all hover:bg-emerald-400/20"
+        >
+          <Check className="h-3.5 w-3.5" /> Save
+        </button>
+        <button
+          onClick={() => setEditingId(null)}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+        >
+          <X className="h-3.5 w-3.5" /> Cancel
+        </button>
+      </div>
+    </div>
+  );
+
   const renderTaskRow = (task: Task) => {
     if (editingId === task.id) {
       return (
         <div key={task.id} className="p-4">
-          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
-            <input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              placeholder="Task name"
-              className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-2"
-            />
-            <InvictusSelect
-              value={editPriority}
-              onChange={(v) => setEditPriority(v as Priority)}
-              className="bg-invictus-base/60"
-              options={[
-                { value: 'High', label: 'High' },
-                { value: 'Medium', label: 'Medium' },
-                { value: 'Low', label: 'Low' },
-              ]}
-            />
-            <input
-              type="date"
-              value={editDueDate}
-              onChange={(e) => setEditDueDate(e.target.value)}
-              className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-            />
-            <InvictusSelect
-              value={editAssigneeUid}
-              onChange={setEditAssigneeUid}
-              title="Assign this task to a teammate — they'll get it as an offer to accept"
-              className="bg-invictus-base/60"
-              options={[
-                { value: '', label: 'No assignment' },
-                ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
-              ]}
-            />
-            <textarea
-              value={editNotes}
-              onChange={(e) => setEditNotes(e.target.value)}
-              placeholder="Description (optional)"
-              rows={2}
-              className="w-full min-w-0 resize-y rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-6"
-            />
-            <div className="flex items-center gap-2 lg:col-span-6">
-              <button
-                onClick={() => saveEdit(task)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-300 transition-all hover:bg-emerald-400/20"
-              >
-                <Check className="h-3.5 w-3.5" /> Save
-              </button>
-              <button
-                onClick={() => setEditingId(null)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
-              >
-                <X className="h-3.5 w-3.5" /> Cancel
-              </button>
-            </div>
-          </div>
+          {renderEditForm(task)}
         </div>
       );
     }
@@ -3255,6 +3061,102 @@ function TaskManager({
     );
   };
 
+  // One compact card for the Board view. Draggable on desktop (native HTML5
+  // drag-and-drop); the chevrons give touch/keyboard users the same "move to
+  // the next/previous column" action without needing to drag.
+  const renderBoardCard = (task: Task) => {
+    if (editingId === task.id) {
+      return (
+        <div key={task.id} className="rounded-xl border border-neutral-400/20 bg-invictus-base/60 p-3">
+          {renderEditForm(task)}
+        </div>
+      );
+    }
+
+    const overdue = isOverdue(task);
+    const statusIndex = STATUS_ORDER.indexOf(task.status);
+    const moveTo = (dir: -1 | 1) => {
+      const next = STATUS_ORDER[statusIndex + dir];
+      if (!next) return;
+      if (next === 'Completed' && task.status !== 'Completed') haptic();
+      onUpdateStatus(task.id, next);
+    };
+
+    return (
+      <div
+        key={task.id}
+        draggable
+        onDragStart={(e) => {
+          setDraggedTaskId(task.id);
+          e.dataTransfer.effectAllowed = 'move';
+        }}
+        onDragEnd={() => setDraggedTaskId(null)}
+        className={`cursor-grab space-y-2 rounded-xl border bg-invictus-base/60 p-3 shadow-sm active:cursor-grabbing ${
+          overdue ? 'border-l-4 border-l-alert border-neutral-400/20' : 'border-neutral-400/20'
+        }`}
+      >
+        <p className={`text-sm font-semibold ${task.status === 'Completed' ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>
+          {task.name}
+        </p>
+        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-500">
+          <span>Due {task.dueDate || '—'}</span>
+          {task.category && <span>· {task.category}</span>}
+        </p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {overdue && (
+            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${URGENCY_STYLES.red}`}>
+              {formatDueIn(daysFromToday(task.dueDate, todayStr))}
+            </span>
+          )}
+          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${PRIORITY_STYLES[task.priority]}`}>
+            {task.priority}
+          </span>
+        </div>
+        <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => moveTo(-1)}
+              disabled={statusIndex === 0}
+              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1 text-neutral-400 transition-colors hover:text-neutral-200 disabled:pointer-events-none disabled:opacity-30"
+              title={`Move to ${STATUS_ORDER[statusIndex - 1] ?? ''}`}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => moveTo(1)}
+              disabled={statusIndex === STATUS_ORDER.length - 1}
+              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1 text-neutral-400 transition-colors hover:text-neutral-200 disabled:pointer-events-none disabled:opacity-30"
+              title={`Move to ${STATUS_ORDER[statusIndex + 1] ?? ''}`}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => startEdit(task)}
+              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1 text-neutral-400 transition-colors hover:text-neutral-200"
+              title="Edit task"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+            <button
+              onClick={() => onDelete(task.id)}
+              className="rounded-md border border-alert/30 bg-alert/10 p-1 text-alert transition-colors hover:bg-alert/20"
+              title="Delete task"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const boardColumns = STATUS_ORDER.map((status) => ({
+    status,
+    items: sortedTasks.filter((t) => t.status === status),
+  }));
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -3334,8 +3236,46 @@ function TaskManager({
       </div>
 
       {viewMode === 'board' ? (
-        <div className="rounded-2xl border border-neutral-400/20 bg-invictus-surface p-10 text-center">
-          <p className="text-sm text-neutral-500">Board view is coming soon — use List for now.</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {boardColumns.map((col) => (
+            <div
+              key={col.status}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOverStatus(col.status);
+              }}
+              onDragLeave={() => setDragOverStatus((s) => (s === col.status ? null : s))}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (draggedTaskId) {
+                  const task = tasks.find((t) => t.id === draggedTaskId);
+                  if (task && task.status !== col.status && col.status === 'Completed') haptic();
+                  if (task && task.status !== col.status) onUpdateStatus(draggedTaskId, col.status);
+                }
+                setDraggedTaskId(null);
+                setDragOverStatus(null);
+              }}
+              className={`flex min-h-[16rem] flex-col gap-3 rounded-2xl border p-3 transition-colors ${
+                dragOverStatus === col.status
+                  ? 'border-invictus-crimson-bright/50 bg-invictus-crimson-bright/5'
+                  : 'border-neutral-400/20 bg-invictus-surface'
+              }`}
+            >
+              <div className="flex items-center gap-2 px-1">
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[col.status]}`}>
+                  {col.status}
+                </span>
+                <span className="text-xs text-neutral-600">{col.items.length}</span>
+              </div>
+              <div className="flex flex-1 flex-col gap-2">
+                {col.items.length === 0 ? (
+                  <p className="py-6 text-center text-xs text-neutral-600">No tasks here.</p>
+                ) : (
+                  col.items.map(renderBoardCard)
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
       <>
@@ -4484,8 +4424,8 @@ export default function InvictusTrackerPage() {
 
       {mounted && !booting && (
         <div className="relative flex h-full flex-col md:flex-row">
-          <MobileTrackerNav activePage={activePage} onNavigate={setActivePage} isAdmin={isAdmin} features={myTeam?.features} isMaster={isMaster} />
-          <Sidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} syncError={syncError} isAdmin={isAdmin} features={myTeam?.features} isMaster={isMaster} />
+          <AppMobileNav activePage={activePage} onNavigate={setActivePage} isAdmin={isAdmin} features={myTeam?.features} isMaster={isMaster} />
+          <AppSidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} syncError={syncError} isAdmin={isAdmin} features={myTeam?.features} isMaster={isMaster} />
           <main className="flex-1 overflow-y-auto p-5 max-md:p-3">
             {activePage === 'dashboard' && (
               <Dashboard

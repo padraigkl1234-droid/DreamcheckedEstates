@@ -4,6 +4,7 @@ import React from 'react';
 import { Wrench, FileSpreadsheet, ClipboardList, ExternalLink, ChevronRight } from 'lucide-react';
 import { useProfile } from '@/components/ProfileProvider';
 import { featureEnabled } from '@/lib/teams';
+import { AppSidebar, AppMobileNav } from '@/components/AppSidebar';
 
 const REQUEST_EXCEL_URL =
   'https://lneallaccess-my.sharepoint.com/:x:/r/personal/padraig_kessonlyons_lyv_livenation_com/_layouts/15/Doc.aspx?sourcedoc=%7B0D9A54B0-596F-4B26-ACA7-3CBEFD452AA4%7D&file=Estates%20Request%20Form.xlsx&action=edit&mobileredirect=true&wdMsFormsCorrelationId=9c4bcf8d-b5ee-4b9a-8f45-d2cce541071d&wdtf=%20Microsoft.Office.Excel.FMsFormsMetadataInWorkbookMetadata%3Atrue';
@@ -54,25 +55,25 @@ export default function EstateRequestsPage() {
   // Enforce the per-team toggle even if someone navigates here directly.
   if (!loading && !enabled) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-invictus-base px-4 text-center font-sans">
-        <p className="max-w-md text-xs uppercase tracking-widest text-neutral-500">
-          Estate Requests isn&apos;t enabled for your team.
-        </p>
+      <div className="flex h-[calc(100vh-4rem)] flex-col md:flex-row">
+        <AppMobileNav features={team?.features} isMaster={isMaster} />
+        <AppSidebar features={team?.features} isMaster={isMaster} />
+        <div className="flex flex-1 items-center justify-center bg-invictus-base px-4 text-center font-sans">
+          <p className="max-w-md text-xs uppercase tracking-widest text-neutral-500">
+            Estate Requests isn&apos;t enabled for your team.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
+    <div className="flex h-[calc(100vh-4rem)] flex-col md:flex-row">
+      <AppMobileNav features={team?.features} isMaster={isMaster} />
+      <AppSidebar features={team?.features} isMaster={isMaster} />
+      <main className="relative flex-1 overflow-y-auto bg-invictus-base font-sans text-neutral-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
-      <div
-        className="pointer-events-none absolute inset-0 z-0 animate-scanlines opacity-[0.06] mix-blend-screen"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(to bottom, rgba(255,255,255,0.6) 0px, rgba(255,255,255,0.6) 1px, transparent 1px, transparent 8px)',
-        }}
-      />
 
       <div className="relative z-10 mx-auto max-w-4xl px-4 py-8 sm:py-10">
         {/* Header */}
@@ -126,6 +127,7 @@ export default function EstateRequestsPage() {
           Built for Dreamland Estate Management
         </p>
       </div>
+      </main>
     </div>
   );
 }
