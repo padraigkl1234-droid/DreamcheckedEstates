@@ -325,9 +325,9 @@ function getVisibleNavItems(isAdmin: boolean, features: TeamFeatures | undefined
 }
 
 const PRIORITY_STYLES: Record<Priority, string> = {
-  High: 'text-alert border-alert/40 bg-alert/10 shadow-glow-subtle',
-  Medium: 'text-amber-300 border-amber-400/30 bg-amber-400/10 shadow-glow-subtle',
-  Low: 'text-neutral-300 border-neutral-400/30 bg-neutral-400/10 shadow-glow-subtle',
+  High: 'text-alert border-alert/30 bg-alert/10',
+  Medium: 'text-amber-300 border-amber-400/25 bg-amber-400/10',
+  Low: 'text-neutral-400 border-neutral-400/25 bg-neutral-400/10',
 };
 
 const PRIORITY_RANK: Record<Priority, number> = { High: 0, Medium: 1, Low: 2 };
@@ -344,9 +344,9 @@ const STATUS_STYLES: Record<TaskStatus, string> = {
 const STATUS_ORDER: TaskStatus[] = ['Not Started', 'In Progress', 'Completed'];
 
 const URGENCY_STYLES: Record<ComplianceUrgency, string> = {
-  red: 'text-alert border-alert/50 bg-alert/10 motion-safe:animate-pulse-alert shadow-glow-alert',
-  amber: 'text-amber-300 border-amber-400/40 bg-amber-400/10',
-  green: 'text-emerald-300 border-emerald-400/40 bg-emerald-400/10',
+  red: 'text-alert border-alert/30 bg-alert/10',
+  amber: 'text-amber-300 border-amber-400/25 bg-amber-400/10',
+  green: 'text-emerald-300 border-emerald-400/25 bg-emerald-400/10',
 };
 
 function formatDueIn(daysUntilDue: number): string {
@@ -1181,18 +1181,32 @@ function buildGreeting(user: User | null, compliances: ComplianceItem[], now: Da
   return `${prefix}, ${name}. ${outstanding.length} items need attention — most urgent is ${top.item.name}, ${dueClause}.`;
 }
 
+// Left-edge colour + trailing chip mirror the single most urgent outstanding
+// compliance item (same red/amber/green RAG used by the Compliance Countdown
+// card), so the greeting bar visually agrees with the rest of the dashboard.
+const GREETING_EDGE: Record<ComplianceUrgency, string> = {
+  red: 'border-l-alert',
+  amber: 'border-l-amber-400',
+  green: 'border-l-emerald-400',
+};
+
 function InvictusGreeting({ compliances }: { compliances: ComplianceItem[] }) {
   const { user } = useAuth();
   const [greeting] = useState(() => buildGreeting(user, compliances, new Date()));
+  const mostUrgent = useMemo(() => getOutstandingCompliances(compliances)[0] ?? null, [compliances]);
 
   return (
-    <div className="relative mb-6 flex items-center gap-3 rounded-md border border-invictus-crimson-bright/25 bg-invictus-crimson-bright/5 px-4 py-3 shadow-glow-subtle">
-      <MicroCorners />
-      <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10">
-        <Pinwheel className="h-4 w-4 text-invictus-crimson-bright" />
-        <ConcentricPulse />
-      </div>
-      <p className="text-sm text-neutral-100 [text-shadow:var(--glow-text-subtle)]">{greeting}</p>
+    <div
+      className={`mb-6 flex items-center justify-between gap-3 rounded-2xl border border-neutral-400/20 border-l-4 bg-invictus-surface px-5 py-4 ${
+        mostUrgent ? GREETING_EDGE[mostUrgent.urgency] : 'border-l-emerald-400'
+      }`}
+    >
+      <p className="text-sm text-neutral-100">{greeting}</p>
+      {mostUrgent && (
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${URGENCY_STYLES[mostUrgent.urgency]}`}>
+          {formatDueIn(mostUrgent.daysUntilDue)}
+        </span>
+      )}
     </div>
   );
 }
@@ -1209,6 +1223,114 @@ function Reveal({ index, animate, children }: { index: number; animate: boolean;
     <div className="animate-card-in" style={{ animationDelay: `${index * CARD_REVEAL_STEP_MS}ms` }}>
       {children}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard KPI strip — four small at-a-glance numbers above the fold.
+// ---------------------------------------------------------------------------
+
+function KpiCard({
+  label,
+  value,
+  valueClassName = 'text-neutral-100',
+  caption,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+  caption: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-400/20 bg-invictus-surface p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-neutral-500">{label}</p>
+      <p className={`mt-2 text-[34px] font-extrabold leading-none tracking-tight ${valueClassName}`}>{value}</p>
+      <p className="mt-1.5 text-xs text-neutral-500">{caption}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Task completion — donut + counts alongside a compact 14-day trend, combined
+// into one card (the standalone, more detailed Completion Timeline panel
+// further down the dashboard still shows the full tasks-vs-compliance chart).
+// ---------------------------------------------------------------------------
+
+function TaskCompletionPanel({
+  completionPct,
+  completedItems,
+  outstandingItems,
+  timeline,
+}: {
+  completionPct: number;
+  completedItems: number;
+  outstandingItems: number;
+  timeline: TimelinePoint[];
+}) {
+  const cumulative = useMemo(() => {
+    let running = 0;
+    return timeline.map((p) => {
+      running += p.tasks;
+      return { label: p.label, total: running };
+    });
+  }, [timeline]);
+  const totalCompleted = cumulative.length ? cumulative[cumulative.length - 1].total : 0;
+  // Compare the midpoint's running total to the end total: if more was
+  // completed in the second half of the window than the first, it's trending up.
+  const midpoint = Math.floor(cumulative.length / 2);
+  const firstHalfTotal = cumulative[midpoint - 1]?.total ?? 0;
+  const secondHalfTotal = totalCompleted - firstHalfTotal;
+  const trend = secondHalfTotal > firstHalfTotal ? 'trending up' : secondHalfTotal < firstHalfTotal ? 'trending down' : 'steady';
+
+  return (
+    <Panel
+      title="Task completion"
+      icon={Gauge}
+      refCode="0012-A"
+      tier="primary"
+      headerRight={<Kicker>Last {TIMELINE_DAYS} days</Kicker>}
+    >
+      <div className="flex flex-1 flex-col gap-6 sm:flex-row sm:items-center">
+        <div className="flex shrink-0 items-center gap-6">
+          <CircularProgress percentage={completionPct} />
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="font-mono text-xl font-bold tabular-nums text-emerald-300">{completedItems}</p>
+              <Kicker>Completed</Kicker>
+            </div>
+            <div>
+              <p className="font-mono text-xl font-bold tabular-nums text-neutral-200">{outstandingItems}</p>
+              <Kicker>Outstanding</Kicker>
+            </div>
+          </div>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="h-20 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={cumulative} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="taskCompletionTrendGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="rgb(var(--invictus-crimson-bright))" stopOpacity={0.25} />
+                    <stop offset="100%" stopColor="rgb(var(--invictus-crimson-bright))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="rgb(var(--invictus-crimson-bright))"
+                  strokeWidth={2}
+                  fill="url(#taskCompletionTrendGradient)"
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="mt-2 text-xs text-neutral-500">
+            {totalCompleted} task{totalCompleted === 1 ? '' : 's'} completed · {trend}
+          </p>
+        </div>
+      </div>
+    </Panel>
   );
 }
 
@@ -1297,7 +1419,7 @@ function Dashboard({
   // this component later in the same session (switching tabs and back) won't replay it.
   useEffect(() => {
     if (!animateCardsIn) return;
-    const cardCount = 12; // greeting + 11 panels
+    const cardCount = 11; // greeting + KPI strip + 9 panels
     const totalMs = (cardCount - 1) * CARD_REVEAL_STEP_MS + CARD_REVEAL_DURATION_MS;
     const timeout = setTimeout(() => onCardsRevealed?.(), totalMs);
     return () => clearTimeout(timeout);
@@ -1308,12 +1430,15 @@ function Dashboard({
   const overallTasks = [...tasks, ...archivedTasks];
   const completedItems = overallTasks.filter((t) => t.status === 'Completed').length;
   const totalItems = overallTasks.length;
+  const outstandingItems = totalItems - completedItems;
   const completionPct = totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
 
   // Firestore snapshots don't preserve insertion order, so sort by createdAt.
   const recentTasks = [...tasks].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0)).slice(-4).reverse();
 
-  const upcomingCompliances = getOutstandingCompliances(compliances).slice(0, 4);
+  const outstandingCompliances = getOutstandingCompliances(compliances);
+  const upcomingCompliances = outstandingCompliances.slice(0, 4);
+  const overdueComplianceCount = outstandingCompliances.filter((c) => c.daysUntilDue < 0).length;
 
   const timeline = useMemo(
     () => buildCompletionTimeline(tasks, archivedTasks, compliances),
@@ -1338,131 +1463,125 @@ function Dashboard({
         <InvictusGreeting compliances={compliances} />
       </Reveal>
 
+      {/* KPI strip — 2 columns from the base breakpoint up (true mobile
+          <640px), 4 across from sm; tablet/desktop behaviour is unchanged. */}
       <Reveal index={1} animate={animateCardsIn}>
-        <Panel title="Today's Meetings" icon={CalendarDays} refCode="0035-M" tier="primary">
-          <div className="flex flex-col gap-2">
-            {todaysMeetings.length === 0 && (
-              <p className="py-6 text-center text-xs text-neutral-600">No meetings scheduled today.</p>
-            )}
-            {todaysMeetings.map((ev) => {
-              const done = ev.completedDates?.includes(todayStr) ?? false;
-              return (
-              <div
-                key={ev.id}
-                className={`relative flex items-start gap-3 rounded-md border shadow-glow-subtle px-3 py-2.5 ${
-                  done ? 'border-emerald-400/30 bg-emerald-400/5' : 'border-neutral-400/20 bg-invictus-base/40'
-                }`}
-              >
-                <MicroCorners />
-                <button
-                  onClick={() => onToggleMeeting(ev.id, todayStr)}
-                  className={`mt-0.5 shrink-0 transition-colors ${
-                    done ? 'text-emerald-300' : 'text-neutral-500 hover:text-invictus-crimson-bright'
-                  }`}
-                  title={done ? 'Mark as not done' : 'Mark as done'}
-                  aria-pressed={done}
-                >
-                  {done ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
-                </button>
-                <div className="min-w-0 flex-1">
-                  <p className={`flex items-center gap-1.5 text-sm ${done ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>
-                    {ev.recurrence && <Repeat className="h-3 w-3 shrink-0 text-neutral-400" />}
-                    {ev.time && <span className="shrink-0 font-mono text-xs font-semibold text-invictus-crimson-bright">{formatDisplayTime(ev.time)}</span>}
-                    <span className="truncate">{ev.title}</span>
-                  </p>
-                  {ev.notes && <Kicker>{ev.notes}</Kicker>}
-                </div>
-                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[ev.priority]}`}>
-                  {ev.priority}
-                </span>
-              </div>
-              );
-            })}
-          </div>
-        </Panel>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <KpiCard label="Completion" value={`${completionPct}%`} caption="of all tasks done" />
+          <KpiCard label="Completed" value={String(completedItems)} valueClassName="text-emerald-300" caption="tasks completed" />
+          <KpiCard label="Outstanding" value={String(outstandingItems)} caption="still open" />
+          <KpiCard label="Overdue" value={String(overdueComplianceCount)} valueClassName="text-alert" caption="compliance items" />
+        </div>
       </Reveal>
 
-      {/* 2 columns from the base breakpoint up (true mobile <640px); sm/lg
-          keep their original tablet/desktop behaviour untouched. */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Reveal index={2} animate={animateCardsIn}>
-        <Panel title="Overall Tasks Completed" icon={Gauge} refCode="0012-A" tier="primary">
-          <div className="flex flex-1 items-center justify-center py-2">
-            <CircularProgress percentage={completionPct} />
-          </div>
-          <div className="grid grid-cols-2 gap-4 border-t border-neutral-400/15 pt-4 text-center">
-            <div>
-              <p className="font-mono text-xl font-bold tabular-nums text-emerald-300">{completedItems}</p>
-              <Kicker className="justify-center">Completed</Kicker>
-            </div>
-            <div>
-              <p className="font-mono text-xl font-bold tabular-nums text-neutral-200">{totalItems - completedItems}</p>
-              <Kicker className="justify-center">Outstanding</Kicker>
-            </div>
-          </div>
-        </Panel>
+          <TaskCompletionPanel
+            completionPct={completionPct}
+            completedItems={completedItems}
+            outstandingItems={outstandingItems}
+            timeline={timeline}
+          />
         </Reveal>
 
         <Reveal index={3} animate={animateCardsIn}>
-        <Panel title="Recently Added Tasks" icon={ListChecks} refCode="0027-T" tier="primary">
-          <div className="flex flex-col gap-2">
-            {recentTasks.length === 0 && (
-              <p className="py-6 text-center text-xs text-neutral-600">No tasks logged yet.</p>
-            )}
-            {recentTasks.map((task) => (
-              <div
-                key={task.id}
-                className="relative flex items-center justify-between gap-2 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle px-3 py-2.5"
-              >
-                <MicroCorners />
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-neutral-100">{task.name}</p>
-                  <Kicker>Due {task.dueDate || '—'}</Kicker>
+          <Panel title="Compliance countdown" icon={ShieldCheck} refCode="0030-C" tier="primary">
+            <div className="flex flex-col divide-y divide-neutral-400/15">
+              {upcomingCompliances.length === 0 && (
+                <p className="py-6 text-center text-xs text-neutral-600">No outstanding compliance items.</p>
+              )}
+              {upcomingCompliances.map(({ item, daysUntilDue, urgency }) => (
+                <div key={item.id} className="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-neutral-100">{item.name}</p>
+                    <p className="mt-0.5 text-xs text-neutral-500">Due {item.nextDueDate || '—'}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${URGENCY_STYLES[urgency]}`}>
+                    {formatDueIn(daysUntilDue)}
+                  </span>
                 </div>
-                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLES[task.status]}`}>
-                  {task.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Panel>
+              ))}
+            </div>
+          </Panel>
+        </Reveal>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
+        <Reveal index={4} animate={animateCardsIn}>
+          <Panel title="Recently added tasks" icon={ListChecks} refCode="0027-T" tier="primary">
+            <div className="flex flex-col divide-y divide-neutral-400/15">
+              {recentTasks.length === 0 && (
+                <p className="py-6 text-center text-xs text-neutral-600">No tasks logged yet.</p>
+              )}
+              {recentTasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-neutral-100">{task.name}</p>
+                    <p className="mt-0.5 text-xs text-neutral-500">Due {task.dueDate || '—'}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[task.status]}`}>
+                    {task.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Panel>
         </Reveal>
 
-        <Reveal index={4} animate={animateCardsIn}>
-        <Panel title="Compliance Countdown" icon={ShieldCheck} refCode="0030-C" tier="primary">
-          <div className="flex flex-col gap-2">
-            {upcomingCompliances.length === 0 && (
-              <p className="py-6 text-center text-xs text-neutral-600">No outstanding compliance items.</p>
-            )}
-            {upcomingCompliances.map(({ item, daysUntilDue, urgency }) => (
-              <div
-                key={item.id}
-                className="relative flex items-center justify-between gap-2 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle px-3 py-2.5"
-              >
-                <MicroCorners />
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-neutral-100">{item.name}</p>
-                  <Kicker>Due {item.nextDueDate || '—'}</Kicker>
+        <Reveal index={5} animate={animateCardsIn}>
+          <Panel title="Today's meetings" icon={CalendarDays} refCode="0035-M" tier="primary">
+            {todaysMeetings.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 py-6 text-center">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-invictus-raised">
+                  <CalendarDays className="h-5 w-5 text-neutral-500" />
                 </div>
-                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${URGENCY_STYLES[urgency]}`}>
-                  {formatDueIn(daysUntilDue)}
-                </span>
+                <p className="text-sm text-neutral-500">No meetings scheduled today.</p>
               </div>
-            ))}
-          </div>
-        </Panel>
+            ) : (
+              <div className="flex flex-col divide-y divide-neutral-400/15">
+                {todaysMeetings.map((ev) => {
+                  const done = ev.completedDates?.includes(todayStr) ?? false;
+                  return (
+                    <div key={ev.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                      <button
+                        onClick={() => onToggleMeeting(ev.id, todayStr)}
+                        className={`mt-0.5 shrink-0 transition-colors ${
+                          done ? 'text-emerald-300' : 'text-neutral-500 hover:text-neutral-300'
+                        }`}
+                        title={done ? 'Mark as not done' : 'Mark as done'}
+                        aria-pressed={done}
+                      >
+                        {done ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <p className={`flex items-center gap-1.5 text-sm ${done ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>
+                          {ev.recurrence && <Repeat className="h-3 w-3 shrink-0 text-neutral-400" />}
+                          {ev.time && <span className="shrink-0 font-mono text-xs text-neutral-500">{formatDisplayTime(ev.time)}</span>}
+                          <span className="truncate">{ev.title}</span>
+                        </p>
+                        {ev.notes && <p className="mt-0.5 text-xs text-neutral-500">{ev.notes}</p>}
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[ev.priority]}`}>
+                        {ev.priority}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
         </Reveal>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.8fr_1fr]">
-        <Reveal index={5} animate={animateCardsIn}>
+        <Reveal index={6} animate={animateCardsIn}>
           <CompletionTimelinePanel
             timeline={timeline}
             taskTotal={timelineTaskTotal}
             complianceTotal={timelineComplianceTotal}
           />
         </Reveal>
-        <Reveal index={6} animate={animateCardsIn}>
+        <Reveal index={7} animate={animateCardsIn}>
           <SiteHeatmap tasks={tasks} onOpen={onOpenSiteMap} />
         </Reveal>
       </div>
@@ -1470,10 +1589,10 @@ function Dashboard({
       {/* 2 columns from the base breakpoint up (true mobile <640px); sm/lg
           keep their original tablet/desktop behaviour untouched. */}
       <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <Reveal index={7} animate={animateCardsIn}>
+        <Reveal index={8} animate={animateCardsIn}>
           <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
         </Reveal>
-        <Reveal index={8} animate={animateCardsIn}>
+        <Reveal index={9} animate={animateCardsIn}>
           <NewsPanel
             title="BBC News Feed"
             icon={Newspaper}
@@ -1483,7 +1602,7 @@ function Dashboard({
             tier="ambient"
           />
         </Reveal>
-        <Reveal index={9} animate={animateCardsIn}>
+        <Reveal index={10} animate={animateCardsIn}>
           <NewsPanel
             title="Football News"
             icon={Trophy}
@@ -1896,12 +2015,14 @@ function Panel({
   icon: Icon,
   refCode,
   tier = 'primary',
+  headerRight,
   children,
 }: {
   title: string;
   icon: typeof Gauge;
   refCode?: string;
   tier?: 'primary' | 'ambient';
+  headerRight?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -1913,6 +2034,7 @@ function Panel({
           <Icon className="h-4 w-4 shrink-0 text-neutral-400" />
           <h2 className="text-base max-md:text-sm font-bold text-neutral-100">{title}</h2>
         </div>
+        {headerRight}
       </div>
       {children}
     </div>
