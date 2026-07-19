@@ -1,5 +1,5 @@
 import type {Metadata, Viewport} from 'next';
-import { Inter, Fraunces, JetBrains_Mono } from 'next/font/google';
+import { Inter, Nunito, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -45,10 +45,12 @@ const inter = Inter({
   display: 'swap',
 });
 
-// Display serif for headings and the wordmark (Claude-style editorial serif).
-const fraunces = Fraunces({
+// Display face for headings and the wordmark: Nunito — rounded and friendly
+// ("bubbly") but still clean and professional.
+const nunito = Nunito({
   subsets: ['latin'],
-  variable: '--font-fraunces',
+  weight: ['600', '700', '800'],
+  variable: '--font-nunito',
   display: 'swap',
 });
 
@@ -65,7 +67,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${nunito.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         {/* Apply the saved theme before paint to avoid a flash of the wrong theme. */}
         <script
