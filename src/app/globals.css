@@ -123,17 +123,17 @@
   }
 }
 
-/* Ancient-Greek sea-waves motif: a faint tiling wave/curl pattern layered over
-   the page base surface (the full-bleed page wrappers use .bg-invictus-base;
-   cards use the alpha variants like /50 and are unaffected). Kept very low
-   opacity so it reads as texture, never competing with content or text. */
+/* Ancient-Greek meander (Greek key / fret): a faint tiling geometric border
+   layered over the page base surface (the full-bleed page wrappers use
+   .bg-invictus-base; cards use the alpha variants like /50 and are unaffected).
+   Kept very low opacity so it reads as texture, never competing with content. */
 .bg-invictus-base {
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2290%22%20height%3D%2248%22%20viewBox%3D%220%200%2090%2048%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22rgba%28120%2C165%2C235%2C0.05%29%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M0%2C28%20C15%2C10%2030%2C10%2045%2C28%20C60%2C46%2075%2C46%2090%2C28%22%2F%3E%3Cpath%20d%3D%22M22%2C13%20C15%2C13%2015%2C24%2022%2C24%20C27%2C24%2027%2C16%2022%2C17%22%2F%3E%3Cpath%20d%3D%22M67%2C43%20C74%2C43%2074%2C32%2067%2C32%20C62%2C32%2062%2C40%2067%2C39%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
-  background-size: 90px 48px;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22rgba%28120%2C165%2C235%2C0.05%29%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22square%22%20stroke-linejoin%3D%22miter%22%3E%3Cpath%20d%3D%22M0%2C5%20H40%22%2F%3E%3Cpath%20d%3D%22M20%2C5%20V35%20H8%20V17%20H32%20V29%20H17%20V23%20H23%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  background-size: 40px 40px;
 }
 :root[data-theme='light'] .bg-invictus-base {
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2290%22%20height%3D%2248%22%20viewBox%3D%220%200%2090%2048%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22rgba%2823%2C50%2C90%2C0.045%29%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M0%2C28%20C15%2C10%2030%2C10%2045%2C28%20C60%2C46%2075%2C46%2090%2C28%22%2F%3E%3Cpath%20d%3D%22M22%2C13%20C15%2C13%2015%2C24%2022%2C24%20C27%2C24%2027%2C16%2022%2C17%22%2F%3E%3Cpath%20d%3D%22M67%2C43%20C74%2C43%2074%2C32%2067%2C32%20C62%2C32%2062%2C40%2067%2C39%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
-  background-size: 90px 48px;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22rgba%2823%2C50%2C90%2C0.05%29%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22square%22%20stroke-linejoin%3D%22miter%22%3E%3Cpath%20d%3D%22M0%2C5%20H40%22%2F%3E%3Cpath%20d%3D%22M20%2C5%20V35%20H8%20V17%20H32%20V29%20H17%20V23%20H23%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  background-size: 40px 40px;
 }
 
 @media (prefers-reduced-motion: reduce) {
