@@ -4,31 +4,27 @@
 
 @layer base {
   :root {
-    /* INVICTUS surface tokens (space-separated RGB channels so Tailwind can
-       apply the /alpha modifiers used throughout the app). Dark by default. */
-    --invictus-base: 10 10 12;
-    --invictus-surface: 18 18 21;
-    --invictus-raised: 23 23 27;
-    /* Brand accent — deep blue. (--crimson names kept for churn-free rename.) */
-    --invictus-crimson: 30 64 175; /* #1E40AF, darker end */
-    --invictus-crimson-bright: 37 99 235; /* #2563EB, primary accent */
-    /* Active typefaces (shared across both themes for consistency):
-       Inter (sans/UI), Nunito (rounded display), JetBrains Mono (data). */
-    --font-display-active: var(--font-nunito);
-    --font-sans-active: var(--font-inter);
-    --font-body-active: var(--font-inter);
+    /* Surface tokens (space-separated RGB channels so Tailwind's /alpha
+       modifiers keep working). Warm near-black, dark by default. */
+    --invictus-base: 22 21 18;      /* #161512 app background */
+    --invictus-surface: 32 30 27;   /* #201E1B panels / cards */
+    --invictus-raised: 24 22 19;    /* #181613 inputs / fields */
+    /* THE one neutral accent — pale stone (the --crimson names are kept so the
+       hundreds of existing class references don't need touching). */
+    --invictus-crimson: 160 156 148;       /* #A09C94 accent, dim */
+    --invictus-crimson-bright: 203 199 191; /* #CBC7BF accent */
+    /* One typeface everywhere. */
+    --font-display-active: var(--font-hanken);
+    --font-sans-active: var(--font-hanken);
+    --font-body-active: var(--font-hanken);
   }
-  /* Light = a warm, clean "paper" theme in the vein of Claude's own UI: soft
-     off-white surfaces, a muted terracotta accent, thin quiet borders and soft
-     blurred shadows instead of neon glow — restrained, not decorative. */
+  /* Light = warm off-white surfaces with a dark-graphite accent. */
   :root[data-theme='light'] {
-    --invictus-base: 250 249 246; /* warm off-white page */
-    --invictus-surface: 255 255 255; /* white cards */
-    --invictus-raised: 243 241 236; /* soft warm-gray raised surface */
-    /* Same blue accent as dark, kept consistent across themes. */
-    --invictus-crimson: 30 58 138; /* #1E3A8A */
-    --invictus-crimson-bright: 37 99 235; /* #2563EB */
-    /* Fonts inherit the shared base set (Inter / Nunito / JetBrains Mono). */
+    --invictus-base: 250 249 247;   /* #FAF9F7 */
+    --invictus-surface: 255 255 255;/* #FFFFFF */
+    --invictus-raised: 243 241 236; /* #F3F1EC field */
+    --invictus-crimson: 57 53 47;        /* #39352F graphite accent */
+    --invictus-crimson-bright: 57 53 47; /* #39352F */
   }
 
   :root {
@@ -38,9 +34,9 @@
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 221 83% 45%;
+    --primary: 36 10% 20%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96.1%;
+    --secondary: 40 20% 96%;
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
@@ -48,10 +44,10 @@
     --accent-foreground: 0 0% 9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 221 83% 45%;
-    --chart-1: 12 76% 61%;
+    --border: 40 15% 90%;
+    --input: 40 15% 90%;
+    --ring: 36 10% 20%;
+    --chart-1: 36 10% 20%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
@@ -64,7 +60,7 @@
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-ring: 40 13% 77%;
   }
   .dark {
     --background: 0 0% 0%;
@@ -73,45 +69,43 @@
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 5%;
     --popover-foreground: 0 0% 98%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 221 45% 22%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 354 70% 32%;
+    --primary: 40 13% 77%;
+    --primary-foreground: 40 12% 9%;
+    --secondary: 40 6% 16%;
+    --secondary-foreground: 40 10% 95%;
+    --muted: 40 6% 16%;
+    --muted-foreground: 40 5% 62%;
+    --accent: 40 7% 20%;
+    --accent-foreground: 40 10% 95%;
+    --destructive: 9 66% 58%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 221 83% 53%;
-    --chart-1: 221 83% 53%;
+    --border: 40 8% 17%;
+    --input: 40 8% 17%;
+    --ring: 40 13% 77%;
+    --chart-1: 40 13% 77%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary: 40 13% 77%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-ring: 40 13% 77%;
   }
 }
 
 :root,
 .dark {
-  /* Neutral ambient text glow — the resting "lit edge" used across most readouts. */
+  /* Minimal re-skin: no text glow anywhere. Vars kept (referenced widely). */
   --glow-text-none: none;
-  --glow-text-subtle: 0 0 3px rgba(255, 255, 255, 0.22);
-  /* Brand blue — reserved for the wordmark, hero figures, and active/live indicators. */
-  --glow-text-strong: 0 0 8px rgba(37, 99, 235, 0.8);
-  --glow-text-strong-amber: 0 0 10px rgba(251, 191, 36, 0.8);
-  /* Hot alert red — deliberately hotter/brighter than brand crimson so danger states read distinctly. */
-  --glow-text-strong-red: 0 0 10px rgba(255, 59, 78, 0.9);
+  --glow-text-subtle: none;
+  --glow-text-strong: none;
+  --glow-text-strong-amber: none;
+  --glow-text-strong-red: none;
 }
 
 @layer base {
@@ -120,20 +114,16 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Ancient-Greek meander (Greek key / fret): a faint tiling geometric border
-   layered over the page base surface (the full-bleed page wrappers use
-   .bg-invictus-base; cards use the alpha variants like /50 and are unaffected).
-   Kept very low opacity so it reads as texture, never competing with content. */
-.bg-invictus-base {
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22rgba%28120%2C165%2C235%2C0.05%29%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22square%22%20stroke-linejoin%3D%22miter%22%3E%3Cpath%20d%3D%22M0%2C5%20H40%22%2F%3E%3Cpath%20d%3D%22M20%2C5%20V35%20H8%20V17%20H32%20V29%20H17%20V23%20H23%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
-  background-size: 40px 40px;
-}
-:root[data-theme='light'] .bg-invictus-base {
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22rgba%2823%2C50%2C90%2C0.05%29%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22square%22%20stroke-linejoin%3D%22miter%22%3E%3Cpath%20d%3D%22M0%2C5%20H40%22%2F%3E%3Cpath%20d%3D%22M20%2C5%20V35%20H8%20V17%20H32%20V29%20H17%20V23%20H23%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
-  background-size: 40px 40px;
+/* Minimal re-skin: remove all decorative overlays app-wide. The background
+   grid/meander pattern is gone (no background-image on .bg-invictus-base), and
+   the scanline overlay is hidden everywhere it's used. */
+.animate-scanlines {
+  display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -183,19 +173,12 @@
   --glow-text-strong-red: none;
 }
 
-/* Soft, quiet shadows in place of the dark theme's neon glow — the same
-   restrained depth cues used across Claude's own light surfaces. */
-:root[data-theme='light'] .shadow-glow-subtle {
-  box-shadow: 0 1px 2px rgba(28, 26, 23, 0.04), 0 1px 3px rgba(28, 26, 23, 0.06);
-}
-:root[data-theme='light'] .shadow-glow-strong {
-  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.18), 0 1px 3px rgba(28, 26, 23, 0.06);
-}
-:root[data-theme='light'] .shadow-glow-caution {
-  box-shadow: 0 2px 10px rgba(180, 83, 9, 0.16), 0 1px 3px rgba(28, 26, 23, 0.06);
-}
+/* Light theme: quiet, neutral depth shadows (no colour, no glow). */
+:root[data-theme='light'] .shadow-glow-subtle,
+:root[data-theme='light'] .shadow-glow-strong,
+:root[data-theme='light'] .shadow-glow-caution,
 :root[data-theme='light'] .shadow-glow-alert {
-  box-shadow: 0 2px 10px rgba(190, 30, 45, 0.16), 0 1px 3px rgba(28, 26, 23, 0.06);
+  box-shadow: 0 1px 2px rgba(28, 26, 23, 0.05), 0 1px 3px rgba(28, 26, 23, 0.05);
 }
 :root[data-theme='light'] .drop-shadow-glow-subtle,
 :root[data-theme='light'] .drop-shadow-glow-strong,

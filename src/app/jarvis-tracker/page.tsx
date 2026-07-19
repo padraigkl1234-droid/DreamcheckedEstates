@@ -490,16 +490,10 @@ function formatRelativeTime(pubDate: string | null): string {
 // HUD bracket corners (Iron Man style panel frame accents)
 // ---------------------------------------------------------------------------
 
-function HudCorners({ tone = 'crimson' }: { tone?: 'crimson' | 'amber' }) {
-  const c = tone === 'amber' ? 'border-amber-400/70' : 'border-invictus-crimson-bright/70';
-  return (
-    <>
-      <span className={`pointer-events-none absolute -top-px -left-px h-3 w-3 border-l-2 border-t-2 ${c}`} />
-      <span className={`pointer-events-none absolute -top-px -right-px h-3 w-3 border-r-2 border-t-2 ${c}`} />
-      <span className={`pointer-events-none absolute -bottom-px -left-px h-3 w-3 border-l-2 border-b-2 ${c}`} />
-      <span className={`pointer-events-none absolute -bottom-px -right-px h-3 w-3 border-r-2 border-b-2 ${c}`} />
-    </>
-  );
+// Decorative HUD corner brackets — removed in the minimal re-skin. Kept as a
+// no-op so every call site (there are many) stays valid without edits.
+function HudCorners(_props: { tone?: 'crimson' | 'amber' }) {
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -529,22 +523,15 @@ function SysRef({ code, className = '' }: { code: string; className?: string }) 
 
 function Kicker({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-neutral-500 ${className}`}>
-      <Crosshair className="text-invictus-crimson-bright/40" />
+    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-neutral-500 ${className}`}>
       {children}
     </span>
   );
 }
 
+// Decorative micro corner brackets — removed in the minimal re-skin (no-op).
 function MicroCorners() {
-  return (
-    <>
-      <span className="pointer-events-none absolute -top-px -left-px h-1.5 w-1.5 border-l border-t border-invictus-crimson-bright/35" />
-      <span className="pointer-events-none absolute -top-px -right-px h-1.5 w-1.5 border-r border-t border-invictus-crimson-bright/35" />
-      <span className="pointer-events-none absolute -bottom-px -left-px h-1.5 w-1.5 border-l border-b border-invictus-crimson-bright/35" />
-      <span className="pointer-events-none absolute -bottom-px -right-px h-1.5 w-1.5 border-r border-b border-invictus-crimson-bright/35" />
-    </>
-  );
+  return null;
 }
 
 function ConcentricPulse() {
@@ -1018,11 +1005,9 @@ function Sidebar({
     // Desktop-only: the permanent icon/label rail. Hidden below md — mobile
     // gets its own compact dropdown nav instead (see MobileTrackerNav).
     <aside className="hidden md:flex md:w-60 flex-col border-r border-neutral-400/20 bg-invictus-base/70 shadow-glow-subtle backdrop-blur-xl">
-      <div className="flex h-16 items-center justify-center gap-2 border-b border-neutral-400/20 px-2 md:justify-start md:px-5">
-        <Pinwheel className="h-7 w-7 text-invictus-crimson-bright drop-shadow-glow-subtle" />
-        <div className="hidden md:block">
-          <p className="font-display text-sm font-normal tracking-[0.15em] text-invictus-crimson-bright [text-shadow:var(--glow-text-subtle)]">{BRAND_NAME_DOTTED}</p>
-        </div>
+      <div className="flex h-16 items-center justify-center gap-2.5 border-b border-neutral-400/20 px-2 md:justify-start md:px-5">
+        <Pinwheel className="h-6 w-6 text-neutral-100" />
+        <p className="hidden text-lg font-bold tracking-tight text-neutral-100 md:block">Invictus</p>
       </div>
 
       <nav className="flex flex-col gap-1 p-2 md:p-3">
@@ -1035,10 +1020,10 @@ function Sidebar({
               <button
                 onClick={() => onNavigate(item.key)}
                 onMouseEnter={playHover}
-                className={`flex items-center justify-center gap-3 rounded-md border px-3 py-2.5 text-xs uppercase tracking-wider transition-all md:justify-start ${
+                className={`flex items-center justify-center gap-3 rounded-[10px] px-3 py-2.5 text-sm transition-colors md:justify-start ${
                   active
-                    ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 text-neutral-100 shadow-glow-strong'
-                    : 'border-transparent text-neutral-500 hover:border-invictus-crimson-bright/20 hover:bg-invictus-crimson-bright/5 hover:text-invictus-crimson-bright'
+                    ? 'bg-invictus-crimson-bright/[0.16] text-invictus-crimson-bright'
+                    : 'text-neutral-500 hover:bg-invictus-crimson-bright/[0.06] hover:text-neutral-200'
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -1919,42 +1904,14 @@ function Panel({
   tier?: 'primary' | 'ambient';
   children: React.ReactNode;
 }) {
-  const isAmbient = tier === 'ambient';
   return (
     // Padding/header spacing shrink below md so cards read cleanly in a
     // 2-column mobile grid; unchanged at md and up.
-    <div
-      className={
-        isAmbient
-          ? 'relative flex h-full flex-col border border-neutral-400/10 bg-invictus-base/50 p-6 max-md:p-4 shadow-glow-none backdrop-blur-xl'
-          : 'relative flex h-full flex-col border border-neutral-400/30 bg-invictus-base/50 p-6 max-md:p-4 shadow-glow-subtle backdrop-blur-xl'
-      }
-    >
-      <HudCorners />
-      <div
-        className={
-          isAmbient
-            ? 'mb-4 max-md:mb-3 flex items-center justify-between gap-2 border-b border-neutral-400/15 pb-4 max-md:pb-3'
-            : 'mb-4 max-md:mb-3 flex items-center justify-between gap-2 border-b border-neutral-400/20 pb-4 max-md:pb-3'
-        }
-      >
+    <div className="relative flex h-full flex-col rounded-2xl border border-neutral-400/20 bg-invictus-surface p-6 max-md:p-4">
+      <div className="mb-4 max-md:mb-3 flex items-center justify-between gap-2 border-b border-neutral-400/15 pb-4 max-md:pb-3">
         <div className="flex items-center gap-2">
-          <Icon
-            className={
-              isAmbient
-                ? 'h-4 w-4 max-md:h-3.5 max-md:w-3.5 text-neutral-500/70'
-                : 'h-4 w-4 max-md:h-3.5 max-md:w-3.5 text-neutral-300 drop-shadow-glow-subtle'
-            }
-          />
-          <h2
-            className={
-              isAmbient
-                ? 'font-display text-[11px] font-normal uppercase tracking-[0.2em] max-md:tracking-[0.12em] text-neutral-500/70'
-                : 'font-display text-sm max-md:text-xs font-normal uppercase tracking-[0.2em] max-md:tracking-[0.12em] text-neutral-300 [text-shadow:var(--glow-text-subtle)]'
-            }
-          >
-            {title}
-          </h2>
+          <Icon className="h-4 w-4 shrink-0 text-neutral-400" />
+          <h2 className="text-base max-md:text-sm font-bold text-neutral-100">{title}</h2>
         </div>
       </div>
       {children}

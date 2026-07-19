@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { LogIn, LogOut, Users, Loader2, ArrowRight } from 'lucide-react';
 import { Pinwheel } from '@/components/icons/Pinwheel';
-import { BRAND_NAME_DOTTED } from '@/lib/brand';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useT } from '@/components/LanguageProvider';
@@ -36,11 +35,9 @@ function LoginLanding() {
     <Shell>
       <div className="relative border border-neutral-400/25 bg-invictus-surface/70 p-8 shadow-glow-strong backdrop-blur-md">
         <div className="mb-8 flex flex-col items-center text-center">
-          <Pinwheel className="mb-4 h-14 w-14 animate-[spin_6s_linear_infinite] text-invictus-crimson-bright drop-shadow-glow-strong" />
-          <h1 className="font-display text-3xl uppercase tracking-[0.3em] text-neutral-100 [text-shadow:var(--glow-text-strong)]">
-            {BRAND_NAME_DOTTED}
-          </h1>
-          <p className="mt-3 text-xs uppercase tracking-[0.25em] text-neutral-500">{t('gate.tagline')}</p>
+          <Pinwheel className="mb-4 h-12 w-12 text-neutral-100" />
+          <h1 className="text-3xl font-bold tracking-tight text-neutral-100">Invictus</h1>
+          <p className="mt-2 text-sm text-neutral-500">{t('gate.tagline')}</p>
         </div>
         <button
           onClick={() => login()}

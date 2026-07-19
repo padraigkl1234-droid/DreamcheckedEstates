@@ -1,5 +1,5 @@
 import type {Metadata, Viewport} from 'next';
-import { Inter, Nunito, JetBrains_Mono } from 'next/font/google';
+import { Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -39,22 +39,15 @@ import { Navbar } from "@/components/Navbar";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { PushListener } from "@/components/PushListener";
 
-const inter = Inter({
+// One typeface everywhere: Hanken Grotesk — clean, minimal, calm.
+const hanken = Hanken_Grotesk({
   subsets: ['latin'],
-  variable: '--font-inter',
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-hanken',
   display: 'swap',
 });
 
-// Display face for headings and the wordmark: Nunito — rounded and friendly
-// ("bubbly") but still clean and professional.
-const nunito = Nunito({
-  subsets: ['latin'],
-  weight: ['600', '700', '800'],
-  variable: '--font-nunito',
-  display: 'swap',
-});
-
-// Monospace for data/numbers (clocks, counts, percentages, tables).
+// Monospace kept only for tabular data/numbers (clocks, counts, percentages).
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-jetbrains',
@@ -67,7 +60,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${nunito.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${hanken.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         {/* Apply the saved theme before paint to avoid a flash of the wrong theme. */}
         <script
