@@ -277,8 +277,6 @@ const PRIORITY_STYLES: Record<Priority, string> = {
 
 const PRIORITY_RANK: Record<Priority, number> = { High: 0, Medium: 1, Low: 2 };
 
-const CATEGORY_TAG_STYLE = 'text-neutral-400 border-neutral-500/40 bg-neutral-500/10';
-
 const STATUS_STYLES: Record<TaskStatus, string> = {
   'Not Started': 'text-neutral-400 border-neutral-500/40 bg-neutral-500/10',
   'In Progress': 'text-amber-300 border-amber-400/40 bg-amber-400/10',
@@ -2909,26 +2907,43 @@ function TaskManager({
       return 0;
     });
   }, [tasks, todayStr]);
-  // Split the sorted list into status groups (Not Started → In Progress → Completed)
-  // so the queue is easier to manage at a glance. Within each group the existing
-  // urgency/priority/due-date sort is preserved.
-  const groupedTasks = useMemo(
-    () =>
-      STATUS_ORDER.map((status) => ({
-        status,
-        items: sortedTasks.filter((t) => t.status === status),
-      })).filter((group) => group.items.length > 0),
-    [sortedTasks]
-  );
+  // Quick-add only captures name + priority — due date, notes, and assignee
+  // are set afterward via the row's own Edit action (unchanged capability,
+  // just moved off the creation step to match the simplified add bar).
   const [name, setName] = useState('');
-  const [notes, setNotes] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
-  const [dueDate, setDueDate] = useState('');
-  const [status, setStatus] = useState<TaskStatus>('Not Started');
-  const [assigneeUid, setAssigneeUid] = useState('');
   const { playConfirm } = useSound();
   const { haptic } = usePreferences();
   const teammates = team.filter((m) => m.uid !== currentUid);
+  const [filter, setFilter] = useState<'all' | 'overdue' | TaskStatus>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
+
+  // Strictly overdue (due date in the past) — distinct from isOverdueOrToday
+  // above, which also pins today's-due tasks to the top of the sort order.
+  const isOverdue = (t: Task) =>
+    t.status !== 'Completed' && Boolean(t.dueDate) && daysFromToday(t.dueDate, todayStr) < 0;
+  const overdueCount = tasks.filter(isOverdue).length;
+  const notStartedCount = tasks.filter((t) => t.status === 'Not Started').length;
+  const inProgressCount = tasks.filter((t) => t.status === 'In Progress').length;
+  const doneCount = tasks.filter((t) => t.status === 'Completed').length;
+
+  // For the "All" view: overdue tasks get pulled into their own section up
+  // top; the remaining status groups below show only the non-overdue rest, so
+  // a task never appears twice on the same screen.
+  const groupedTasksExcludingOverdue = useMemo(
+    () =>
+      STATUS_ORDER.map((s) => ({
+        status: s,
+        items: sortedTasks.filter((t) => t.status === s && !isOverdue(t)),
+      })).filter((group) => group.items.length > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sortedTasks, todayStr]
+  );
+  const overdueTasks = sortedTasks.filter(isOverdue);
+  const filteredFlatTasks = useMemo(() => {
+    if (filter === 'all' || filter === 'overdue') return [];
+    return sortedTasks.filter((t) => t.status === filter);
+  }, [sortedTasks, filter]);
 
   // Inline editing of an existing task.
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -3010,27 +3025,320 @@ function TaskManager({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const assignee = teammates.find((m) => m.uid === assigneeUid);
     onAdd({
       id: genId(),
       name: name.trim(),
       priority,
-      dueDate,
-      status,
-      ...(notes.trim() ? { notes: notes.trim() } : {}),
-      ...(assignee ? { pendingUid: assignee.uid, pendingName: assignee.name } : {}),
+      dueDate: '',
+      status: 'Not Started',
     });
     playConfirm();
     setName('');
-    setNotes('');
     setPriority('Medium');
-    setDueDate('');
-    setStatus('Not Started');
-    setAssigneeUid('');
+  };
+
+  const FILTER_TABS: { key: 'all' | 'overdue' | TaskStatus; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: tasks.length },
+    { key: 'overdue', label: 'Overdue', count: overdueCount },
+    { key: 'Not Started', label: 'Not started', count: notStartedCount },
+    { key: 'In Progress', label: 'In progress', count: inProgressCount },
+    { key: 'Completed', label: 'Done', count: doneCount },
+  ];
+
+  // One task row — shared by every group/filter view below so the edit form,
+  // photo grid, and action buttons are defined (and kept in sync) once.
+  const renderTaskRow = (task: Task) => {
+    if (editingId === task.id) {
+      return (
+        <div key={task.id} className="p-4">
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
+            <input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Task name"
+              className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-2"
+            />
+            <InvictusSelect
+              value={editPriority}
+              onChange={(v) => setEditPriority(v as Priority)}
+              className="bg-invictus-base/60"
+              options={[
+                { value: 'High', label: 'High' },
+                { value: 'Medium', label: 'Medium' },
+                { value: 'Low', label: 'Low' },
+              ]}
+            />
+            <input
+              type="date"
+              value={editDueDate}
+              onChange={(e) => setEditDueDate(e.target.value)}
+              className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+            />
+            <InvictusSelect
+              value={editAssigneeUid}
+              onChange={setEditAssigneeUid}
+              title="Assign this task to a teammate — they'll get it as an offer to accept"
+              className="bg-invictus-base/60"
+              options={[
+                { value: '', label: 'No assignment' },
+                ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
+              ]}
+            />
+            <textarea
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              placeholder="Description (optional)"
+              rows={2}
+              className="w-full min-w-0 resize-y rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-6"
+            />
+            <div className="flex items-center gap-2 lg:col-span-6">
+              <button
+                onClick={() => saveEdit(task)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-300 transition-all hover:bg-emerald-400/20"
+              >
+                <Check className="h-3.5 w-3.5" /> Save
+              </button>
+              <button
+                onClick={() => setEditingId(null)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+              >
+                <X className="h-3.5 w-3.5" /> Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const overdue = isOverdue(task);
+    return (
+      <div key={task.id} className="flex flex-col gap-3 px-5 py-4">
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => {
+              if (task.status !== 'Completed') haptic();
+              onUpdateStatus(task.id, task.status === 'Completed' ? 'Not Started' : 'Completed');
+            }}
+            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+              task.status === 'Completed' ? 'border-emerald-400 bg-emerald-400/20 text-emerald-300' : 'border-neutral-500 hover:border-neutral-300'
+            }`}
+            title={task.status === 'Completed' ? 'Mark as not started' : 'Mark as done'}
+          >
+            {task.status === 'Completed' && <Check className="h-3 w-3" />}
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-semibold ${task.status === 'Completed' ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>
+              {task.name}
+            </p>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-500">
+              <span>Due {task.dueDate || '—'}</span>
+              {task.category && <span>· {task.category}</span>}
+              {task.area && (
+                <span className="flex items-center gap-0.5">
+                  · <MapPin className="h-3 w-3" /> {task.area}
+                </span>
+              )}
+            </p>
+            {task.notes && <p className="mt-1.5 text-sm leading-relaxed text-neutral-400">{task.notes}</p>}
+            {(task.pendingUid || (!task.pendingUid && (task.participants?.length ?? 0) > 1)) && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                {task.pendingUid && (
+                  <span
+                    className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300"
+                    title="Waiting for them to accept this task"
+                  >
+                    <UserPlus className="h-3 w-3" /> Awaiting {task.pendingName || 'accept'}
+                  </span>
+                )}
+                {!task.pendingUid && (task.participants?.length ?? 0) > 1 && (
+                  <span
+                    className="flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300"
+                    title="Shared task — completing it completes it for everyone on it"
+                  >
+                    <Users className="h-3 w-3" />
+                    {(task.participants ?? [])
+                      .filter((uid) => uid !== currentUid)
+                      .map((uid) => task.participantNames?.[uid] || 'Teammate')
+                      .join(', ') || 'Shared'}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {overdue && (
+              <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${URGENCY_STYLES.red}`}>
+                {formatDueIn(daysFromToday(task.dueDate, todayStr))}
+              </span>
+            )}
+            <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[task.priority]}`}>
+              {task.priority}
+            </span>
+            <InvictusSelect
+              value={task.status}
+              onChange={(v) => {
+                if (v === 'Completed' && task.status !== 'Completed') haptic();
+                onUpdateStatus(task.id, v as TaskStatus);
+              }}
+              compact
+              className="w-auto bg-invictus-raised"
+              options={[
+                { value: 'Not Started', label: 'Not Started' },
+                { value: 'In Progress', label: 'In Progress' },
+                { value: 'Completed', label: 'Completed' },
+              ]}
+            />
+            <button
+              onClick={() => pickImages(task.id)}
+              disabled={uploadingImageFor === task.id}
+              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright disabled:opacity-50"
+              title="Add photos"
+            >
+              {uploadingImageFor === task.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              onClick={() => startEdit(task)}
+              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+              title="Edit task"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => onFileReport(task)}
+              className="flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-3 py-1.5 text-xs font-bold text-invictus-crimson-bright transition-all hover:bg-invictus-crimson-bright/20"
+              title="File a report for this task"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Report
+            </button>
+            {task.status === 'Completed' && (
+              <button
+                onClick={() => onArchive(task.id)}
+                className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+                title="Archive task"
+              >
+                <Archive className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <button
+              onClick={() => onDelete(task.id)}
+              className="rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20"
+              title="Delete task"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+        {(task.images?.length ?? 0) > 0 && (
+          <div className="ml-8 flex flex-wrap gap-2">
+            {task.images!.map((img) => (
+              <div key={img.path} className="group/img relative h-20 w-20 overflow-hidden rounded-md border border-neutral-400/25">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.url}
+                  alt="Task attachment"
+                  className="h-full w-full cursor-zoom-in object-cover"
+                  onClick={() => setLightbox(img.url)}
+                />
+                <button
+                  onClick={() => removeImage(task, img)}
+                  className="absolute right-0.5 top-0.5 rounded bg-black/60 p-0.5 text-neutral-300 opacity-0 transition-opacity hover:text-alert group-hover/img:opacity-100"
+                  title="Remove photo"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-100">Task manager</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            {tasks.length} active task{tasks.length === 1 ? '' : 's'} across the estate
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-1 rounded-xl border border-neutral-400/20 bg-invictus-surface p-1">
+          <button
+            onClick={() => setViewMode('list')}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              viewMode === 'list' ? 'bg-invictus-raised text-neutral-100' : 'text-neutral-500 hover:text-neutral-300'
+            }`}
+          >
+            <ListChecks className="h-3.5 w-3.5" /> List
+          </button>
+          <button
+            onClick={() => setViewMode('board')}
+            title="Board view is coming soon"
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              viewMode === 'board' ? 'bg-invictus-raised text-neutral-100' : 'text-neutral-500 hover:text-neutral-300'
+            }`}
+          >
+            <LayoutDashboard className="h-3.5 w-3.5" /> Board
+          </button>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex items-center gap-3 rounded-2xl border border-neutral-400/20 bg-invictus-surface px-4 py-3">
+        <Plus className="h-4 w-4 shrink-0 text-neutral-500" />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Add a task and press enter..."
+          className="min-w-0 flex-1 bg-transparent text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
+        />
+        <InvictusSelect
+          value={priority}
+          onChange={(v) => setPriority(v as Priority)}
+          compact
+          className="w-auto shrink-0 bg-invictus-raised"
+          options={[
+            { value: 'High', label: 'High' },
+            { value: 'Medium', label: 'Medium' },
+            { value: 'Low', label: 'Low' },
+          ]}
+        />
+        <button
+          type="submit"
+          className="shrink-0 rounded-xl bg-invictus-crimson-bright px-4 py-2 text-sm font-bold text-invictus-base transition-opacity hover:opacity-90"
+        >
+          Add task
+        </button>
+      </form>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {FILTER_TABS.map((tab) => {
+          const active = filter === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                active
+                  ? 'border-neutral-400/30 bg-invictus-raised text-neutral-100'
+                  : 'border-neutral-400/20 bg-invictus-surface text-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              {tab.key === 'overdue' && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-alert" />}
+              {tab.label}
+              <span className={active ? 'text-neutral-400' : 'text-neutral-600'}>{tab.count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {viewMode === 'board' ? (
+        <div className="rounded-2xl border border-neutral-400/20 bg-invictus-surface p-10 text-center">
+          <p className="text-sm text-neutral-500">Board view is coming soon — use List for now.</p>
+        </div>
+      ) : (
+      <>
       {offers.length > 0 && (
         <Panel title={`Task Offers (${offers.length})`} icon={Inbox} refCode="0105-O">
           <p className="mb-3 text-xs text-neutral-500">
@@ -3078,291 +3386,62 @@ function TaskManager({
         </Panel>
       )}
 
-      <Panel title="Deploy New Task" icon={Plus} refCode="0103-T">
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Task name"
-            className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-2"
-          />
-          <InvictusSelect
-            value={priority}
-            onChange={(v) => setPriority(v as Priority)}
-            className="bg-invictus-base/60"
-            options={[
-              { value: 'High', label: 'High' },
-              { value: 'Medium', label: 'Medium' },
-              { value: 'Low', label: 'Low' },
-            ]}
-          />
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-          />
-          <InvictusSelect
-            value={status}
-            onChange={(v) => setStatus(v as TaskStatus)}
-            className="bg-invictus-base/60"
-            options={[
-              { value: 'Not Started', label: 'Not Started' },
-              { value: 'In Progress', label: 'In Progress' },
-              { value: 'Completed', label: 'Completed' },
-            ]}
-          />
-          <InvictusSelect
-            value={assigneeUid}
-            onChange={setAssigneeUid}
-            title="Assign this task to a teammate — they'll get it as an offer to accept"
-            className="bg-invictus-base/60"
-            options={[
-              { value: '', label: 'Keep to myself' },
-              ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
-            ]}
-          />
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Description (optional)"
-            rows={2}
-            className="w-full min-w-0 resize-y rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-6"
-          />
-          <button
-            type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong sm:col-span-2 lg:col-span-6"
-          >
-            <Plus className="h-4 w-4" /> Add Task
-          </button>
-        </form>
-      </Panel>
+      <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImagesChosen} />
+      {imageError && <p className="text-xs text-alert">{imageError}</p>}
 
-      <Panel title={`Active Tasks (${tasks.length})`} icon={ListChecks} refCode="0104-T">
-        <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImagesChosen} />
-        {imageError && <p className="mb-2 text-xs text-alert">{imageError}</p>}
-        <div className="space-y-2">
-          {completedCount > 0 && (
-            <button
-              onClick={onArchiveAllCompleted}
-              className="mb-1 flex w-full items-center justify-center gap-2 rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
-            >
-              <Archive className="h-3.5 w-3.5" /> Archive {completedCount} Completed
-            </button>
-          )}
-          {tasks.length === 0 && (
-            <p className="py-8 text-center text-xs text-neutral-600">No tasks in queue.</p>
-          )}
-          {groupedTasks.map((group) => (
-            <div key={group.status} className="space-y-2 pt-1">
-              <div className="flex items-center gap-2">
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${STATUS_STYLES[group.status]}`}>
-                  {group.status}
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">
-                  {group.items.length}
-                </span>
-                <span className="h-px flex-1 bg-neutral-400/10" />
+      {completedCount > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={onArchiveAllCompleted}
+            className="flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-300"
+          >
+            <Archive className="h-3.5 w-3.5" /> Archive {completedCount} completed
+          </button>
+        </div>
+      )}
+
+      {tasks.length === 0 && (
+        <div className="rounded-2xl border border-neutral-400/20 bg-invictus-surface p-10 text-center">
+          <p className="text-sm text-neutral-500">No tasks in queue.</p>
+        </div>
+      )}
+
+      {filter === 'all' ? (
+        <>
+          {overdueTasks.length > 0 && (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-neutral-500">
+                Overdue · {overdueTasks.length}
+              </p>
+              <div className="divide-y divide-neutral-400/15 rounded-2xl border border-l-4 border-neutral-400/20 border-l-alert bg-invictus-surface">
+                {overdueTasks.map(renderTaskRow)}
               </div>
-              {group.items.map((task) => {
-                const isPinned = isOverdueOrToday(task);
-                return (
-            <div
-              key={task.id}
-              className={`relative flex flex-col gap-3 rounded-md border p-3 shadow-glow-subtle ${
-                isPinned ? 'border-alert/50 bg-alert/5 shadow-glow-alert' : 'border-neutral-400/20 bg-invictus-base/40'
-              }`}
-            >
-              <MicroCorners />
-              {editingId === task.id ? (
-                <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
-                  <input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Task name"
-                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-2"
-                  />
-                  <InvictusSelect
-                    value={editPriority}
-                    onChange={(v) => setEditPriority(v as Priority)}
-                    className="bg-invictus-base/60"
-                    options={[
-                      { value: 'High', label: 'High' },
-                      { value: 'Medium', label: 'Medium' },
-                      { value: 'Low', label: 'Low' },
-                    ]}
-                  />
-                  <input
-                    type="date"
-                    value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-                  />
-                  <InvictusSelect
-                    value={editAssigneeUid}
-                    onChange={setEditAssigneeUid}
-                    title="Assign this task to a teammate — they'll get it as an offer to accept"
-                    className="bg-invictus-base/60"
-                    options={[
-                      { value: '', label: 'No assignment' },
-                      ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
-                    ]}
-                  />
-                  <textarea
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="Description (optional)"
-                    rows={2}
-                    className="w-full min-w-0 resize-y rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-6"
-                  />
-                  <div className="flex items-center gap-2 lg:col-span-6">
-                    <button
-                      onClick={() => saveEdit(task)}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-300 transition-all hover:bg-emerald-400/20"
-                    >
-                      <Check className="h-3.5 w-3.5" /> Save
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
-                    >
-                      <X className="h-3.5 w-3.5" /> Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-              <>
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="text-base font-semibold leading-snug text-neutral-100 md:text-lg">{task.name}</p>
-                <Kicker>Due {task.dueDate || '—'}</Kicker>
-                {task.notes && <p className="mt-1.5 text-sm leading-relaxed text-neutral-400">{task.notes}</p>}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {isPinned && (
-                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${URGENCY_STYLES.red}`}>
-                    {formatDueIn(daysFromToday(task.dueDate, todayStr))}
-                  </span>
-                )}
-                {task.category && (
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${CATEGORY_TAG_STYLE}`}>
-                    {task.category}
-                  </span>
-                )}
-                {task.area && (
-                  <span className="flex items-center gap-1 rounded-full border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-200">
-                    <MapPin className="h-3 w-3" /> {task.area}
-                  </span>
-                )}
-                {task.pendingUid && (
-                  <span
-                    className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300"
-                    title="Waiting for them to accept this task"
-                  >
-                    <UserPlus className="h-3 w-3" /> Awaiting {task.pendingName || 'accept'}
-                  </span>
-                )}
-                {!task.pendingUid && (task.participants?.length ?? 0) > 1 && (
-                  <span
-                    className="flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300"
-                    title="Shared task — completing it completes it for everyone on it"
-                  >
-                    <Users className="h-3 w-3" />
-                    {(task.participants ?? [])
-                      .filter((uid) => uid !== currentUid)
-                      .map((uid) => task.participantNames?.[uid] || 'Teammate')
-                      .join(', ') || 'Shared'}
-                  </span>
-                )}
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
-                  {task.priority}
-                </span>
-                <InvictusSelect
-                  value={task.status}
-                  onChange={(v) => {
-                    if (v === 'Completed' && task.status !== 'Completed') haptic();
-                    onUpdateStatus(task.id, v as TaskStatus);
-                  }}
-                  compact
-                  className={`w-auto ${STATUS_STYLES[task.status]}`}
-                  options={[
-                    { value: 'Not Started', label: 'Not Started' },
-                    { value: 'In Progress', label: 'In Progress' },
-                    { value: 'Completed', label: 'Completed' },
-                  ]}
-                />
-                <button
-                  onClick={() => pickImages(task.id)}
-                  disabled={uploadingImageFor === task.id}
-                  className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright disabled:opacity-50"
-                  title="Add photos"
-                >
-                  {uploadingImageFor === task.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
-                </button>
-                <button
-                  onClick={() => startEdit(task)}
-                  className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
-                  title="Edit task"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => onFileReport(task)}
-                  className="flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-invictus-crimson-bright shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
-                  title="File a report for this task"
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                  Report
-                </button>
-                {task.status === 'Completed' && (
-                  <button
-                    onClick={() => onArchive(task.id)}
-                    className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
-                    title="Archive task"
-                  >
-                    <Archive className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <button
-                  onClick={() => onDelete(task.id)}
-                  className="rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
-                  title="Delete task"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              </div>
-              {(task.images?.length ?? 0) > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {task.images!.map((img) => (
-                    <div key={img.path} className="group/img relative h-20 w-20 overflow-hidden rounded-md border border-neutral-400/25">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={img.url}
-                        alt="Task attachment"
-                        className="h-full w-full cursor-zoom-in object-cover"
-                        onClick={() => setLightbox(img.url)}
-                      />
-                      <button
-                        onClick={() => removeImage(task, img)}
-                        className="absolute right-0.5 top-0.5 rounded bg-black/60 p-0.5 text-neutral-300 opacity-0 transition-opacity hover:text-alert group-hover/img:opacity-100"
-                        title="Remove photo"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              </>
-              )}
             </div>
-                );
-              })}
+          )}
+          {groupedTasksExcludingOverdue.map((group) => (
+            <div key={group.status}>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-neutral-500">
+                {group.status} · {group.items.length}
+              </p>
+              <div className="divide-y divide-neutral-400/15 rounded-2xl border border-neutral-400/20 bg-invictus-surface">
+                {group.items.map(renderTaskRow)}
+              </div>
             </div>
           ))}
+        </>
+      ) : (
+        <div className={`divide-y divide-neutral-400/15 rounded-2xl border bg-invictus-surface ${
+          filter === 'overdue' ? 'border-l-4 border-neutral-400/20 border-l-alert' : 'border-neutral-400/20'
+        }`}>
+          {(filter === 'overdue' ? overdueTasks : filteredFlatTasks).length === 0 ? (
+            <p className="py-8 text-center text-xs text-neutral-600">No tasks in this view.</p>
+          ) : (
+            (filter === 'overdue' ? overdueTasks : filteredFlatTasks).map(renderTaskRow)
+          )}
         </div>
-      </Panel>
+      )}
+      </>
+      )}
 
       {lightbox && (
         <div
