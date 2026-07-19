@@ -1,5 +1,5 @@
 import type {Metadata, Viewport} from 'next';
-import { Inter, Orbitron, Nunito } from 'next/font/google';
+import { Inter, Fraunces, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -45,17 +45,17 @@ const inter = Inter({
   display: 'swap',
 });
 
-const orbitron = Orbitron({
+// Display serif for headings and the wordmark (Claude-style editorial serif).
+const fraunces = Fraunces({
   subsets: ['latin'],
-  variable: '--font-orbitron',
+  variable: '--font-fraunces',
   display: 'swap',
 });
 
-// Light theme body/display face: a clean, warm sans. The active theme picks
-// fonts via CSS variables (see globals.css).
-const nunito = Nunito({
+// Monospace for data/numbers (clocks, counts, percentages, tables).
+const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
-  variable: '--font-nunito',
+  variable: '--font-jetbrains',
   display: 'swap',
 });
 
@@ -65,7 +65,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${orbitron.variable} ${nunito.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         {/* Apply the saved theme before paint to avoid a flash of the wrong theme. */}
         <script

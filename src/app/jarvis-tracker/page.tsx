@@ -652,7 +652,7 @@ function HudFrame({ cx, cy, r }: { cx: number; cy: number; r: number }) {
             y={p.y - 1.5}
             width={6}
             height={3}
-            fill="rgba(194,48,74,0.5)"
+            fill="rgba(37,99,235,0.5)"
             transform={`rotate(${angle} ${p.x} ${p.y})`}
           />
         );
@@ -680,7 +680,7 @@ function BootDial({
     >
       <div
         className="absolute inset-0 rounded-full"
-        style={{ filter: 'drop-shadow(0 0 22px rgba(194,48,74,0.45))' }}
+        style={{ filter: 'drop-shadow(0 0 22px rgba(37,99,235,0.45))' }}
       >
         {/* Outer static bezel ring + glyph ports — fixed, does not rotate */}
         <svg viewBox="0 0 200 200" className="absolute h-full w-full">
@@ -693,7 +693,7 @@ function BootDial({
           viewBox="0 0 200 200"
           className={`absolute h-full w-full ${spinningUp ? 'animate-[spin_1.8s_linear_infinite]' : 'animate-[spin_40s_linear_infinite]'}`}
         >
-          <TickRing cx={cx} cy={cy} count={48} rInner={88} rOuter={92} color="rgba(194,48,74,0.7)" />
+          <TickRing cx={cx} cy={cy} count={48} rInner={88} rOuter={92} color="rgba(37,99,235,0.7)" />
         </svg>
 
         {/* Segmented arc ring (the original highlight sweep), mid speed — spins up on ignite */}
@@ -706,11 +706,11 @@ function BootDial({
             cy={cy}
             r={82}
             fill="none"
-            stroke="rgba(194,48,74,0.9)"
+            stroke="rgba(37,99,235,0.9)"
             strokeWidth={2}
             strokeLinecap="round"
             strokeDasharray="50 18 22 26 14 380"
-            style={{ filter: 'drop-shadow(0 0 8px rgba(194,48,74,0.9))' }}
+            style={{ filter: 'drop-shadow(0 0 8px rgba(37,99,235,0.9))' }}
           />
         </svg>
 
@@ -730,7 +730,7 @@ function BootDial({
           <path
             d={gearPath(cx, cy, 28, 60, 53, 0.55)}
             fill="rgba(154,34,54,0.28)"
-            stroke="rgba(194,48,74,0.85)"
+            stroke="rgba(37,99,235,0.85)"
             strokeWidth={1}
           />
         </svg>
@@ -743,7 +743,7 @@ function BootDial({
           <path
             d={gearPath(cx, cy, 20, 44, 38, 0.55)}
             fill="rgba(154,34,54,0.32)"
-            stroke="rgba(194,48,74,0.9)"
+            stroke="rgba(37,99,235,0.9)"
             strokeWidth={1}
           />
         </svg>
@@ -753,7 +753,7 @@ function BootDial({
           viewBox="0 0 200 200"
           className={`absolute h-full w-full ${spinningUp ? 'animate-[spin_0.4s_linear_infinite]' : 'animate-[spin_8s_linear_infinite]'}`}
         >
-          <TickRing cx={cx} cy={cy} count={36} rInner={28} rOuter={32} longEvery={3} longExtra={1.5} color="rgba(194,48,74,0.8)" />
+          <TickRing cx={cx} cy={cy} count={36} rInner={28} rOuter={32} longEvery={3} longExtra={1.5} color="rgba(37,99,235,0.8)" />
         </svg>
       </div>
 
@@ -924,8 +924,8 @@ function CircularProgress({ percentage }: { percentage: number }) {
       <svg viewBox="0 0 200 200" className="absolute h-full w-full -rotate-90">
         <defs>
           <linearGradient id="invictusProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#C2304A" />
-            <stop offset="100%" stopColor="#9A2236" />
+            <stop offset="0%" stopColor="#2563EB" />
+            <stop offset="100%" stopColor="#1E40AF" />
           </linearGradient>
         </defs>
 
@@ -945,7 +945,7 @@ function CircularProgress({ percentage }: { percentage: number }) {
           strokeDashoffset={offset}
           style={{
             transition: 'stroke-dashoffset 0.7s ease',
-            filter: 'drop-shadow(0 0 3px rgba(194,48,74,0.3))',
+            filter: 'drop-shadow(0 0 3px rgba(37,99,235,0.3))',
           }}
         />
 
@@ -955,7 +955,7 @@ function CircularProgress({ percentage }: { percentage: number }) {
           cy="100"
           r={radius - 18}
           fill="none"
-          stroke="rgba(194,48,74,0.55)"
+          stroke="rgba(37,99,235,0.55)"
           strokeWidth="1.5"
           strokeDasharray="16 220"
           strokeLinecap="round"
@@ -969,7 +969,7 @@ function CircularProgress({ percentage }: { percentage: number }) {
           cy="100"
           r={radius - 30}
           fill="none"
-          stroke="rgba(194,48,74,0.25)"
+          stroke="rgba(37,99,235,0.25)"
           strokeWidth="1"
           strokeDasharray="2 5"
           className="animate-[spin_9s_linear_infinite_reverse]"
@@ -1567,8 +1567,8 @@ function CompletionTimelinePanel({
           <AreaChart data={timeline} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
             <defs>
               <linearGradient id="timelineTasksGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#C2304A" stopOpacity={0.45} />
-                <stop offset="100%" stopColor="#C2304A" stopOpacity={0} />
+                <stop offset="0%" stopColor="#2563EB" stopOpacity={0.45} />
+                <stop offset="100%" stopColor="#2563EB" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="timelineComplianceGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#34D399" stopOpacity={0.35} />
@@ -1590,14 +1590,14 @@ function CompletionTimelinePanel({
               tickLine={false}
               width={24}
             />
-            <Tooltip content={<CompletionTimelineTooltip />} cursor={{ stroke: 'rgba(194,48,74,0.3)' }} />
+            <Tooltip content={<CompletionTimelineTooltip />} cursor={{ stroke: 'rgba(37,99,235,0.3)' }} />
             <Area
               type="monotone"
               dataKey="tasks"
-              stroke="#C2304A"
+              stroke="#2563EB"
               strokeWidth={2}
               fill="url(#timelineTasksGradient)"
-              activeDot={{ r: 4, fill: '#C2304A' }}
+              activeDot={{ r: 4, fill: '#2563EB' }}
             />
             <Area
               type="monotone"
@@ -4145,7 +4145,7 @@ async function exportReportsToPdf(entries: ReportEntry[]) {
   const autoTable = (await import('jspdf-autotable')).default;
 
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const crimson: [number, number, number] = [194, 48, 74];
+  const crimson: [number, number, number] = [37, 99, 235];
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);

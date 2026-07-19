@@ -293,7 +293,7 @@ export function ReportsView({
   const exportPdf = async (r: Report) => {
     const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
-    const crimson: [number, number, number] = [194, 48, 74];
+    const crimson: [number, number, number] = [37, 99, 235];
     let y = 48;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(16);

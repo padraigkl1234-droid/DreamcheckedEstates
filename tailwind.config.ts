@@ -28,6 +28,7 @@ export default {
           'sans-serif',
         ],
         mono: [
+          'var(--font-jetbrains)',
           '"JetBrains Mono"',
           'ui-monospace',
           'SFMono-Regular',
@@ -42,14 +43,14 @@ export default {
       boxShadow: {
         'glow-none': 'none',
         'glow-subtle': '0 0 5px 0 rgba(255, 255, 255, 0.05), inset 0 0 6px 0 rgba(255, 255, 255, 0.03)',
-        'glow-strong': '0 0 18px 2px rgba(194, 48, 74, 0.45), inset 0 0 12px 0 rgba(194, 48, 74, 0.15)',
+        'glow-strong': '0 0 18px 2px rgba(37, 99, 235, 0.45), inset 0 0 12px 0 rgba(37, 99, 235, 0.15)',
         'glow-caution': '0 0 16px 2px rgba(251, 191, 36, 0.4), inset 0 0 10px 0 rgba(251, 191, 36, 0.12)',
         'glow-alert': '0 0 20px 3px rgba(255, 59, 78, 0.55), inset 0 0 12px 0 rgba(255, 59, 78, 0.18)',
       },
       dropShadow: {
         'glow-none': 'none',
         'glow-subtle': '0 0 3px rgba(255, 255, 255, 0.18)',
-        'glow-strong': '0 0 8px rgba(194, 48, 74, 0.75)',
+        'glow-strong': '0 0 8px rgba(37, 99, 235, 0.75)',
         'glow-caution': '0 0 8px rgba(251, 191, 36, 0.7)',
       },
       colors: {
