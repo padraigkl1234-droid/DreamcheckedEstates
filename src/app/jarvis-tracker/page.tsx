@@ -31,35 +31,23 @@ import {
   Plus,
   Trash2,
   Wifi,
-  Radio,
   Newspaper,
   CheckCircle2,
   Circle,
   AlertTriangle,
   X,
   Gauge,
-  ImageOff,
   ExternalLink,
-  RefreshCw,
   Cloud,
   Droplets,
   Eye,
   Wind,
   Music2,
-  Sun,
-  CloudSun,
-  CloudRain,
-  CloudSnow,
-  CloudLightning,
-  CloudFog,
-  CloudDrizzle,
-  Trophy,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   Archive,
   ArchiveRestore,
-  TrendingUp,
   FileText,
   Search,
   Download,
@@ -88,11 +76,7 @@ import {
 import {
   Area,
   AreaChart,
-  CartesianGrid,
   ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
 } from 'recharts';
 
 // ---------------------------------------------------------------------------
@@ -202,45 +186,6 @@ function getOccurrencesInRange(event: CalendarEvent, rangeStart: string, rangeEn
     cur = addRecurrenceStep(cur, event.recurrence.freq);
   }
   return occurrences;
-}
-
-interface NewsItem {
-  title: string;
-  link: string;
-  image: string | null;
-  pubDate: string | null;
-}
-
-interface WeatherData {
-  temperatureC: number;
-  humidity: number;
-  windSpeedKmh: number;
-  weatherCode: number;
-}
-
-function getWeatherInfo(code: number): { label: string; icon: typeof Cloud } {
-  if (code === 0) return { label: 'Clear Sky', icon: Sun };
-  if (code === 1 || code === 2) return { label: 'Partly Cloudy', icon: CloudSun };
-  if (code === 3) return { label: 'Overcast', icon: Cloud };
-  if (code === 45 || code === 48) return { label: 'Fog', icon: CloudFog };
-  if (code >= 51 && code <= 57) return { label: 'Drizzle', icon: CloudDrizzle };
-  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: 'Rain', icon: CloudRain };
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: 'Snow', icon: CloudSnow };
-  if (code >= 95 && code <= 99) return { label: 'Thunderstorm', icon: CloudLightning };
-  return { label: 'Overcast', icon: Cloud };
-}
-
-type WeatherCategory = 'clear' | 'partly-cloudy' | 'cloudy' | 'fog' | 'rain' | 'snow' | 'storm';
-
-function getWeatherCategory(code: number): WeatherCategory {
-  if (code === 0) return 'clear';
-  if (code === 1 || code === 2) return 'partly-cloudy';
-  if (code === 3) return 'cloudy';
-  if (code === 45 || code === 48) return 'fog';
-  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
-  if (code >= 95 && code <= 99) return 'storm';
-  return 'cloudy';
 }
 
 // ---------------------------------------------------------------------------
@@ -1346,7 +1291,6 @@ function Dashboard({
   animateCardsIn = false,
   onCardsRevealed,
   onToggleMeeting,
-  onOpenSiteMap,
 }: {
   tasks: Task[];
   archivedTasks: Task[];
@@ -1355,71 +1299,12 @@ function Dashboard({
   animateCardsIn?: boolean;
   onCardsRevealed?: () => void;
   onToggleMeeting: (id: string, date: string) => void;
-  onOpenSiteMap?: () => void;
 }) {
-  const [news, setNews] = useState<{ general: NewsItem[]; football: NewsItem[] }>({
-    general: [],
-    football: [],
-  });
-  const [newsStatus, setNewsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [weatherStatus, setWeatherStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadNews = async () => {
-      try {
-        const res = await fetch('/api/jarvis-news');
-        const data = await res.json();
-        if (cancelled) return;
-        if (!res.ok || data.error) {
-          setNewsStatus('error');
-          return;
-        }
-        setNews({ general: data.general ?? [], football: data.football ?? [] });
-        setNewsStatus('ready');
-      } catch {
-        if (!cancelled) setNewsStatus('error');
-      }
-    };
-    loadNews();
-    const newsId = setInterval(loadNews, 5 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(newsId);
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadWeather = async () => {
-      try {
-        const res = await fetch('/api/jarvis-weather');
-        const data = await res.json();
-        if (cancelled) return;
-        if (!res.ok || data.error) {
-          setWeatherStatus('error');
-          return;
-        }
-        setWeather(data);
-        setWeatherStatus('ready');
-      } catch {
-        if (!cancelled) setWeatherStatus('error');
-      }
-    };
-    loadWeather();
-    const weatherId = setInterval(loadWeather, 10 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(weatherId);
-    };
-  }, []);
-
   // Tell the parent once the staggered reveal has finished so re-mounting
   // this component later in the same session (switching tabs and back) won't replay it.
   useEffect(() => {
     if (!animateCardsIn) return;
-    const cardCount = 11; // greeting + KPI strip + 9 panels
+    const cardCount = 6; // greeting + KPI strip + 4 panels
     const totalMs = (cardCount - 1) * CARD_REVEAL_STEP_MS + CARD_REVEAL_DURATION_MS;
     const timeout = setTimeout(() => onCardsRevealed?.(), totalMs);
     return () => clearTimeout(timeout);
@@ -1444,8 +1329,6 @@ function Dashboard({
     () => buildCompletionTimeline(tasks, archivedTasks, compliances),
     [tasks, archivedTasks, compliances]
   );
-  const timelineTaskTotal = timeline.reduce((sum, p) => sum + p.tasks, 0);
-  const timelineComplianceTotal = timeline.reduce((sum, p) => sum + p.compliance, 0);
 
   const todayStr = useMemo(() => toDateInputValue(new Date()), []);
   const todaysMeetings = events
@@ -1572,441 +1455,7 @@ function Dashboard({
           </Panel>
         </Reveal>
       </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.8fr_1fr]">
-        <Reveal index={6} animate={animateCardsIn}>
-          <CompletionTimelinePanel
-            timeline={timeline}
-            taskTotal={timelineTaskTotal}
-            complianceTotal={timelineComplianceTotal}
-          />
-        </Reveal>
-        <Reveal index={7} animate={animateCardsIn}>
-          <SiteHeatmap tasks={tasks} onOpen={onOpenSiteMap} />
-        </Reveal>
-      </div>
-
-      {/* 2 columns from the base breakpoint up (true mobile <640px); sm/lg
-          keep their original tablet/desktop behaviour untouched. */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <Reveal index={8} animate={animateCardsIn}>
-          <WeatherPanel weather={weather} status={weatherStatus} tier="ambient" />
-        </Reveal>
-        <Reveal index={9} animate={animateCardsIn}>
-          <NewsPanel
-            title="BBC News Feed"
-            icon={Newspaper}
-            refCode="0091-N"
-            items={news.general}
-            status={newsStatus}
-            tier="ambient"
-          />
-        </Reveal>
-        <Reveal index={10} animate={animateCardsIn}>
-          <NewsPanel
-            title="Football News"
-            icon={Trophy}
-            refCode="0093-F"
-            items={news.football}
-            status={newsStatus}
-            tier="ambient"
-          />
-        </Reveal>
-      </div>
     </div>
-  );
-}
-
-function CompletionTimelineTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { value: number; dataKey: string }[];
-  label?: string;
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const tasks = payload.find((p) => p.dataKey === 'tasks')?.value ?? 0;
-  const compliance = payload.find((p) => p.dataKey === 'compliance')?.value ?? 0;
-  return (
-    <div className="rounded-md border border-neutral-400/30 bg-invictus-base/95 px-3 py-2 shadow-glow-subtle backdrop-blur-xl">
-      <p className="mb-1 text-[10px] uppercase tracking-widest text-neutral-500">{label}</p>
-      <p className="flex items-center gap-2 text-xs text-neutral-100">
-        <span className="h-2 w-2 rounded-full bg-invictus-crimson-bright" /> Tasks: {tasks}
-      </p>
-      <p className="flex items-center gap-2 text-xs text-neutral-100">
-        <span className="h-2 w-2 rounded-full bg-emerald-400" /> Compliance: {compliance}
-      </p>
-    </div>
-  );
-}
-
-function CompletionTimelinePanel({
-  timeline,
-  taskTotal,
-  complianceTotal,
-}: {
-  timeline: TimelinePoint[];
-  taskTotal: number;
-  complianceTotal: number;
-}) {
-  return (
-    <Panel title="Completion Timeline" icon={TrendingUp} refCode="0040-X" tier="primary">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <Kicker>Last {TIMELINE_DAYS} days</Kicker>
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5 text-xs text-neutral-300">
-            <span className="h-2 w-2 rounded-full bg-invictus-crimson-bright shadow-glow-subtle" />
-            <span className="font-mono font-bold tabular-nums">{taskTotal}</span> Tasks
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-neutral-300">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-glow-subtle" />
-            <span className="font-mono font-bold tabular-nums">{complianceTotal}</span> Compliance
-          </span>
-        </div>
-      </div>
-      <div className="h-56 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={timeline} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-            <defs>
-              <linearGradient id="timelineTasksGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#2563EB" stopOpacity={0.45} />
-                <stop offset="100%" stopColor="#2563EB" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="timelineComplianceGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#34D399" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#34D399" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: 'rgba(163,163,163,0.7)', fontSize: 10 }}
-              axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-              tickLine={false}
-              interval={Math.ceil(TIMELINE_DAYS / 7) - 1}
-            />
-            <YAxis
-              allowDecimals={false}
-              tick={{ fill: 'rgba(163,163,163,0.7)', fontSize: 10 }}
-              axisLine={false}
-              tickLine={false}
-              width={24}
-            />
-            <Tooltip content={<CompletionTimelineTooltip />} cursor={{ stroke: 'rgba(37,99,235,0.3)' }} />
-            <Area
-              type="monotone"
-              dataKey="tasks"
-              stroke="#2563EB"
-              strokeWidth={2}
-              fill="url(#timelineTasksGradient)"
-              activeDot={{ r: 4, fill: '#2563EB' }}
-            />
-            <Area
-              type="monotone"
-              dataKey="compliance"
-              stroke="#34D399"
-              strokeWidth={2}
-              fill="url(#timelineComplianceGradient)"
-              activeDot={{ r: 4, fill: '#34D399' }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </Panel>
-  );
-}
-
-function WeatherPanel({
-  weather,
-  status,
-  tier = 'primary',
-}: {
-  weather: WeatherData | null;
-  status: 'loading' | 'ready' | 'error';
-  tier?: 'primary' | 'ambient';
-}) {
-  const info = weather ? getWeatherInfo(weather.weatherCode) : null;
-  const WeatherIcon = info?.icon ?? Cloud;
-
-  // Live local clock, shown alongside the weather. The dashboard only renders
-  // client-side (behind the mounted gate), so this never mismatches on hydration.
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <Panel title="Margate · Time & Weather" icon={WeatherIcon} refCode="0061-W" tier={tier}>
-      <div className="mb-4 border-b border-neutral-400/15 pb-4 text-center">
-        <p className="font-mono text-2xl font-bold tabular-nums tracking-widest text-neutral-200 [text-shadow:var(--glow-text-subtle)]">
-          {now.toLocaleTimeString('en-GB')}
-        </p>
-        <p className="text-[10px] uppercase tracking-widest text-neutral-600">
-          {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
-      </div>
-      {status === 'loading' && (
-        <div className="flex flex-col items-center gap-2 py-10 text-neutral-600">
-          <RefreshCw className="h-5 w-5 animate-spin" />
-          <p className="text-xs uppercase tracking-widest">Acquiring feed...</p>
-        </div>
-      )}
-
-      {status === 'error' && (
-        <div className="flex flex-col items-center gap-2 py-10 text-amber-400">
-          <AlertTriangle className="h-5 w-5" />
-          <p className="text-center text-xs uppercase tracking-widest">Weather uplink unavailable</p>
-        </div>
-      )}
-
-      {status === 'ready' && weather && info && (
-        <div className="flex h-full flex-col gap-4">
-          <div className="text-center">
-            <div className="mb-1 flex items-center justify-center gap-2">
-              <WeatherIcon className="h-6 w-6 text-neutral-300" />
-              <span className="font-mono text-2xl font-bold tabular-nums text-neutral-200 [text-shadow:var(--glow-text-subtle)]">
-                {weather.temperatureC}°C
-              </span>
-            </div>
-            <p className="text-[10px] uppercase tracking-widest text-neutral-600">{info.label} · Margate, UK</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 border-t border-neutral-400/15 pt-4 text-center">
-            <div>
-              <Droplets className="mx-auto mb-1 h-3.5 w-3.5 text-neutral-500" />
-              <p className="font-mono text-xs text-neutral-200">{weather.humidity}%</p>
-              <p className="text-[10px] uppercase tracking-widest text-neutral-600">Humidity</p>
-            </div>
-            <div>
-              <Wind className="mx-auto mb-1 h-3.5 w-3.5 text-neutral-500" />
-              <p className="font-mono text-xs text-neutral-200">{weather.windSpeedKmh}km/h</p>
-              <p className="text-[10px] uppercase tracking-widest text-neutral-600">Wind</p>
-            </div>
-          </div>
-
-          <WeatherScene category={getWeatherCategory(weather.weatherCode)} />
-        </div>
-      )}
-    </Panel>
-  );
-}
-
-function WeatherScene({ category }: { category: WeatherCategory }) {
-  return (
-    <div className="relative min-h-[90px] flex-1 overflow-hidden rounded-md border border-neutral-400/15 bg-invictus-base/40">
-      {category === 'clear' && <SunScene />}
-      {category === 'partly-cloudy' && <CloudScene withSun />}
-      {category === 'cloudy' && <CloudScene />}
-      {category === 'fog' && <FogScene />}
-      {category === 'rain' && <RainScene />}
-      {category === 'snow' && <SnowScene />}
-      {category === 'storm' && <StormScene />}
-    </div>
-  );
-}
-
-function SunScene() {
-  const sparkles = Array.from({ length: 6 });
-  return (
-    <div className="relative flex h-full w-full items-center justify-center">
-      <div className="absolute h-16 w-16 rounded-full bg-amber-300/20 blur-xl animate-pulse" />
-      <Sun className="relative h-12 w-12 text-amber-300 drop-shadow-[0_0_5px_rgba(251,191,36,0.3)] animate-[spin_18s_linear_infinite]" />
-      {sparkles.map((_, i) => (
-        <span
-          key={i}
-          className="absolute bottom-3 h-1 w-1 rounded-full bg-amber-200/80 animate-float-sparkle"
-          style={{
-            left: `${14 + i * 14}%`,
-            animationDuration: `${2.6 + i * 0.4}s`,
-            animationDelay: `${i * 0.45}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function CloudScene({ withSun = false }: { withSun?: boolean }) {
-  return (
-    <div className="relative h-full w-full">
-      {withSun && (
-        <Sun className="absolute left-[30%] top-[22%] h-9 w-9 text-amber-300/80 drop-shadow-[0_0_4px_rgba(251,191,36,0.25)] animate-[spin_22s_linear_infinite]" />
-      )}
-      <Cloud
-        className="absolute top-1/2 h-12 w-12 -translate-y-1/2 text-neutral-300 drop-shadow-[0_0_4px_rgba(255,255,255,0.18)] animate-cloud-drift"
-        style={{ left: '22%' }}
-      />
-      <Cloud
-        className="absolute top-[62%] h-7 w-7 text-neutral-400/50 animate-cloud-drift"
-        style={{ left: '54%', animationDuration: '13s', animationDirection: 'reverse' }}
-      />
-    </div>
-  );
-}
-
-function FogScene() {
-  const bands = Array.from({ length: 3 });
-  return (
-    <div className="relative flex h-full w-full flex-col items-center justify-center gap-2.5">
-      <CloudFog className="mb-1 h-9 w-9 text-neutral-300/80 drop-shadow-[0_0_4px_rgba(255,255,255,0.15)]" />
-      {bands.map((_, i) => (
-        <span
-          key={i}
-          className="h-1 w-[70%] rounded-full bg-neutral-400/30 animate-fog-drift"
-          style={{ animationDuration: `${8 + i * 2}s`, animationDelay: `${i * 0.6}s` }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function RainScene() {
-  const drops = Array.from({ length: 10 });
-  return (
-    <div className="relative h-full w-full">
-      <CloudRain className="absolute left-1/2 top-[18%] h-11 w-11 -translate-x-1/2 text-neutral-300 drop-shadow-[0_0_4px_rgba(255,255,255,0.18)]" />
-      {drops.map((_, i) => (
-        <span
-          key={i}
-          className="absolute top-[52%] w-[2px] h-2.5 rounded-full bg-neutral-400/70 animate-rain-fall"
-          style={{
-            left: `${8 + i * 9}%`,
-            animationDuration: `${0.6 + (i % 3) * 0.15}s`,
-            animationDelay: `${i * 0.12}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function SnowScene() {
-  const flakes = Array.from({ length: 9 });
-  return (
-    <div className="relative h-full w-full">
-      <CloudSnow className="absolute left-1/2 top-[16%] h-11 w-11 -translate-x-1/2 text-neutral-100 drop-shadow-[0_0_4px_rgba(255,255,255,0.18)]" />
-      {flakes.map((_, i) => (
-        <span
-          key={i}
-          className="absolute top-[48%] h-1.5 w-1.5 rounded-full bg-neutral-100/80 animate-snow-fall"
-          style={{
-            left: `${6 + i * 10}%`,
-            animationDuration: `${3 + (i % 4) * 0.6}s`,
-            animationDelay: `${i * 0.3}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function StormScene() {
-  const drops = Array.from({ length: 8 });
-  return (
-    <div className="relative h-full w-full">
-      <Cloud className="absolute left-1/2 top-[14%] h-11 w-11 -translate-x-1/2 text-neutral-300/90" />
-      <CloudLightning className="absolute left-1/2 top-[34%] h-8 w-8 -translate-x-1/2 text-amber-300 drop-shadow-glow-caution animate-bolt-flash" />
-      {drops.map((_, i) => (
-        <span
-          key={i}
-          className="absolute top-[58%] w-[2px] h-2.5 rounded-full bg-neutral-400/70 animate-rain-fall"
-          style={{
-            left: `${10 + i * 11}%`,
-            animationDuration: `${0.55 + (i % 3) * 0.15}s`,
-            animationDelay: `${i * 0.14}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function NewsPanel({
-  title,
-  icon,
-  refCode,
-  items,
-  status,
-  tier = 'primary',
-}: {
-  title: string;
-  icon: typeof Gauge;
-  refCode: string;
-  items: NewsItem[];
-  status: 'loading' | 'ready' | 'error';
-  tier?: 'primary' | 'ambient';
-}) {
-  return (
-    <Panel title={title} icon={icon} refCode={refCode} tier={tier}>
-      <div className="flex items-center gap-1.5 pb-3">
-        <Radio className="h-3 w-3 text-alert motion-safe:animate-pulse-alert" />
-        <span className="text-[10px] uppercase tracking-widest text-alert [text-shadow:var(--glow-text-strong-red)]">Live</span>
-      </div>
-
-      {status === 'loading' && (
-        <div className="flex flex-col items-center gap-2 py-10 text-neutral-600">
-          <RefreshCw className="h-5 w-5 animate-spin" />
-          <p className="text-xs uppercase tracking-widest">Acquiring feed...</p>
-        </div>
-      )}
-
-      {status === 'error' && (
-        <div className="flex flex-col items-center gap-2 py-10 text-amber-400">
-          <AlertTriangle className="h-5 w-5" />
-          <p className="text-center text-xs uppercase tracking-widest">Feed uplink unavailable</p>
-        </div>
-      )}
-
-      {status === 'ready' && items.length === 0 && (
-        <p className="py-10 text-center text-xs text-neutral-600">No headlines returned.</p>
-      )}
-
-      {status === 'ready' && items.length > 0 && (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
-          {items.map((item, i) => (
-            <NewsCard key={`${item.link}-${i}`} item={item} />
-          ))}
-        </div>
-      )}
-    </Panel>
-  );
-}
-
-function NewsCard({ item }: { item: NewsItem }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const showImage = item.image && !imgFailed;
-
-  return (
-    <a
-      href={item.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group relative flex gap-2 rounded-md border border-neutral-400/20 bg-invictus-base/40 p-2 shadow-glow-subtle transition-all hover:border-invictus-crimson-bright/60 hover:bg-invictus-crimson-bright/5 hover:shadow-glow-strong"
-    >
-      <MicroCorners />
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-neutral-400/20 bg-invictus-base">
-        {showImage ? (
-          <img
-            src={item.image ?? ''}
-            alt=""
-            className="h-full w-full object-cover"
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <ImageOff className="h-4 w-4 text-neutral-600" />
-        )}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-        <p className="line-clamp-2 text-xs text-neutral-100 group-hover:text-neutral-50">{item.title}</p>
-        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-600">
-          {item.pubDate && <span>{formatRelativeTime(item.pubDate)}</span>}
-          <ExternalLink className="h-2.5 w-2.5" />
-        </div>
-      </div>
-    </a>
   );
 }
 
@@ -2874,210 +2323,6 @@ function heatColor(t: number): string {
     }
   }
   return 'rgb(250, 214, 70)';
-}
-
-// A compact, unlabelled thermal heat-map of the site for the dashboard.
-// Rendered like a thermal camera: each busy area emits a soft radial "energy"
-// blob; the blobs are blurred so neighbours blend, then the accumulated
-// intensity is mapped through the red→orange→yellow ramp via an SVG filter
-// (feGaussianBlur → alpha-to-intensity → feComponentTransfer colour tables).
-// Overlapping hotspots genuinely add up and glow hotter.
-function SiteHeatmap({ tasks, onOpen }: { tasks: Task[]; onOpen?: () => void }) {
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const t of tasks) {
-      if (t.area && t.status !== 'Completed') c[t.area] = (c[t.area] ?? 0) + 1;
-    }
-    return c;
-  }, [tasks]);
-
-  const max = useMemo(() => Math.max(0, ...Object.values(counts)), [counts]);
-  const totalActive = useMemo(() => Object.values(counts).reduce((a, b) => a + b, 0), [counts]);
-  const hottest = useMemo(
-    () => Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3),
-    [counts]
-  );
-
-  const heatFor = (count: number): string => {
-    if (count <= 0) return '#191a20';
-    const t = max <= 0 ? 0 : 0.18 + 0.82 * (count / max);
-    return heatColor(t);
-  };
-
-  // One soft hotspot per busy area — zone centroids for named zones (the
-  // primary rect only, so duplicate-labelled pitches don't multiply the heat),
-  // cell centres for open-ground squares. Ellipses follow each zone's
-  // footprint so elongated areas (Boneyard, Food Court) read as a ridge of
-  // heat rather than one huge circle.
-  const hotspots = useMemo(() => {
-    const spots: { cx: number; cy: number; rx: number; ry: number; rot: number; count: number }[] = [];
-    for (const z of SITE_ZONES) {
-      if (z.noBadge) continue;
-      const count = counts[z.label] ?? 0;
-      if (count <= 0) continue;
-      spots.push({
-        cx: z.x + z.w / 2,
-        cy: z.y + z.h / 2,
-        rx: Math.min(z.w / 2 + 40, 150),
-        ry: Math.min(z.h / 2 + 40, 150),
-        rot: z.rot ?? 0,
-        count,
-      });
-    }
-    for (const c of SITE_CELLS) {
-      if (!c.inside || c.landmark) continue;
-      const count = counts[c.areaKey] ?? 0;
-      if (count <= 0) continue;
-      spots.push({ cx: c.cx, cy: c.cy, rx: 60, ry: 60, rot: 0, count });
-    }
-    return spots;
-  }, [counts]);
-
-  return (
-    <Panel title="Workload Heatmap" icon={MapIcon} refCode="0117-H" tier="primary">
-      {totalActive === 0 ? (
-        <p className="py-10 text-center text-xs text-neutral-600">
-          No active tasks assigned to the site yet — assign tasks on the Site Map to light up the heat.
-        </p>
-      ) : (
-        <>
-          <button
-            type="button"
-            onClick={onOpen}
-            className="group relative block w-full overflow-hidden rounded-md border border-neutral-400/20 bg-[#0b0b0c] transition-colors hover:border-invictus-crimson-bright/50"
-            title="Open the full Site Map"
-          >
-            <svg viewBox="0 0 1000 900" className="mx-auto h-auto w-full max-w-sm" role="img" aria-label="Site workload heatmap">
-              <defs>
-                {/* Soft radial falloff for a single heat source. */}
-                <radialGradient id="heat-blob">
-                  <stop offset="0%" stopColor="#fff" stopOpacity={1} />
-                  <stop offset="45%" stopColor="#fff" stopOpacity={0.55} />
-                  <stop offset="100%" stopColor="#fff" stopOpacity={0} />
-                </radialGradient>
-                {/* Thermal colormap: blur the white blobs so they merge, read
-                    the accumulated alpha as intensity, then map intensity
-                    through the dark-red → crimson → orange → amber ramp. */}
-                <filter id="heat-thermal" x="-15%" y="-15%" width="130%" height="130%" colorInterpolationFilters="sRGB">
-                  <feGaussianBlur stdDeviation={16} />
-                  <feColorMatrix
-                    type="matrix"
-                    values="0 0 0 1 0
-                            0 0 0 1 0
-                            0 0 0 1 0
-                            0 0 0 1 0"
-                  />
-                  <feComponentTransfer>
-                    <feFuncR type="table" tableValues="0.16 0.47 0.78 0.94 0.98" />
-                    <feFuncG type="table" tableValues="0.08 0.10 0.15 0.51 0.84" />
-                    <feFuncB type="table" tableValues="0.09 0.11 0.15 0.13 0.27" />
-                    <feFuncA type="table" tableValues="0 0.35 0.65 0.85 0.95" />
-                  </feComponentTransfer>
-                </filter>
-              </defs>
-
-              {/* Base map, dimmed for shape recognition */}
-              <polygon points={toPoints(SITE_BOUNDARY)} fill="#101116" stroke="rgba(220,38,38,0.35)" strokeWidth={2} strokeLinejoin="round" />
-              <polygon points={toPoints(CAR_PARK_POLY)} fill="#141519" stroke="rgba(160,160,170,0.12)" strokeWidth={1} />
-              <polygon points={toPoints(EAST_PARK_POLY)} fill="#141519" stroke="rgba(160,160,170,0.12)" strokeWidth={1} />
-              <polygon points={toPoints(CLUSTER_POLY)} fill="#141519" stroke="rgba(160,160,170,0.12)" strokeWidth={1} />
-              {/* Faint zone outlines keep the site readable under the heat */}
-              {SITE_ZONES.map((z, i) => {
-                const cx = z.x + z.w / 2;
-                const cy = z.y + z.h / 2;
-                return (
-                  <rect
-                    key={`hz-${i}`}
-                    x={z.x}
-                    y={z.y}
-                    width={z.w}
-                    height={z.h}
-                    rx={2}
-                    fill="rgba(255,255,255,0.015)"
-                    stroke="rgba(220,38,38,0.18)"
-                    strokeWidth={0.8}
-                    transform={z.rot ? `rotate(${z.rot} ${cx} ${cy})` : undefined}
-                  />
-                );
-              })}
-
-              {/* Thermal layer — blurred energy blobs run through the colormap.
-                  Screen blending means heat only ever lightens the map (a true
-                  glow), never casts a dark halo over it. */}
-              <g filter="url(#heat-thermal)" style={{ mixBlendMode: 'screen' }}>
-                {hotspots.map((s, i) => (
-                  <ellipse
-                    key={`spot-${i}`}
-                    cx={s.cx}
-                    cy={s.cy}
-                    rx={s.rx}
-                    ry={s.ry}
-                    fill="url(#heat-blob)"
-                    opacity={0.45 + 0.55 * (max > 0 ? s.count / max : 0)}
-                    transform={s.rot ? `rotate(${s.rot} ${s.cx} ${s.cy})` : undefined}
-                  />
-                ))}
-              </g>
-
-              {/* Invisible hover targets with exact counts */}
-              {SITE_ZONES.filter((z) => !z.noBadge && (counts[z.label] ?? 0) > 0).map((z, i) => {
-                const cx = z.x + z.w / 2;
-                const cy = z.y + z.h / 2;
-                const count = counts[z.label] ?? 0;
-                return (
-                  <rect
-                    key={`hit-${i}`}
-                    x={z.x}
-                    y={z.y}
-                    width={z.w}
-                    height={z.h}
-                    fill="transparent"
-                    transform={z.rot ? `rotate(${z.rot} ${cx} ${cy})` : undefined}
-                  >
-                    <title>{`${z.label}: ${count} active task${count === 1 ? '' : 's'}`}</title>
-                  </rect>
-                );
-              })}
-              {SITE_CELLS.filter((c) => c.inside && !c.landmark && (counts[c.areaKey] ?? 0) > 0).map((cell) => (
-                <rect key={`hitc-${cell.ref}`} x={cell.x} y={cell.y} width={CELL_W} height={CELL_H} fill="transparent">
-                  <title>{`${cell.areaKey}: ${counts[cell.areaKey]} active`}</title>
-                </rect>
-              ))}
-            </svg>
-            <span className="pointer-events-none absolute bottom-1.5 right-2 text-[9px] uppercase tracking-widest text-neutral-500 group-hover:text-invictus-crimson-bright">
-              Open site map &rarr;
-            </span>
-          </button>
-
-          {/* Legend */}
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wide text-neutral-500">Fewer</span>
-            <span
-              className="h-2 flex-1 rounded-full"
-              style={{ background: `linear-gradient(to right, ${heatColor(0.18)}, ${heatColor(0.5)}, ${heatColor(0.82)}, ${heatColor(1)})` }}
-            />
-            <span className="text-[10px] uppercase tracking-wide text-neutral-500">More tasks</span>
-          </div>
-
-          {/* Busiest areas (names live here, not on the map) */}
-          {hottest.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {hottest.map(([area, count]) => (
-                <span
-                  key={area}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-2 py-0.5 text-[10px] text-neutral-200"
-                >
-                  <span className="h-2 w-2 rounded-full" style={{ background: heatFor(count) }} />
-                  {area}
-                  <span className="font-mono font-semibold text-neutral-100">{count}</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-    </Panel>
-  );
 }
 
 function SiteMapPage({
@@ -5170,7 +4415,6 @@ export default function InvictusTrackerPage() {
                 compliances={compliances}
                 events={events}
                 onToggleMeeting={handleToggleMeeting}
-                onOpenSiteMap={() => setActivePage('sitemap')}
               />
             )}
             {activePage === 'calendar' && (
