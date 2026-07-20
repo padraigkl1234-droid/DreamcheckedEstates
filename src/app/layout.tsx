@@ -35,6 +35,7 @@ import { PreferencesProvider } from "@/components/PreferencesProvider";
 import { AppGate } from "@/components/AppGate";
 import { SoundProvider } from "@/components/SoundProvider";
 import { PointerCaptureFix } from "@/components/PointerCaptureFix";
+import { RadixBodyLockFix } from "@/components/RadixBodyLockFix";
 import { Navbar } from "@/components/Navbar";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { PushListener } from "@/components/PushListener";
@@ -75,6 +76,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <ServiceWorkerRegistration />
         <PointerCaptureFix />
+        <RadixBodyLockFix />
         <ThemeProvider>
         <LanguageProvider>
         <PreferencesProvider>

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Wrench, FileSpreadsheet, ClipboardList, ExternalLink, ChevronRight } from 'lucide-react';
+import { FileSpreadsheet, ClipboardList, ExternalLink, ChevronRight } from 'lucide-react';
 import { useProfile } from '@/components/ProfileProvider';
 import { featureEnabled } from '@/lib/teams';
 import { AppSidebar, AppMobileNav } from '@/components/AppSidebar';
@@ -15,7 +15,7 @@ interface RequestLink {
   name: string;
   description: string;
   url: string;
-  icon: typeof Wrench;
+  icon: typeof FileSpreadsheet;
   featured?: boolean;
 }
 
@@ -35,19 +35,6 @@ const REQUEST_LINKS: RequestLink[] = [
   },
 ];
 
-// Small HUD corner accents to echo the INVICTUS panels.
-function Corners() {
-  const base = 'pointer-events-none absolute h-2.5 w-2.5 border-invictus-crimson-bright/40';
-  return (
-    <>
-      <span className={`${base} left-0 top-0 border-l border-t`} />
-      <span className={`${base} right-0 top-0 border-r border-t`} />
-      <span className={`${base} bottom-0 left-0 border-b border-l`} />
-      <span className={`${base} bottom-0 right-0 border-b border-r`} />
-    </>
-  );
-}
-
 export default function EstateRequestsPage() {
   const { team, isMaster, loading } = useProfile();
   const enabled = isMaster || featureEnabled(team?.features, 'estateRequests');
@@ -59,9 +46,7 @@ export default function EstateRequestsPage() {
         <AppMobileNav features={team?.features} isMaster={isMaster} />
         <AppSidebar features={team?.features} isMaster={isMaster} />
         <div className="flex flex-1 items-center justify-center bg-invictus-base px-4 text-center font-sans">
-          <p className="max-w-md text-xs uppercase tracking-widest text-neutral-500">
-            Estate Requests isn&apos;t enabled for your team.
-          </p>
+          <p className="max-w-md text-sm text-neutral-500">Estate Requests isn&apos;t enabled for your team.</p>
         </div>
       </div>
     );
@@ -72,21 +57,11 @@ export default function EstateRequestsPage() {
       <AppMobileNav features={team?.features} isMaster={isMaster} />
       <AppSidebar features={team?.features} isMaster={isMaster} />
       <main className="relative flex-1 overflow-y-auto bg-invictus-base font-sans text-neutral-100">
-      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
-
-      <div className="relative z-10 mx-auto max-w-4xl px-4 py-8 sm:py-10">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
         {/* Header */}
-        <div className="mb-8 flex items-center gap-3">
-          <Wrench className="h-8 w-8 text-invictus-crimson-bright drop-shadow-glow-subtle" />
-          <div>
-            <h1 className="font-display text-2xl uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)] sm:text-3xl">
-              Estate Requests
-            </h1>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">
-              Maintenance &amp; repair requests · opens in a new tab
-            </p>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-neutral-100 sm:text-3xl">Estate requests</h1>
+          <p className="mt-1 text-sm text-neutral-500">Maintenance &amp; repair requests · opens in a new tab</p>
         </div>
 
         <div className="space-y-4">
@@ -98,24 +73,19 @@ export default function EstateRequestsPage() {
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`group relative flex flex-col gap-2 border bg-invictus-surface/60 p-5 shadow-glow-subtle backdrop-blur-sm transition-all hover:shadow-glow-strong ${
-                  item.featured
-                    ? 'border-invictus-crimson-bright/50 hover:border-invictus-crimson-bright'
-                    : 'border-neutral-400/25 hover:border-invictus-crimson-bright/60'
-                }`}
+                className="group relative flex flex-col gap-2 rounded-2xl border border-neutral-400/20 bg-invictus-surface p-5 transition-colors hover:border-neutral-400/40"
               >
-                <Corners />
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <Icon className="h-5 w-5 shrink-0 text-invictus-crimson-bright drop-shadow-glow-subtle" />
-                    <h3 className="font-display text-sm uppercase tracking-[0.12em] text-neutral-100 sm:text-base">
-                      {item.name}
-                    </h3>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-invictus-raised">
+                      <Icon className="h-4.5 w-4.5 text-neutral-500" />
+                    </span>
+                    <h3 className="text-sm font-semibold text-neutral-100 sm:text-base">{item.name}</h3>
                   </div>
-                  <ExternalLink className="h-4 w-4 shrink-0 text-neutral-600 transition-colors group-hover:text-invictus-crimson-bright" />
+                  <ExternalLink className="h-4 w-4 shrink-0 text-neutral-600 transition-colors group-hover:text-neutral-300" />
                 </div>
-                <p className="text-xs leading-relaxed text-neutral-400 sm:text-sm">{item.description}</p>
-                <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright">
+                <p className="text-xs leading-relaxed text-neutral-500 sm:text-sm">{item.description}</p>
+                <span className="mt-1 flex items-center gap-1 text-xs font-semibold text-neutral-100">
                   Open {item.featured ? 'sheet' : 'form'} <ChevronRight className="h-3.5 w-3.5" />
                 </span>
               </a>
@@ -123,9 +93,7 @@ export default function EstateRequestsPage() {
           })}
         </div>
 
-        <p className="pt-8 text-center text-[10px] uppercase tracking-widest text-neutral-700">
-          Built for Dreamland Estate Management
-        </p>
+        <p className="pt-8 text-center text-xs text-neutral-600">Built for Dreamland Estate Management</p>
       </div>
       </main>
     </div>

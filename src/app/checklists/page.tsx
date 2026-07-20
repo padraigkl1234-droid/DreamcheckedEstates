@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ClipboardCheck, ExternalLink, ChevronRight, ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { ExternalLink, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { collection, deleteDoc, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
+import { Button } from '@/components/ui/button';
 import { CHECKLIST_SECTIONS } from '@/lib/checklists';
 import { DREAMLAND_TEAM_ID, featureEnabled } from '@/lib/teams';
 import { AppSidebar, AppMobileNav } from '@/components/AppSidebar';
@@ -39,21 +40,8 @@ function genId() {
   return `cf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// Small HUD corner accents to echo the INVICTUS panels.
-function Corners() {
-  const base = 'pointer-events-none absolute h-2.5 w-2.5 border-invictus-crimson-bright/40';
-  return (
-    <>
-      <span className={`${base} left-0 top-0 border-l border-t`} />
-      <span className={`${base} right-0 top-0 border-r border-t`} />
-      <span className={`${base} bottom-0 left-0 border-b border-l`} />
-      <span className={`${base} bottom-0 right-0 border-b border-r`} />
-    </>
-  );
-}
-
 const inputClass =
-  'w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-surface/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50';
+  'w-full min-w-0 rounded-md border border-neutral-400/20 bg-invictus-raised px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-neutral-400/50 focus:outline-none focus:ring-1 focus:ring-neutral-400/30';
 
 export default function ChecklistsPage() {
   const { user } = useAuth();
@@ -173,9 +161,7 @@ export default function ChecklistsPage() {
         <AppMobileNav features={team?.features} isMaster={isMaster} />
         <AppSidebar features={team?.features} isMaster={isMaster} />
         <div className="flex flex-1 items-center justify-center bg-invictus-base px-4 text-center font-sans">
-          <p className="max-w-md text-xs uppercase tracking-widest text-neutral-500">
-            Checklists isn&apos;t enabled for your team.
-          </p>
+          <p className="max-w-md text-sm text-neutral-500">Checklists isn&apos;t enabled for your team.</p>
         </div>
       </div>
     );
@@ -186,32 +172,21 @@ export default function ChecklistsPage() {
       <AppMobileNav features={team?.features} isMaster={isMaster} />
       <AppSidebar features={team?.features} isMaster={isMaster} />
       <main className="relative flex-1 overflow-y-auto bg-invictus-base font-sans text-neutral-100">
-      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
-
-      <div className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:py-10">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
         {/* Header */}
-        <div className="mb-8 flex items-center gap-3">
-          <ClipboardCheck className="h-8 w-8 text-invictus-crimson-bright drop-shadow-glow-subtle" />
-          <div>
-            <h1 className="font-display text-2xl uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)] sm:text-3xl">
-              Checklists
-            </h1>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">
-              Team &amp; set-up checklists · opens in Microsoft Forms
-            </p>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-neutral-100 sm:text-3xl">Checklists</h1>
+          <p className="mt-1 text-sm text-neutral-500">Team &amp; set-up checklists · opens in Microsoft Forms</p>
         </div>
 
         {/* Add a checklist */}
         {user ? (
           <form
             onSubmit={handleAdd}
-            className="relative mb-10 space-y-3 border border-neutral-400/25 bg-invictus-surface/60 p-5 shadow-glow-subtle backdrop-blur-sm"
+            className="mb-10 space-y-3 rounded-2xl border border-neutral-400/20 bg-invictus-surface p-5"
           >
-            <Corners />
-            <p className="font-display text-sm uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
-              <Plus className="mr-1 inline h-4 w-4 text-invictus-crimson-bright" />
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-neutral-100">
+              <Plus className="h-4 w-4 text-neutral-500" />
               Add a checklist
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -254,20 +229,13 @@ export default function ChecklistsPage() {
               />
             </div>
             {formError && <p className="text-xs text-red-400">{formError}</p>}
-            <button
-              type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
-            >
-              <Plus className="h-4 w-4" /> Add Checklist
-            </button>
-            <p className="text-center text-[10px] uppercase tracking-widest text-neutral-600">
-              Added checklists appear for the whole team
-            </p>
+            <Button type="submit" className="w-full gap-2">
+              <Plus className="h-4 w-4" /> Add checklist
+            </Button>
+            <p className="text-center text-xs text-neutral-500">Added checklists appear for the whole team</p>
           </form>
         ) : (
-          <p className="mb-10 text-center text-xs uppercase tracking-widest text-neutral-600">
-            Sign in to add categories and checklists
-          </p>
+          <p className="mb-10 text-center text-sm text-neutral-500">Sign in to add categories and checklists</p>
         )}
 
         <div className="mb-3 flex justify-end">
@@ -277,69 +245,61 @@ export default function ChecklistsPage() {
                 prev.size === sections.length ? new Set() : new Set(sections.map((s) => s.name))
               )
             }
-            className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 transition-colors hover:text-invictus-crimson-bright"
+            className="text-xs font-semibold text-neutral-500 transition-colors hover:text-neutral-300"
           >
             {openSections.size === sections.length ? 'Collapse all' : 'Expand all'}
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {sections.map((section) => {
             const isOpen = openSections.has(section.name);
             return (
-            <section key={section.name} className="space-y-3">
+            <section key={section.name} className="overflow-hidden rounded-2xl border border-neutral-400/20 bg-invictus-surface">
               <button
                 onClick={() => toggleSection(section.name)}
-                className="group/hdr flex w-full items-center gap-3 text-left"
+                className="flex w-full items-center gap-3 p-4 text-left"
                 aria-expanded={isOpen}
               >
                 <ChevronDown
-                  className={`h-5 w-5 shrink-0 text-invictus-crimson-bright transition-transform ${isOpen ? '' : '-rotate-90'}`}
+                  className={`h-4 w-4 shrink-0 text-neutral-500 transition-transform ${isOpen ? '' : '-rotate-90'}`}
                 />
-                <h2 className="font-display text-xl uppercase tracking-[0.2em] text-neutral-100 transition-colors [text-shadow:var(--glow-text-strong)] group-hover/hdr:text-invictus-crimson-bright sm:text-2xl">
-                  {section.name}
-                </h2>
-                <span className="rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-200">
+                <h2 className="flex-1 text-base font-semibold text-neutral-100">{section.name}</h2>
+                <span className="rounded-full bg-invictus-raised px-2.5 py-0.5 text-xs font-medium text-neutral-400">
                   {section.forms.length}
                 </span>
-                <span className="h-px flex-1 bg-invictus-crimson-bright/25" />
               </button>
 
               {isOpen && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="divide-y divide-neutral-400/15 border-t border-neutral-400/15 px-4">
                 {section.forms.map((form) => (
-                  <div key={form.custom?.id ?? form.url} className="relative">
+                  <div key={form.custom?.id ?? form.url} className="group relative flex items-center gap-2 py-3">
                     <a
                       href={form.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group relative flex h-full flex-col gap-2 border border-neutral-400/25 bg-invictus-surface/60 p-5 shadow-glow-subtle backdrop-blur-sm transition-all hover:border-invictus-crimson-bright/60 hover:shadow-glow-strong"
+                      className="flex min-w-0 flex-1 items-center justify-between gap-3"
                     >
-                      <Corners />
-                      <div className="flex items-start justify-between gap-3">
-                        <h3 className="font-display text-sm uppercase tracking-[0.12em] text-neutral-100">{form.name}</h3>
-                        <ExternalLink className="h-4 w-4 shrink-0 text-neutral-600 transition-colors group-hover:text-invictus-crimson-bright" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-neutral-100">{form.name}</p>
+                        {form.description && (
+                          <p className="mt-0.5 truncate text-xs text-neutral-500">{form.description}</p>
+                        )}
                       </div>
-                      {form.description && (
-                        <p className="text-xs leading-relaxed text-neutral-400">{form.description}</p>
-                      )}
-                      <span className="mt-auto flex items-center gap-1 pt-1 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright">
-                        Open form <ChevronRight className="h-3.5 w-3.5" />
-                      </span>
+                      <ExternalLink className="h-4 w-4 shrink-0 text-neutral-600 transition-colors group-hover:text-neutral-300" />
                     </a>
                     {form.custom && user && (
                       <button
                         onClick={() => handleDelete(form.custom!)}
                         onMouseLeave={() => setConfirmDeleteId((cur) => (cur === form.custom!.id ? null : cur))}
                         title={confirmDeleteId === form.custom.id ? 'Click again to delete' : `Delete ${form.name}`}
-                        className={`absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border px-2 py-1 text-[9px] font-semibold uppercase tracking-widest transition-all ${
+                        className={`shrink-0 rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
                           confirmDeleteId === form.custom.id
                             ? 'border-red-500/70 bg-red-500/20 text-red-300'
-                            : 'border-neutral-400/30 bg-invictus-base/70 text-neutral-500 hover:border-red-500/50 hover:text-red-400'
+                            : 'border-neutral-400/20 bg-invictus-base text-neutral-500 hover:border-red-500/50 hover:text-red-400'
                         }`}
                       >
                         <Trash2 className="h-3 w-3" />
-                        {confirmDeleteId === form.custom.id ? 'Sure?' : ''}
                       </button>
                     )}
                   </div>
@@ -351,7 +311,7 @@ export default function ChecklistsPage() {
           })}
         </div>
 
-        <p className="pt-8 text-center text-[10px] uppercase tracking-widest text-neutral-700">
+        <p className="pt-8 text-center text-xs text-neutral-600">
           Each checklist opens its live Microsoft Form in a new tab
         </p>
       </div>

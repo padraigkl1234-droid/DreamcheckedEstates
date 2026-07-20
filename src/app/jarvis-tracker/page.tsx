@@ -817,15 +817,8 @@ function CircularProgress({ percentage }: { percentage: number }) {
     // overflowing; unchanged at md and up.
     <div className="relative flex h-56 w-56 max-md:h-32 max-md:w-32 items-center justify-center">
       <svg viewBox="0 0 200 200" className="absolute h-full w-full -rotate-90">
-        <defs>
-          <linearGradient id="invictusProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#2563EB" />
-            <stop offset="100%" stopColor="#1E40AF" />
-          </linearGradient>
-        </defs>
-
         {/* base ring */}
-        <circle cx="100" cy="100" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
+        <circle cx="100" cy="100" r={radius} fill="none" stroke="currentColor" strokeWidth="14" className="text-neutral-700" />
 
         {/* progress ring */}
         <circle
@@ -833,49 +826,21 @@ function CircularProgress({ percentage }: { percentage: number }) {
           cy="100"
           r={radius}
           fill="none"
-          stroke="url(#invictusProgressGradient)"
-          strokeWidth="10"
+          stroke="currentColor"
+          strokeWidth="14"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{
-            transition: 'stroke-dashoffset 0.7s ease',
-            filter: 'drop-shadow(0 0 3px rgba(37,99,235,0.3))',
-          }}
-        />
-
-        {/* rotating radar sweep arc */}
-        <circle
-          cx="100"
-          cy="100"
-          r={radius - 18}
-          fill="none"
-          stroke="rgba(37,99,235,0.55)"
-          strokeWidth="1.5"
-          strokeDasharray="16 220"
-          strokeLinecap="round"
-          className="animate-[spin_4s_linear_infinite]"
-          style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
-        />
-
-        {/* inner dashed bezel, counter-rotating */}
-        <circle
-          cx="100"
-          cy="100"
-          r={radius - 30}
-          fill="none"
-          stroke="rgba(37,99,235,0.25)"
-          strokeWidth="1"
-          strokeDasharray="2 5"
-          className="animate-[spin_9s_linear_infinite_reverse]"
-          style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+          className="text-neutral-100"
+          style={{ transition: 'stroke-dashoffset 0.7s ease' }}
         />
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-4xl max-md:text-2xl font-normal tabular-nums tracking-tight text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
+        <span className="text-4xl max-md:text-2xl font-extrabold tabular-nums tracking-tight text-neutral-100">
           {percentage}%
         </span>
+        <span className="mt-1 text-xs max-md:hidden text-neutral-500">complete</span>
       </div>
     </div>
   );
