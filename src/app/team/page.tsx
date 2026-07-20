@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Users, Copy, Check, ShieldOff, User as UserFallback, Star, ShieldCheck, Eye, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { Users, Copy, Check, ShieldOff, User as UserFallback, Star, ShieldCheck, Eye, Loader2, ArrowLeft } from 'lucide-react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
@@ -110,6 +111,9 @@ export default function TeamPage() {
     <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
       <div className="relative z-10 mx-auto max-w-4xl px-4 py-8 sm:py-10">
+        <Link href="/jarvis-tracker" className="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-300">
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to dashboard
+        </Link>
         <div className="mb-8 flex items-center gap-3">
           <Users className="h-8 w-8 text-invictus-crimson-bright drop-shadow-glow-subtle" />
           <div>

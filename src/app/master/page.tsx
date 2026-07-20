@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Crown, RefreshCw, Plus, Copy, Check, X, ShieldOff, ShieldCheck, Trash2, Archive, ArchiveRestore, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { Crown, RefreshCw, Plus, Copy, Check, X, ShieldOff, ShieldCheck, Trash2, Archive, ArchiveRestore, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
@@ -85,8 +86,11 @@ export default function MasterPage() {
 
   if (!isMaster) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-invictus-base text-neutral-500">
+      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-3 bg-invictus-base text-neutral-500">
         <p className="text-xs uppercase tracking-widest">Master admin only.</p>
+        <Link href="/jarvis-tracker" className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-300">
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to dashboard
+        </Link>
       </div>
     );
   }
@@ -98,6 +102,9 @@ export default function MasterPage() {
     <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
       <div className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:py-10">
+        <Link href="/jarvis-tracker" className="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-300">
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to dashboard
+        </Link>
         <div className="mb-8 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Crown className="h-8 w-8 text-amber-300 drop-shadow-glow-subtle" />
