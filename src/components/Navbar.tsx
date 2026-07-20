@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import {
-  Menu,
   LogOut,
   User as UserIcon,
   Volume2,
@@ -11,14 +10,6 @@ import {
 } from 'lucide-react';
 import { InstallPwaButton } from '@/components/InstallPwaButton';
 import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetClose,
-} from '@/components/ui/sheet';
 import { Users, Settings, Crown, Sun, Moon } from 'lucide-react';
 import {
   DropdownMenu,
@@ -44,50 +35,7 @@ export function Navbar() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 border-b bg-background/80 backdrop-blur-md">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-4">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[300px] sm:w-[400px]">
-              <SheetHeader className="border-b pb-4">
-                <SheetTitle className="flex items-center gap-2">
-                  <span className="font-headline text-lg font-bold uppercase tracking-[0.2em]">INVICTUS</span>
-                </SheetTitle>
-              </SheetHeader>
-              <div className="px-2">
-                <InstallPwaButton />
-              </div>
-              {user && (
-                <div className="absolute bottom-8 left-6 right-6 border-t pt-6">
-                  <div className="mb-4 flex items-center gap-3 px-2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <UserIcon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex flex-col overflow-hidden">
-                      <span className="truncate text-sm font-medium">{user.displayName || user.email}</span>
-                      <span className="truncate text-xs text-muted-foreground">{user.email}</span>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start gap-3 border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => logout()}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                  </Button>
-                </div>
-              )}
-            </SheetContent>
-          </Sheet>
-
-        </div>
-
+      <div className="container mx-auto flex h-16 items-center justify-end px-4">
         <div className="flex items-center gap-2">
           <InstallPwaButton />
           <Button

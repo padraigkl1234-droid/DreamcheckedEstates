@@ -2888,7 +2888,8 @@ function TaskManager({
     const overdue = isOverdue(task);
     return (
       <div key={task.id} className="flex flex-col gap-3 px-5 py-4">
-        <div className="flex items-start gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+          <div className="flex flex-1 items-start gap-3">
           <button
             onClick={() => {
               if (task.status !== 'Completed') haptic();
@@ -2940,7 +2941,8 @@ function TaskManager({
               </div>
             )}
           </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          </div>
+          <div className="flex flex-wrap items-center gap-2 pl-8 sm:shrink-0 sm:justify-end sm:pl-0">
             {overdue && (
               <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${URGENCY_STYLES.red}`}>
                 {formatDueIn(daysFromToday(task.dueDate, todayStr))}
