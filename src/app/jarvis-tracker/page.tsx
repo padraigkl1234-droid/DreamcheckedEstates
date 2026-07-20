@@ -2673,10 +2673,10 @@ function TaskManager({
       return 0;
     });
   }, [tasks, todayStr]);
-  // Quick-add only captures name + priority — due date, notes, and assignee
-  // are set afterward via the row's own Edit action (unchanged capability,
-  // just moved off the creation step to match the simplified add bar).
+  // Quick-add captures name + due date + priority; notes and assignee are
+  // still set afterward via the row's own Edit action.
   const [name, setName] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const { playConfirm } = useSound();
   const { haptic } = usePreferences();
@@ -2798,11 +2798,12 @@ function TaskManager({
       id: genId(),
       name: name.trim(),
       priority,
-      dueDate: '',
+      dueDate,
       status: 'Not Started',
     });
     playConfirm();
     setName('');
+    setDueDate('');
     setPriority('Medium');
   };
 
@@ -3158,13 +3159,20 @@ function TaskManager({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex items-center gap-3 rounded-2xl border border-neutral-400/20 bg-invictus-surface px-4 py-3">
+      <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-3 rounded-2xl border border-neutral-400/20 bg-invictus-surface px-4 py-3">
         <Plus className="h-4 w-4 shrink-0 text-neutral-500" />
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Add a task and press enter..."
           className="min-w-0 flex-1 bg-transparent text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
+        />
+        <input
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          title="Due date"
+          className="w-auto shrink-0 rounded-md border border-neutral-400/20 bg-invictus-raised px-2 py-1 text-[11px] font-semibold text-neutral-300 focus:outline-none"
         />
         <InvictusSelect
           value={priority}
