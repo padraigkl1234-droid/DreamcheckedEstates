@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot, query, where, arrayUnion } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage, type User } from '@/lib/firebase';
@@ -3925,7 +3926,27 @@ function BootSplash() {
 // Root page
 // ---------------------------------------------------------------------------
 
+// Only ever true again once this tab has already booted into the tracker —
+// module scope, so it survives remounts (e.g. navigating away to Checklists/
+// Audits/Estate Requests and back) but resets on a real page reload. Repeat
+// visits within the same session skip the splash and land straight on the
+// requested tab instead of replaying the boot animation.
+let hasBootedThisSession = false;
+
+const VALID_PAGE_KEYS: PageKey[] = [
+  'dashboard', 'calendar', 'shows', 'sitemap', 'tasks', 'archive', 'compliance', 'reports', 'admin',
+];
+
 export default function InvictusTrackerPage() {
+  return (
+    <Suspense fallback={null}>
+      <InvictusTracker />
+    </Suspense>
+  );
+}
+
+function InvictusTracker() {
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { profile, team: myTeam } = useProfile();
   const teamId = profile?.teamId ?? null;
@@ -3933,15 +3954,25 @@ export default function InvictusTrackerPage() {
   const amCommander = isCommander(profile);
   const [teamChecklistForms, setTeamChecklistForms] = useState<{ section: string; name: string; description?: string; url: string }[]>([]);
   const [mounted, setMounted] = useState(false);
-  const [booting, setBooting] = useState(true);
-  // Open on the page named in ?page= (used by notification deep-links), else
-  // the dashboard. Validated against the known page keys.
+  const [booting, setBooting] = useState(() => !hasBootedThisSession);
+  // Open on the page named in ?page= (used by notification deep-links and by
+  // the sidebar's links from Checklists/Audits/Estate Requests), else the
+  // dashboard. Validated against the known page keys.
   const [activePage, setActivePage] = useState<PageKey>(() => {
     if (typeof window === 'undefined') return 'dashboard';
     const wanted = new URLSearchParams(window.location.search).get('page');
-    const keys: PageKey[] = ['dashboard', 'calendar', 'shows', 'sitemap', 'tasks', 'archive', 'compliance', 'reports', 'admin'];
-    return wanted && (keys as string[]).includes(wanted) ? (wanted as PageKey) : 'dashboard';
+    return wanted && (VALID_PAGE_KEYS as string[]).includes(wanted) ? (wanted as PageKey) : 'dashboard';
   });
+  // React to ?page= changes even when this route is reused instead of freshly
+  // mounted — reading window.location.search only once (above) can otherwise
+  // miss the target page and silently fall back to the dashboard.
+  useEffect(() => {
+    const wanted = searchParams.get('page');
+    if (wanted && (VALID_PAGE_KEYS as string[]).includes(wanted)) {
+      setActivePage(wanted as PageKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get('page')]);
   // When set, the Reports view opens with its form pre-filled to back this task.
   const [reportDraft, setReportDraft] = useState<ReportDraft | null>(null);
   // Everyone starts with a clean slate — no example tasks/events/compliances.
@@ -3961,9 +3992,13 @@ export default function InvictusTrackerPage() {
 
   // Render the app only after mount so live values (e.g. the diagnostics clock)
   // never differ between the server HTML and the first client render. Show a
-  // brief spinning-logo splash, then load the app in after 1 second.
+  // brief spinning-logo splash on the very first load of the session only —
+  // navigating back in from Checklists/Audits/Estate Requests (which remounts
+  // this page) should land straight on the requested tab, not replay it.
   useEffect(() => {
     setMounted(true);
+    if (hasBootedThisSession) return;
+    hasBootedThisSession = true;
     const timer = setTimeout(() => setBooting(false), 1000);
     return () => clearTimeout(timer);
   }, []);
