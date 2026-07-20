@@ -2040,23 +2040,26 @@ const SITE_CELLS: GridCell[] = (() => {
 })();
 
 // SVG palette (kept in the black & red INVICTUS theme).
+// Colours are driven by the app's theme tokens (not literal hex) so the map
+// automatically flips — dark HUD tones in dark mode, calm neutrals in light
+// mode — instead of staying a fixed near-black/red graphic in both themes.
 const MAP_C = {
-  crimson: '#dc2626',
-  line: 'rgba(220,38,38,0.30)',
-  lineStrong: 'rgba(220,38,38,0.45)',
-  boundaryFill: '#16171c',
-  passive: '#1d1e23',
-  passiveStroke: 'rgba(160,160,170,0.18)',
-  green: 'rgba(16,185,129,0.10)',
-  greenStroke: 'rgba(16,185,129,0.30)',
-  label: '#d4d4d4',
-  labelDim: '#8a8a8a',
+  accent: 'rgb(var(--invictus-crimson-bright))',
+  line: 'rgb(var(--invictus-crimson-bright) / 0.14)',
+  lineStrong: 'rgb(var(--invictus-crimson-bright) / 0.30)',
+  boundaryFill: 'rgb(var(--invictus-surface))',
+  passive: 'rgb(var(--invictus-raised))',
+  passiveStroke: 'rgb(var(--invictus-crimson-bright) / 0.16)',
+  green: 'rgb(16 185 129 / 0.10)',
+  greenStroke: 'rgb(16 185 129 / 0.28)',
+  label: 'hsl(var(--foreground))',
+  labelDim: 'hsl(var(--muted-foreground))',
 };
 
 const ZONE_TONE: Record<ZoneTone, { fill: string; stroke: string; text: string }> = {
-  area: { fill: 'rgba(220,38,38,0.16)', stroke: '#dc2626', text: '#f1d2d2' },
-  storage: { fill: 'rgba(220,38,38,0.09)', stroke: 'rgba(220,38,38,0.65)', text: '#e6c3c3' },
-  building: { fill: 'rgba(120,20,24,0.32)', stroke: '#dc2626', text: '#e9bcbc' },
+  area: { fill: 'rgb(var(--invictus-crimson-bright) / 0.14)', stroke: 'rgb(var(--invictus-crimson-bright) / 0.55)', text: 'hsl(var(--foreground))' },
+  storage: { fill: 'rgb(var(--invictus-crimson-bright) / 0.08)', stroke: 'rgb(var(--invictus-crimson-bright) / 0.4)', text: 'hsl(var(--muted-foreground))' },
+  building: { fill: 'rgb(var(--invictus-crimson-bright) / 0.22)', stroke: 'rgb(var(--invictus-crimson-bright) / 0.6)', text: 'hsl(var(--foreground))' },
 };
 
 function toPoints(poly: Pt[]): string {
@@ -2142,9 +2145,9 @@ function SiteMapPage({
   };
 
   const cellFill = (cell: GridCell): string => {
-    if (cell.ref === selectedRef) return 'rgba(220,38,38,0.42)';
-    if (cell.ref === hoverRef) return 'rgba(220,38,38,0.22)';
-    return 'rgba(220,38,38,0.03)';
+    if (cell.ref === selectedRef) return 'rgb(var(--invictus-crimson-bright) / 0.45)';
+    if (cell.ref === hoverRef) return 'rgb(var(--invictus-crimson-bright) / 0.22)';
+    return 'rgb(var(--invictus-crimson-bright) / 0.04)';
   };
 
   return (
@@ -2156,10 +2159,10 @@ function SiteMapPage({
             area (Food Court, Boneyard, Scenic Railway&hellip;) tag the task with that area; open
             ground tags a grid reference. Assigned tasks flow straight into Task Manager.
           </p>
-          <div className="relative w-full overflow-hidden rounded-md border border-neutral-400/20 bg-[#0b0b0c]">
+          <div className="relative w-full overflow-hidden rounded-xl border border-neutral-400/20 bg-invictus-base">
             <svg viewBox="0 0 1000 900" className="h-auto w-full" role="img" aria-label="Dreamland site map grid">
               {/* Site boundary */}
-              <polygon points={toPoints(SITE_BOUNDARY)} fill={MAP_C.boundaryFill} stroke={MAP_C.crimson} strokeWidth={2} strokeLinejoin="round" />
+              <polygon points={toPoints(SITE_BOUNDARY)} fill={MAP_C.boundaryFill} stroke={MAP_C.accent} strokeWidth={2} strokeLinejoin="round" />
 
               {/* Passive context areas */}
               <polygon points={toPoints(CAR_PARK_POLY)} fill={MAP_C.passive} stroke={MAP_C.passiveStroke} strokeWidth={1} />
@@ -2198,7 +2201,7 @@ function SiteMapPage({
                 <text x={812} y={300} fontSize={12} letterSpacing={2} fill={MAP_C.labelDim} transform="rotate(58 812 300)">Belgrave Road</text>
                 <text x={70} y={500} fontSize={11} fill={MAP_C.labelDim}>Arlington Car Park</text>
                 <text x={600} y={300} fontSize={11} fontWeight={600} fill={MAP_C.labelDim}>Dreamland Car Park</text>
-                <text x={70} y={120} fontSize={8} fill={MAP_C.crimson}>Undercover Entrance</text>
+                <text x={70} y={120} fontSize={8} fill={MAP_C.accent}>Undercover Entrance</text>
               </g>
 
               {/* Zone labels */}
@@ -2227,7 +2230,7 @@ function SiteMapPage({
               </g>
 
               {/* Undercover entrance marker */}
-              <circle cx={64} cy={128} r={4} fill={MAP_C.crimson} />
+              <circle cx={64} cy={128} r={4} fill={MAP_C.accent} />
 
               {/* Grid lines */}
               <g stroke={MAP_C.line} strokeWidth={1}>
@@ -2248,7 +2251,7 @@ function SiteMapPage({
                   width={CELL_W}
                   height={CELL_H}
                   fill={cellFill(cell)}
-                  stroke={cell.ref === selectedRef ? MAP_C.crimson : MAP_C.lineStrong}
+                  stroke={cell.ref === selectedRef ? MAP_C.accent : MAP_C.lineStrong}
                   strokeWidth={cell.ref === selectedRef ? 2 : 0.75}
                   className="cursor-pointer"
                   onMouseEnter={() => setHoverRef(cell.ref)}
@@ -2260,8 +2263,8 @@ function SiteMapPage({
               {/* Task-count badges on named zones */}
               {SITE_ZONES.filter((z) => !z.noBadge && (activeCountByArea[z.label] ?? 0) > 0).map((z, i) => (
                 <g key={`badge-${i}`} pointerEvents="none">
-                  <circle cx={z.x + z.w / 2} cy={z.y + z.h / 2 - 14} r={9} fill={MAP_C.crimson} stroke="#fff" strokeWidth={0.8} />
-                  <text x={z.x + z.w / 2} y={z.y + z.h / 2 - 10.5} fontSize={11} fontWeight={700} fill="#fff" textAnchor="middle">
+                  <circle cx={z.x + z.w / 2} cy={z.y + z.h / 2 - 14} r={9} fill={MAP_C.accent} stroke="rgb(var(--invictus-base))" strokeWidth={1} />
+                  <text x={z.x + z.w / 2} y={z.y + z.h / 2 - 10.5} fontSize={11} fontWeight={700} fill={MAP_C.boundaryFill} textAnchor="middle">
                     {activeCountByArea[z.label]}
                   </text>
                 </g>
@@ -2269,8 +2272,8 @@ function SiteMapPage({
               {/* Badges on grid-reference cells that carry tasks */}
               {SITE_CELLS.filter((c) => c.inside && !c.landmark && (activeCountByArea[c.areaKey] ?? 0) > 0).map((cell) => (
                 <g key={`gbadge-${cell.ref}`} pointerEvents="none">
-                  <circle cx={cell.cx} cy={cell.cy} r={9} fill={MAP_C.crimson} stroke="#fff" strokeWidth={0.8} />
-                  <text x={cell.cx} y={cell.cy + 3.5} fontSize={11} fontWeight={700} fill="#fff" textAnchor="middle">
+                  <circle cx={cell.cx} cy={cell.cy} r={9} fill={MAP_C.accent} stroke="rgb(var(--invictus-base))" strokeWidth={1} />
+                  <text x={cell.cx} y={cell.cy + 3.5} fontSize={11} fontWeight={700} fill={MAP_C.boundaryFill} textAnchor="middle">
                     {activeCountByArea[cell.areaKey]}
                   </text>
                 </g>
@@ -2280,20 +2283,20 @@ function SiteMapPage({
           {/* Legend */}
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
             <div className="flex items-center gap-1.5">
-              <span className="h-3 w-3 shrink-0 rounded-[2px] border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/20" />
-              <span className="text-[10px] uppercase tracking-wide text-neutral-500">Working Area</span>
+              <span className="h-3 w-3 shrink-0 rounded-[3px] border border-invictus-crimson-bright/55 bg-invictus-crimson-bright/15" />
+              <span className="text-xs text-neutral-500">Working area</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="h-3 w-3 shrink-0 rounded-[2px] border border-invictus-crimson-bright/50 bg-[#78141880]" />
-              <span className="text-[10px] uppercase tracking-wide text-neutral-500">Building</span>
+              <span className="h-3 w-3 shrink-0 rounded-[3px] border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/35" />
+              <span className="text-xs text-neutral-500">Building</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="h-3 w-3 shrink-0 rounded-[2px] border border-neutral-400/25 bg-neutral-700/40" />
-              <span className="text-[10px] uppercase tracking-wide text-neutral-500">Car Park</span>
+              <span className="h-3 w-3 shrink-0 rounded-[3px] border border-neutral-400/25 bg-neutral-700/40" />
+              <span className="text-xs text-neutral-500">Car park</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-invictus-crimson-bright text-[8px] font-bold text-white">1</span>
-              <span className="text-[10px] uppercase tracking-wide text-neutral-500">Tasks assigned</span>
+              <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-invictus-crimson-bright text-[8px] font-bold text-invictus-surface">1</span>
+              <span className="text-xs text-neutral-500">Tasks assigned</span>
             </div>
           </div>
         </Panel>
@@ -2310,11 +2313,11 @@ function SiteMapPage({
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-neutral-400/40 bg-neutral-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-300">
+                  <span className="rounded-full border border-neutral-400/30 bg-invictus-raised px-2.5 py-1 text-xs font-medium text-neutral-300">
                     Square {selectedCell.ref}
                   </span>
                   {selectedCell.landmark && (
-                    <span className="rounded-full border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-100">
+                    <span className="rounded-full border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-2.5 py-1 text-xs font-medium text-neutral-100">
                       {selectedCell.landmark}
                     </span>
                   )}
