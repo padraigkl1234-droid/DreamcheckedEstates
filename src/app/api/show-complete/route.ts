@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { FieldPath } from 'firebase-admin/firestore';
 import { getAdminDb } from '@/lib/firebaseAdmin';
+import { CHECKLIST_SECTIONS } from '@/lib/checklists';
+
+const normalize = (s: string) => s.trim().toLowerCase();
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,25 +52,37 @@ export async function POST(req: Request) {
     date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   }
 
+  // Power Automate flows have their showType/checklistName hardcoded by hand,
+  // so a small typo or case difference (e.g. "scenic stage show") would
+  // otherwise silently match nothing. Resolve both against the known
+  // checklist library case/whitespace-insensitively before querying, and
+  // write the update under the exact canonical name the app expects — the
+  // app looks up completion by that exact string, so writing anything else
+  // would update Firestore but never show as done in the UI.
+  const section = CHECKLIST_SECTIONS.find((s) => normalize(s.name) === normalize(showType));
+  const canonicalShowType = section?.name ?? showType;
+  const canonicalChecklistName =
+    section?.forms.find((f) => normalize(f.name) === normalize(checklistName))?.name ?? checklistName;
+
   try {
     const db = getAdminDb();
     const snap = await db
       .collection('shows')
-      .where('type', '==', showType)
+      .where('type', '==', canonicalShowType)
       .where('date', '==', date)
       .get();
 
     if (snap.empty) {
-      return NextResponse.json({ ok: true, updated: 0, note: `No ${showType} scheduled for ${date}` });
+      return NextResponse.json({ ok: true, updated: 0, note: `No ${canonicalShowType} scheduled for ${date}` });
     }
 
     const batch = db.batch();
     snap.forEach((docSnap) => {
-      batch.update(docSnap.ref, new FieldPath('completed', checklistName), true);
+      batch.update(docSnap.ref, new FieldPath('completed', canonicalChecklistName), true);
     });
     await batch.commit();
 
-    return NextResponse.json({ ok: true, updated: snap.size, checklistName, showType, date });
+    return NextResponse.json({ ok: true, updated: snap.size, checklistName: canonicalChecklistName, showType: canonicalShowType, date });
   } catch (error) {
     console.error('show-complete webhook error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
