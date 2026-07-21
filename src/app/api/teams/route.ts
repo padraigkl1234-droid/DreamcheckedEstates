@@ -317,8 +317,13 @@ export async function POST(req: Request) {
           });
         }
       }
-      const pending = await db.collection('tasks').where('pendingUid', '==', targetUid).get();
-      for (const d of pending.docs) await d.ref.update({ pendingUid: null, pendingName: null });
+      const pending = await db.collection('tasks').where('pendingUids', 'array-contains', targetUid).get();
+      for (const d of pending.docs) {
+        await d.ref.update({
+          pendingUids: FieldValue.arrayRemove(targetUid),
+          [`pendingNames.${targetUid}`]: FieldValue.delete(),
+        });
+      }
       if (deleteData) await db.collection('jarvisState').doc(targetUid).delete();
       await targetRef.delete();
       return NextResponse.json({ ok: true });

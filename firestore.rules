@@ -38,14 +38,15 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // Shared tasks. Visible to participants and to the person a task is offered
-    // to; a team commander (and the master) can oversee every task stamped with
-    // their team's id.
+    // Shared tasks. Visible to participants and to anyone the task is offered
+    // to (a task can be offered to several people at once, each awaiting their
+    // own accept); a team commander (and the master) can oversee every task
+    // stamped with their team's id.
     match /tasks/{taskId} {
       function canAccessTask() {
         return request.auth != null && (
           request.auth.uid in resource.data.participants ||
-          resource.data.pendingUid == request.auth.uid ||
+          request.auth.uid in resource.data.get('pendingUids', []) ||
           isMasterAdmin() ||
           (resource.data.get('teamId', null) != null && isCommanderOf(resource.data.teamId))
         );

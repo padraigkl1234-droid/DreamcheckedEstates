@@ -2,7 +2,7 @@
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot, query, where, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot, query, where, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage, type User } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
@@ -116,8 +116,8 @@ interface Task {
   ownerName?: string;
   participants?: string[]; // uids who can see this task (owner + anyone who accepted)
   participantNames?: Record<string, string>;
-  pendingUid?: string | null; // person this task is offered to, awaiting their accept
-  pendingName?: string | null;
+  pendingUids?: string[]; // people this task is offered to, each awaiting their own accept
+  pendingNames?: Record<string, string>;
   archived?: boolean;
 }
 
@@ -2089,6 +2089,47 @@ function heatColor(t: number): string {
   return 'rgb(250, 214, 70)';
 }
 
+// Toggleable teammate chips — lets an assigner pick any number of people at
+// once. Each one gets their own pending offer and has to accept individually
+// before the task shows up on their list (same as the single-assignee flow
+// this replaces, just repeated per person).
+function AssigneeMultiSelect({
+  teammates,
+  selected,
+  onToggle,
+  className = '',
+}: {
+  teammates: TeamMember[];
+  selected: string[];
+  onToggle: (uid: string) => void;
+  className?: string;
+}) {
+  if (teammates.length === 0) {
+    return <p className={`text-xs text-neutral-600 ${className}`}>No teammates yet.</p>;
+  }
+  return (
+    <div className={`flex flex-wrap gap-1.5 ${className}`}>
+      {teammates.map((m) => {
+        const active = selected.includes(m.uid);
+        return (
+          <button
+            key={m.uid}
+            type="button"
+            onClick={() => onToggle(m.uid)}
+            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+              active
+                ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
+                : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-400 hover:border-neutral-400/50 hover:text-neutral-200'
+            }`}
+          >
+            {m.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function SiteMapPage({
   tasks,
   team,
@@ -2105,9 +2146,11 @@ function SiteMapPage({
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
-  const [assigneeUid, setAssigneeUid] = useState('');
+  const [assigneeUids, setAssigneeUids] = useState<string[]>([]);
   const { playConfirm } = useSound();
   const teammates = team.filter((m) => m.uid !== currentUid);
+  const toggleAssignee = (uid: string) =>
+    setAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
 
   const selectedCell = SITE_CELLS.find((c) => c.ref === selectedRef) ?? null;
 
@@ -2127,7 +2170,7 @@ function SiteMapPage({
   const handleAssign = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCell || !name.trim()) return;
-    const assignee = teammates.find((m) => m.uid === assigneeUid);
+    const assignees = teammates.filter((m) => assigneeUids.includes(m.uid));
     onAddTask({
       id: genId(),
       name: name.trim(),
@@ -2135,13 +2178,18 @@ function SiteMapPage({
       dueDate,
       status: 'Not Started',
       area: selectedCell.areaKey,
-      ...(assignee ? { pendingUid: assignee.uid, pendingName: assignee.name } : {}),
+      ...(assignees.length
+        ? {
+            pendingUids: assignees.map((a) => a.uid),
+            pendingNames: Object.fromEntries(assignees.map((a) => [a.uid, a.name])),
+          }
+        : {}),
     });
     playConfirm();
     setName('');
     setPriority('Medium');
     setDueDate('');
-    setAssigneeUid('');
+    setAssigneeUids([]);
   };
 
   const cellFill = (cell: GridCell): string => {
@@ -2377,16 +2425,12 @@ function SiteMapPage({
                     className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:shadow-glow-strong focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
                   />
                 </div>
-                <InvictusSelect
-                  value={assigneeUid}
-                  onChange={setAssigneeUid}
-                  title="Assign this task to a teammate — they'll get it as an offer to accept"
-                  className="bg-invictus-base/60"
-                  options={[
-                    { value: '', label: 'Keep to myself' },
-                    ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
-                  ]}
-                />
+                <div>
+                  <p className="mb-1.5 text-[10px] uppercase tracking-widest text-neutral-600">
+                    Assign to teammates (optional — each has to accept)
+                  </p>
+                  <AssigneeMultiSelect teammates={teammates} selected={assigneeUids} onToggle={toggleAssignee} />
+                </div>
                 <button
                   type="submit"
                   className="flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20 hover:shadow-glow-strong"
@@ -2650,7 +2694,7 @@ function TaskManager({
   onDeclineOffer: (id: string) => void;
   onEdit: (
     id: string,
-    updates: { name: string; notes: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
+    updates: { name: string; notes: string; priority: Priority; dueDate: string; pendingUids: string[]; pendingNames: Record<string, string> }
   ) => void;
   onSetImages: (id: string, images: TaskImage[]) => void;
   onFileReport: (task: Task) => void;
@@ -2720,7 +2764,9 @@ function TaskManager({
   const [editNotes, setEditNotes] = useState('');
   const [editPriority, setEditPriority] = useState<Priority>('Medium');
   const [editDueDate, setEditDueDate] = useState('');
-  const [editAssigneeUid, setEditAssigneeUid] = useState('');
+  const [editAssigneeUids, setEditAssigneeUids] = useState<string[]>([]);
+  const toggleEditAssignee = (uid: string) =>
+    setEditAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
 
   const startEdit = (task: Task) => {
     setEditingId(task.id);
@@ -2728,18 +2774,18 @@ function TaskManager({
     setEditNotes(task.notes ?? '');
     setEditPriority(task.priority);
     setEditDueDate(task.dueDate);
-    setEditAssigneeUid(task.pendingUid ?? '');
+    setEditAssigneeUids(task.pendingUids ?? []);
   };
   const saveEdit = (task: Task) => {
     if (!editName.trim()) return;
-    const assignee = teammates.find((m) => m.uid === editAssigneeUid);
+    const assignees = teammates.filter((m) => editAssigneeUids.includes(m.uid));
     onEdit(task.id, {
       name: editName.trim(),
       notes: editNotes.trim(),
       priority: editPriority,
       dueDate: editDueDate,
-      pendingUid: assignee?.uid ?? null,
-      pendingName: assignee?.name ?? null,
+      pendingUids: assignees.map((a) => a.uid),
+      pendingNames: Object.fromEntries(assignees.map((a) => [a.uid, a.name])),
     });
     playConfirm();
     setEditingId(null);
@@ -2843,16 +2889,12 @@ function TaskManager({
         onChange={(e) => setEditDueDate(e.target.value)}
         className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
       />
-      <InvictusSelect
-        value={editAssigneeUid}
-        onChange={setEditAssigneeUid}
-        title="Assign this task to a teammate — they'll get it as an offer to accept"
-        className="bg-invictus-base/60"
-        options={[
-          { value: '', label: 'No assignment' },
-          ...teammates.map((m) => ({ value: m.uid, label: `Assign to ${m.name}` })),
-        ]}
-      />
+      <div className="sm:col-span-2 lg:col-span-6">
+        <p className="mb-1.5 text-[10px] uppercase tracking-widest text-neutral-600">
+          Assign to teammates (optional — each has to accept)
+        </p>
+        <AssigneeMultiSelect teammates={teammates} selected={editAssigneeUids} onToggle={toggleEditAssignee} />
+      </div>
       <textarea
         value={editNotes}
         onChange={(e) => setEditNotes(e.target.value)}
@@ -2917,17 +2959,18 @@ function TaskManager({
               )}
             </p>
             {task.notes && <p className="mt-1.5 text-sm leading-relaxed text-neutral-400">{task.notes}</p>}
-            {(task.pendingUid || (!task.pendingUid && (task.participants?.length ?? 0) > 1)) && (
+            {((task.pendingUids?.length ?? 0) > 0 || (task.participants?.length ?? 0) > 1) && (
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                {task.pendingUid && (
+                {(task.pendingUids ?? []).map((uid) => (
                   <span
+                    key={uid}
                     className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300"
                     title="Waiting for them to accept this task"
                   >
-                    <UserPlus className="h-3 w-3" /> Awaiting {task.pendingName || 'accept'}
+                    <UserPlus className="h-3 w-3" /> Awaiting {task.pendingNames?.[uid] || 'accept'}
                   </span>
-                )}
-                {!task.pendingUid && (task.participants?.length ?? 0) > 1 && (
+                ))}
+                {(task.participants?.length ?? 0) > 1 && (
                   <span
                     className="flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300"
                     title="Shared task — completing it completes it for everyone on it"
@@ -3261,8 +3304,8 @@ function TaskManager({
       {offers.length > 0 && (
         <Panel title={`Task Offers (${offers.length})`} icon={Inbox} refCode="0105-O">
           <p className="mb-3 text-xs text-neutral-500">
-            Tasks a teammate has assigned to you. Accept to share the task — it appears on both
-            your boards, and either of you completing it completes it for both.
+            Tasks a teammate has assigned to you. Accept to share the task — it appears on
+            everyone's board who's accepted it, and any one of you completing it completes it for all.
           </p>
           <div className="space-y-2">
             {offers.map((task) => (
@@ -4171,7 +4214,7 @@ function InvictusTracker() {
       },
       (error) => console.error('Tasks subscription failed:', error)
     );
-    const offersQ = query(collection(db, 'tasks'), where('pendingUid', '==', user.uid));
+    const offersQ = query(collection(db, 'tasks'), where('pendingUids', 'array-contains', user.uid));
     const unsubOffers = onSnapshot(
       offersQ,
       (snap) => setTaskOffers(snap.docs.map((d) => ({ ...(d.data() as Omit<Task, 'id'>), id: d.id } as Task))),
@@ -4276,12 +4319,12 @@ function InvictusTracker() {
       teamId: teamId ?? null, // stamp the team so commanders can oversee it
       participants: [user.uid],
       participantNames: { [user.uid]: ownerName },
-      pendingUid: task.pendingUid ?? null,
-      pendingName: task.pendingName ?? null,
+      pendingUids: task.pendingUids ?? [],
+      pendingNames: task.pendingNames ?? {},
       archived: false,
     })
       .then(() => {
-        if (task.pendingUid) notifyAssignment(task.pendingUid, task.name, id);
+        (task.pendingUids ?? []).forEach((uid) => notifyAssignment(uid, task.name, id));
       })
       .catch(logTaskError('add task'));
   };
@@ -4298,19 +4341,19 @@ function InvictusTracker() {
     deleteDoc(doc(db, 'tasks', id)).catch(logTaskError('delete task'));
   };
   // Edit a task in place — name/priority/due date, and (re)assigning it to a
-  // teammate after creation (sets a fresh pending offer; null clears one).
+  // teammates after creation (sets fresh pending offers; an empty list clears
+  // all of them, same as before — it just now covers more than one person).
   const handleEditTask = (
     id: string,
-    updates: { name: string; notes: string; priority: Priority; dueDate: string; pendingUid: string | null; pendingName: string | null }
+    updates: { name: string; notes: string; priority: Priority; dueDate: string; pendingUids: string[]; pendingNames: Record<string, string> }
   ) => {
     if (!user) return;
     const prev = tasks.find((t) => t.id === id);
     updateDoc(doc(db, 'tasks', id), updates)
       .then(() => {
-        // Only notify when this edit sets a NEW offer (not on unrelated edits).
-        if (updates.pendingUid && updates.pendingUid !== prev?.pendingUid) {
-          notifyAssignment(updates.pendingUid, updates.name, id);
-        }
+        // Only notify people newly added by this edit, not ones already pending.
+        const prevPending = new Set(prev?.pendingUids ?? []);
+        updates.pendingUids.filter((uid) => !prevPending.has(uid)).forEach((uid) => notifyAssignment(uid, updates.name, id));
       })
       .catch(logTaskError('edit task'));
   };
@@ -4347,21 +4390,25 @@ function InvictusTracker() {
   };
 
   // Task offers: accepting joins you to the task (it becomes shared — visible
-  // to both, one completion completes it for everyone). Declining just clears
-  // the offer and it stays the owner's private task.
+  // to everyone on it, and one completion completes it for all of them).
+  // Declining just clears your own offer — anyone else still pending, or
+  // already a participant, is unaffected.
   const handleAcceptOffer = (id: string) => {
     if (!user) return;
     const myName = user.displayName || user.email || 'Unknown';
     updateDoc(doc(db, 'tasks', id), {
       participants: arrayUnion(user.uid),
       [`participantNames.${user.uid}`]: myName,
-      pendingUid: null,
-      pendingName: null,
+      pendingUids: arrayRemove(user.uid),
+      [`pendingNames.${user.uid}`]: deleteField(),
     }).catch(logTaskError('accept task offer'));
   };
   const handleDeclineOffer = (id: string) => {
     if (!user) return;
-    updateDoc(doc(db, 'tasks', id), { pendingUid: null, pendingName: null }).catch(logTaskError('decline task offer'));
+    updateDoc(doc(db, 'tasks', id), {
+      pendingUids: arrayRemove(user.uid),
+      [`pendingNames.${user.uid}`]: deleteField(),
+    }).catch(logTaskError('decline task offer'));
   };
 
   const handleAddCompliance = (item: ComplianceItem) => setCompliances((prev) => [...prev, item]);

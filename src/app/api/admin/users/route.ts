@@ -35,9 +35,12 @@ async function stripUserFromTasks(db: Firestore, uid: string, deletePrivate: boo
       });
     }
   }
-  const pending = await db.collection('tasks').where('pendingUid', '==', uid).get();
+  const pending = await db.collection('tasks').where('pendingUids', 'array-contains', uid).get();
   for (const d of pending.docs) {
-    await d.ref.update({ pendingUid: null, pendingName: null });
+    await d.ref.update({
+      pendingUids: FieldValue.arrayRemove(uid),
+      [`pendingNames.${uid}`]: FieldValue.delete(),
+    });
   }
 }
 
