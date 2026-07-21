@@ -9,7 +9,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useSound } from '@/components/SoundProvider';
 import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
 import { CHECKLIST_SECTIONS, type ChecklistSection } from '@/lib/checklists';
-import { DREAMLAND_TEAM_ID, featureEnabled, isCommander, type TeamFeatures } from '@/lib/teams';
+import { DREAMLAND_TEAM_ID, featureEnabled, type TeamFeatures } from '@/lib/teams';
 import { useProfile } from '@/components/ProfileProvider';
 import { useT } from '@/components/LanguageProvider';
 import { usePreferences } from '@/components/PreferencesProvider';
@@ -4007,7 +4007,6 @@ function InvictusTracker() {
   const { profile, team: myTeam } = useProfile();
   const teamId = profile?.teamId ?? null;
   const isDreamland = teamId === DREAMLAND_TEAM_ID;
-  const amCommander = isCommander(profile);
   const [teamChecklistForms, setTeamChecklistForms] = useState<{ section: string; name: string; description?: string; url: string }[]>([]);
   const [mounted, setMounted] = useState(false);
   const [booting, setBooting] = useState(() => !hasBootedThisSession);
@@ -4198,13 +4197,11 @@ function InvictusTracker() {
       setTaskOffers([]);
       return;
     }
-    // Commanders oversee the whole team's tasks; everyone else sees only tasks
-    // they participate in. (A commander's own tasks carry the same teamId, so
-    // the team query is a superset of the participant query for them.)
-    const mineQ =
-      amCommander && teamId
-        ? query(collection(db, 'tasks'), where('teamId', '==', teamId))
-        : query(collection(db, 'tasks'), where('participants', 'array-contains', user.uid));
+    // Tasks are private to whoever's on them — you only ever see tasks you're
+    // a participant in (owner, or a teammate who accepted a shared offer). No
+    // one else, including a team commander, gets automatic access to another
+    // person's tasks.
+    const mineQ = query(collection(db, 'tasks'), where('participants', 'array-contains', user.uid));
     const unsubMine = onSnapshot(
       mineQ,
       (snap) => {
@@ -4224,7 +4221,7 @@ function InvictusTracker() {
       unsubMine();
       unsubOffers();
     };
-  }, [user, amCommander, teamId]);
+  }, [user]);
 
   // The Show Board is a SHARED, live team board scoped to this user's team:
   // shows live in a top-level `shows` collection that everyone in the team
