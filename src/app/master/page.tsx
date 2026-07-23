@@ -2,12 +2,34 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Crown, RefreshCw, Plus, Copy, Check, X, ShieldOff, ShieldCheck, Trash2, Archive, ArchiveRestore, Loader2, ArrowLeft } from 'lucide-react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { Crown, RefreshCw, Plus, Copy, Check, X, ShieldOff, ShieldCheck, Trash2, Archive, ArchiveRestore, Loader2, ArrowLeft, ListChecks, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { featureEnabled, profileName, TOGGLEABLE_PAGES, type Team, type UserProfile } from '@/lib/teams';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
+import { db } from '@/lib/firebase';
+
+// Read-only shape — just enough to show status/progress. The master can
+// browse this for oversight, but has no edit/delete controls here; touching
+// someone else's task still has to happen through sharing (see the task
+// assignment flow), never through this admin view.
+interface TaskSummary {
+  id: string;
+  name: string;
+  status: 'Not Started' | 'In Progress' | 'Completed';
+  priority?: 'High' | 'Medium' | 'Low';
+  dueDate?: string;
+  ownerUid?: string;
+  archived?: boolean;
+}
+
+const TASK_STATUS_STYLES: Record<string, string> = {
+  'Not Started': 'border-neutral-400/30 bg-invictus-base/60 text-neutral-400',
+  'In Progress': 'border-amber-400/40 bg-amber-400/10 text-amber-300',
+  Completed: 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300',
+};
 
 type Action =
   | { action: 'list' }
@@ -34,6 +56,32 @@ export default function MasterPage() {
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [confirmDeleteTeam, setConfirmDeleteTeam] = useState<string | null>(null);
   const [deleteTeamData, setDeleteTeamData] = useState(false);
+  const [allTasks, setAllTasks] = useState<TaskSummary[]>([]);
+  const [expandedUids, setExpandedUids] = useState<Set<string>>(new Set());
+  const toggleExpanded = (uid: string) =>
+    setExpandedUids((prev) => {
+      const next = new Set(prev);
+      if (next.has(uid)) next.delete(uid);
+      else next.add(uid);
+      return next;
+    });
+
+  // Read-only oversight: the master account can view (never edit/delete)
+  // every task, across every team, for exactly this reason. An unfiltered
+  // query only works because the security rule grants the master read
+  // access independent of any per-document field.
+  useEffect(() => {
+    if (!isMaster) {
+      setAllTasks([]);
+      return;
+    }
+    const unsub = onSnapshot(
+      collection(db, 'tasks'),
+      (snap) => setAllTasks(snap.docs.map((d) => ({ ...(d.data() as Omit<TaskSummary, 'id'>), id: d.id }))),
+      (error) => console.error('All-tasks subscription failed:', error)
+    );
+    return unsub;
+  }, [isMaster]);
 
   const call = useCallback(
     async (payload: Action) => {
@@ -258,6 +306,9 @@ export default function MasterPage() {
                         teamOptions={teamOptions}
                         busy={busyUid === m.uid}
                         confirmRemove={confirmRemove === m.uid}
+                        tasks={allTasks.filter((t) => t.ownerUid === m.uid)}
+                        expanded={expandedUids.has(m.uid)}
+                        onToggleExpand={() => toggleExpanded(m.uid)}
                         onMove={(teamId) => run({ action: 'moveUser', targetUid: m.uid, teamId }, m.uid)}
                         onBlock={() => run({ action: m.blocked ? 'unblock' : 'block', targetUid: m.uid }, m.uid)}
                         onRemoveClick={() => setConfirmRemove(m.uid)}
@@ -287,6 +338,9 @@ export default function MasterPage() {
                       teamOptions={teamOptions}
                       busy={busyUid === m.uid}
                       confirmRemove={confirmRemove === m.uid}
+                      tasks={allTasks.filter((t) => t.ownerUid === m.uid)}
+                      expanded={expandedUids.has(m.uid)}
+                      onToggleExpand={() => toggleExpanded(m.uid)}
                       onMove={(teamId) => run({ action: 'moveUser', targetUid: m.uid, teamId }, m.uid)}
                       onBlock={() => run({ action: m.blocked ? 'unblock' : 'block', targetUid: m.uid }, m.uid)}
                       onRemoveClick={() => setConfirmRemove(m.uid)}
@@ -371,6 +425,9 @@ function UserRow({
   teamOptions,
   busy,
   confirmRemove,
+  tasks,
+  expanded,
+  onToggleExpand,
   onMove,
   onBlock,
   onRemoveClick,
@@ -381,6 +438,9 @@ function UserRow({
   teamOptions: { value: string; label: string }[];
   busy: boolean;
   confirmRemove: boolean;
+  tasks: TaskSummary[];
+  expanded: boolean;
+  onToggleExpand: () => void;
   onMove: (teamId: string) => void;
   onBlock: () => void;
   onRemoveClick: () => void;
@@ -391,67 +451,111 @@ function UserRow({
   const isMasterAccount = (m.email ?? '').toLowerCase() === MASTER_ADMIN_EMAIL;
   const smallBtn =
     'flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest transition-all disabled:opacity-40';
+  const active = tasks.filter((t) => !t.archived);
+  const completedCount = active.filter((t) => t.status === 'Completed').length;
 
   return (
-    <div className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate text-sm text-neutral-100">{profileName(m)}</p>
-          {isMasterAccount && (
-            <span className="rounded-full border border-amber-400/50 bg-amber-400/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-amber-300">
-              Master
-            </span>
-          )}
-          {m.blocked && (
-            <span className="rounded-full border border-alert/50 bg-alert/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-alert">
-              Blocked
-            </span>
-          )}
+    <div className="p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-sm text-neutral-100">{profileName(m)}</p>
+            {isMasterAccount && (
+              <span className="rounded-full border border-amber-400/50 bg-amber-400/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-amber-300">
+                Master
+              </span>
+            )}
+            {m.blocked && (
+              <span className="rounded-full border border-alert/50 bg-alert/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-alert">
+                Blocked
+              </span>
+            )}
+          </div>
+          <p className="truncate text-[11px] text-neutral-500">
+            {m.teamRole || 'No role'}
+            {m.email ? ` · ${m.email}` : ''}
+          </p>
         </div>
-        <p className="truncate text-[11px] text-neutral-500">
-          {m.teamRole || 'No role'}
-          {m.email ? ` · ${m.email}` : ''}
-        </p>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={onToggleExpand}
+            className={`${smallBtn} border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright`}
+            title="View this person's tasks (read-only)"
+          >
+            <ListChecks className="h-3.5 w-3.5" />
+            {active.length} task{active.length === 1 ? '' : 's'}
+            <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          </button>
+
+          {!isMasterAccount &&
+            (confirmRemove ? (
+              <>
+                <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-neutral-400">
+                  <input type="checkbox" checked={deleteData} onChange={(e) => setDeleteData(e.target.checked)} className="h-3.5 w-3.5 accent-red-600" />
+                  Also delete data
+                </label>
+                <button onClick={() => onRemoveConfirm(deleteData)} disabled={busy} className={`${smallBtn} border-alert/50 bg-alert/15 text-alert hover:bg-alert/25`}>
+                  <Trash2 className="h-3.5 w-3.5" /> Confirm
+                </button>
+                <button onClick={onCancelRemove} disabled={busy} className={`${smallBtn} border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:text-invictus-crimson-bright`}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="w-40">
+                  <InvictusSelect
+                    value={m.teamId ?? ''}
+                    onChange={(teamId) => teamId && teamId !== m.teamId && onMove(teamId)}
+                    title="Move to team"
+                    className="bg-invictus-base/60"
+                    options={[{ value: '', label: 'Unassigned' }, ...teamOptions]}
+                  />
+                </div>
+                <button
+                  onClick={onBlock}
+                  disabled={busy}
+                  className={`${smallBtn} ${m.blocked ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20' : 'border-alert/40 bg-alert/10 text-alert hover:bg-alert/20'}`}
+                >
+                  {m.blocked ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldOff className="h-3.5 w-3.5" />}
+                  {m.blocked ? 'Unblock' : 'Freeze'}
+                </button>
+                <button onClick={onRemoveClick} disabled={busy} className={`${smallBtn} border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:border-alert/40 hover:text-alert`}>
+                  <Trash2 className="h-3.5 w-3.5" /> Remove
+                </button>
+              </>
+            ))}
+        </div>
       </div>
 
-      {!isMasterAccount &&
-        (confirmRemove ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-neutral-400">
-              <input type="checkbox" checked={deleteData} onChange={(e) => setDeleteData(e.target.checked)} className="h-3.5 w-3.5 accent-red-600" />
-              Also delete data
-            </label>
-            <button onClick={() => onRemoveConfirm(deleteData)} disabled={busy} className={`${smallBtn} border-alert/50 bg-alert/15 text-alert hover:bg-alert/25`}>
-              <Trash2 className="h-3.5 w-3.5" /> Confirm
-            </button>
-            <button onClick={onCancelRemove} disabled={busy} className={`${smallBtn} border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:text-invictus-crimson-bright`}>
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="w-40">
-              <InvictusSelect
-                value={m.teamId ?? ''}
-                onChange={(teamId) => teamId && teamId !== m.teamId && onMove(teamId)}
-                title="Move to team"
-                className="bg-invictus-base/60"
-                options={[{ value: '', label: 'Unassigned' }, ...teamOptions]}
-              />
-            </div>
-            <button
-              onClick={onBlock}
-              disabled={busy}
-              className={`${smallBtn} ${m.blocked ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20' : 'border-alert/40 bg-alert/10 text-alert hover:bg-alert/20'}`}
-            >
-              {m.blocked ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldOff className="h-3.5 w-3.5" />}
-              {m.blocked ? 'Unblock' : 'Freeze'}
-            </button>
-            <button onClick={onRemoveClick} disabled={busy} className={`${smallBtn} border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:border-alert/40 hover:text-alert`}>
-              <Trash2 className="h-3.5 w-3.5" /> Remove
-            </button>
-          </div>
-        ))}
+      {expanded && (
+        <div className="mt-3 space-y-1.5 border-t border-neutral-400/15 pt-3">
+          {active.length === 0 ? (
+            <p className="text-xs text-neutral-600">No tasks.</p>
+          ) : (
+            <>
+              <p className="text-[11px] text-neutral-500">
+                {completedCount}/{active.length} complete · read-only
+              </p>
+              {active.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between gap-2 rounded-md border border-neutral-400/20 bg-invictus-base/40 px-3 py-1.5"
+                >
+                  <span className={`min-w-0 flex-1 truncate text-xs ${t.status === 'Completed' ? 'text-neutral-500 line-through' : 'text-neutral-200'}`}>
+                    {t.name}
+                  </span>
+                  {t.dueDate && <span className="shrink-0 text-[10px] text-neutral-500">Due {t.dueDate}</span>}
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${TASK_STATUS_STYLES[t.status]}`}>
+                    {t.status}
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
