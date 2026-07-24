@@ -2717,11 +2717,18 @@ function TaskManager({
       return 0;
     });
   }, [tasks, todayStr]);
-  // Quick-add captures name + due date + priority; notes and assignee are
-  // still set afterward via the row's own Edit action.
+  // Quick-add captures name + due date + priority, plus an optional
+  // description and assignees revealed via their own toggle buttons so the
+  // bar stays a single tidy row until you need more than the basics.
   const [name, setName] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
+  const [quickNotes, setQuickNotes] = useState('');
+  const [quickAssigneeUids, setQuickAssigneeUids] = useState<string[]>([]);
+  const [showQuickNotes, setShowQuickNotes] = useState(false);
+  const [showQuickAssign, setShowQuickAssign] = useState(false);
+  const toggleQuickAssignee = (uid: string) =>
+    setQuickAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
   const { playConfirm } = useSound();
   const { haptic } = usePreferences();
   const teammates = team.filter((m) => m.uid !== currentUid);
@@ -2840,17 +2847,29 @@ function TaskManager({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    const assignees = teammates.filter((m) => quickAssigneeUids.includes(m.uid));
     onAdd({
       id: genId(),
       name: name.trim(),
       priority,
       dueDate,
       status: 'Not Started',
+      ...(quickNotes.trim() ? { notes: quickNotes.trim() } : {}),
+      ...(assignees.length
+        ? {
+            pendingUids: assignees.map((a) => a.uid),
+            pendingNames: Object.fromEntries(assignees.map((a) => [a.uid, a.name])),
+          }
+        : {}),
     });
     playConfirm();
     setName('');
     setDueDate('');
     setPriority('Medium');
+    setQuickNotes('');
+    setQuickAssigneeUids([]);
+    setShowQuickNotes(false);
+    setShowQuickAssign(false);
   };
 
   const FILTER_TABS: { key: 'all' | 'overdue' | TaskStatus; label: string; count: number }[] = [
@@ -3229,11 +3248,57 @@ function TaskManager({
           ]}
         />
         <button
+          type="button"
+          onClick={() => setShowQuickAssign((v) => !v)}
+          title="Assign to teammates (optional)"
+          className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+            showQuickAssign || quickAssigneeUids.length > 0
+              ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
+              : 'border-neutral-400/20 bg-invictus-raised text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          <UserPlus className="h-3.5 w-3.5" />
+          {quickAssigneeUids.length > 0 ? quickAssigneeUids.length : 'Assign'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowQuickNotes((v) => !v)}
+          title="Add a description (optional)"
+          className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+            showQuickNotes || quickNotes.trim()
+              ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
+              : 'border-neutral-400/20 bg-invictus-raised text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          <FileText className="h-3.5 w-3.5" />
+          Description
+        </button>
+        <button
           type="submit"
           className="shrink-0 rounded-xl bg-invictus-crimson-bright px-4 py-2 text-sm font-bold text-invictus-base transition-opacity hover:opacity-90"
         >
           Add task
         </button>
+
+        {showQuickAssign && (
+          <div className="w-full border-t border-neutral-400/15 pt-3">
+            <p className="mb-1.5 text-[10px] uppercase tracking-widest text-neutral-600">
+              Assign to teammates (optional — each has to accept)
+            </p>
+            <AssigneeMultiSelect teammates={teammates} selected={quickAssigneeUids} onToggle={toggleQuickAssignee} />
+          </div>
+        )}
+        {showQuickNotes && (
+          <div className="w-full border-t border-neutral-400/15 pt-3">
+            <textarea
+              value={quickNotes}
+              onChange={(e) => setQuickNotes(e.target.value)}
+              placeholder="Description (optional)"
+              rows={2}
+              className="w-full min-w-0 resize-y rounded-md border border-neutral-400/20 bg-invictus-raised px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
+            />
+          </div>
+        )}
       </form>
 
       <div className="flex flex-wrap items-center gap-2">
