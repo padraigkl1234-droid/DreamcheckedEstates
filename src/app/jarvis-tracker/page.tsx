@@ -68,6 +68,7 @@ import {
   Loader2,
   ImagePlus,
   ChevronDown,
+  Tag,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -2694,7 +2695,15 @@ function TaskManager({
   onDeclineOffer: (id: string) => void;
   onEdit: (
     id: string,
-    updates: { name: string; notes: string; priority: Priority; dueDate: string; pendingUids: string[]; pendingNames: Record<string, string> }
+    updates: {
+      name: string;
+      notes: string;
+      priority: Priority;
+      dueDate: string;
+      category: string;
+      pendingUids: string[];
+      pendingNames: Record<string, string>;
+    }
   ) => void;
   onSetImages: (id: string, images: TaskImage[]) => void;
   onFileReport: (task: Task) => void;
@@ -2703,8 +2712,20 @@ function TaskManager({
   const todayStr = toDateInputValue(new Date());
   const isOverdueOrToday = (t: Task) =>
     t.status !== 'Completed' && Boolean(t.dueDate) && daysFromToday(t.dueDate, todayStr) <= 0;
+  // Groups (categories) are a browsing filter, distinct from the archive-all
+  // action above — that stays scoped to every completed task regardless of
+  // which group you're currently viewing.
+  const [groupFilter, setGroupFilter] = useState<string | null>(null);
+  const categories = useMemo(
+    () => Array.from(new Set(tasks.map((t) => t.category).filter((c): c is string => Boolean(c)))).sort(),
+    [tasks]
+  );
+  const visibleTasks = useMemo(
+    () => (groupFilter ? tasks.filter((t) => t.category === groupFilter) : tasks),
+    [tasks, groupFilter]
+  );
   const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
+    return [...visibleTasks].sort((a, b) => {
       const aPinned = isOverdueOrToday(a) ? 0 : 1;
       const bPinned = isOverdueOrToday(b) ? 0 : 1;
       if (aPinned !== bPinned) return aPinned - bPinned;
@@ -2716,16 +2737,19 @@ function TaskManager({
       }
       return 0;
     });
-  }, [tasks, todayStr]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleTasks, todayStr]);
   // Quick-add captures name + due date + priority, plus an optional
-  // description and assignees revealed via their own toggle buttons so the
-  // bar stays a single tidy row until you need more than the basics.
+  // description, group and assignees revealed via their own toggle buttons so
+  // the bar stays a single tidy row until you need more than the basics.
   const [name, setName] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [quickNotes, setQuickNotes] = useState('');
+  const [quickCategory, setQuickCategory] = useState('');
   const [quickAssigneeUids, setQuickAssigneeUids] = useState<string[]>([]);
   const [showQuickNotes, setShowQuickNotes] = useState(false);
+  const [showQuickGroup, setShowQuickGroup] = useState(false);
   const [showQuickAssign, setShowQuickAssign] = useState(false);
   const toggleQuickAssignee = (uid: string) =>
     setQuickAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
@@ -2742,10 +2766,10 @@ function TaskManager({
   // above, which also pins today's-due tasks to the top of the sort order.
   const isOverdue = (t: Task) =>
     t.status !== 'Completed' && Boolean(t.dueDate) && daysFromToday(t.dueDate, todayStr) < 0;
-  const overdueCount = tasks.filter(isOverdue).length;
-  const notStartedCount = tasks.filter((t) => t.status === 'Not Started').length;
-  const inProgressCount = tasks.filter((t) => t.status === 'In Progress').length;
-  const doneCount = tasks.filter((t) => t.status === 'Completed').length;
+  const overdueCount = visibleTasks.filter(isOverdue).length;
+  const notStartedCount = visibleTasks.filter((t) => t.status === 'Not Started').length;
+  const inProgressCount = visibleTasks.filter((t) => t.status === 'In Progress').length;
+  const doneCount = visibleTasks.filter((t) => t.status === 'Completed').length;
 
   // For the "All" view: overdue tasks get pulled into their own section up
   // top; the remaining status groups below show only the non-overdue rest, so
@@ -2771,6 +2795,7 @@ function TaskManager({
   const [editNotes, setEditNotes] = useState('');
   const [editPriority, setEditPriority] = useState<Priority>('Medium');
   const [editDueDate, setEditDueDate] = useState('');
+  const [editCategory, setEditCategory] = useState('');
   const [editAssigneeUids, setEditAssigneeUids] = useState<string[]>([]);
   const toggleEditAssignee = (uid: string) =>
     setEditAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
@@ -2781,6 +2806,7 @@ function TaskManager({
     setEditNotes(task.notes ?? '');
     setEditPriority(task.priority);
     setEditDueDate(task.dueDate);
+    setEditCategory(task.category ?? '');
     setEditAssigneeUids(task.pendingUids ?? []);
   };
   const saveEdit = (task: Task) => {
@@ -2791,6 +2817,7 @@ function TaskManager({
       notes: editNotes.trim(),
       priority: editPriority,
       dueDate: editDueDate,
+      category: editCategory.trim(),
       pendingUids: assignees.map((a) => a.uid),
       pendingNames: Object.fromEntries(assignees.map((a) => [a.uid, a.name])),
     });
@@ -2855,6 +2882,7 @@ function TaskManager({
       dueDate,
       status: 'Not Started',
       ...(quickNotes.trim() ? { notes: quickNotes.trim() } : {}),
+      ...(quickCategory.trim() ? { category: quickCategory.trim() } : {}),
       ...(assignees.length
         ? {
             pendingUids: assignees.map((a) => a.uid),
@@ -2867,13 +2895,15 @@ function TaskManager({
     setDueDate('');
     setPriority('Medium');
     setQuickNotes('');
+    setQuickCategory('');
     setQuickAssigneeUids([]);
     setShowQuickNotes(false);
+    setShowQuickGroup(false);
     setShowQuickAssign(false);
   };
 
   const FILTER_TABS: { key: 'all' | 'overdue' | TaskStatus; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: tasks.length },
+    { key: 'all', label: 'All', count: visibleTasks.length },
     { key: 'overdue', label: 'Overdue', count: overdueCount },
     { key: 'Not Started', label: 'Not started', count: notStartedCount },
     { key: 'In Progress', label: 'In progress', count: inProgressCount },
@@ -2908,6 +2938,18 @@ function TaskManager({
         onChange={(e) => setEditDueDate(e.target.value)}
         className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
       />
+      <input
+        value={editCategory}
+        onChange={(e) => setEditCategory(e.target.value)}
+        list="task-group-suggestions-edit"
+        placeholder="Group (optional, e.g. CAPEX)"
+        className="w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50 sm:col-span-2 lg:col-span-2"
+      />
+      <datalist id="task-group-suggestions-edit">
+        {categories.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
       <div className="sm:col-span-2 lg:col-span-6">
         <p className="mb-1.5 text-[10px] uppercase tracking-widest text-neutral-600">
           Assign to teammates (optional — each has to accept)
@@ -3014,6 +3056,11 @@ function TaskManager({
             <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[task.priority]}`}>
               {task.priority}
             </span>
+            {task.category && (
+              <span className="flex items-center gap-1 rounded-full border border-neutral-400/25 bg-invictus-raised px-2.5 py-1 text-xs font-medium text-neutral-400">
+                <Tag className="h-3 w-3" /> {task.category}
+              </span>
+            )}
             <InvictusSelect
               value={task.status}
               onChange={(v) => {
@@ -3145,6 +3192,11 @@ function TaskManager({
           <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${PRIORITY_STYLES[task.priority]}`}>
             {task.priority}
           </span>
+          {task.category && (
+            <span className="flex items-center gap-1 rounded-full border border-neutral-400/25 bg-invictus-base/60 px-2 py-0.5 text-[11px] font-medium text-neutral-400">
+              <Tag className="h-2.5 w-2.5" /> {task.category}
+            </span>
+          )}
         </div>
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-1">
@@ -3197,7 +3249,9 @@ function TaskManager({
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-neutral-100">Task manager</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            {tasks.length} active task{tasks.length === 1 ? '' : 's'} across the estate
+            {groupFilter
+              ? `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} in ${groupFilter}`
+              : `${tasks.length} active task${tasks.length === 1 ? '' : 's'} across the estate`}
           </p>
         </div>
         <div className="flex shrink-0 gap-1 rounded-xl border border-neutral-400/20 bg-invictus-surface p-1">
@@ -3262,6 +3316,19 @@ function TaskManager({
         </button>
         <button
           type="button"
+          onClick={() => setShowQuickGroup((v) => !v)}
+          title="Put this task in a group (optional)"
+          className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+            showQuickGroup || quickCategory.trim()
+              ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
+              : 'border-neutral-400/20 bg-invictus-raised text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          <Tag className="h-3.5 w-3.5" />
+          {quickCategory.trim() || 'Group'}
+        </button>
+        <button
+          type="button"
           onClick={() => setShowQuickNotes((v) => !v)}
           title="Add a description (optional)"
           className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
@@ -3286,6 +3353,25 @@ function TaskManager({
               Assign to teammates (optional — each has to accept)
             </p>
             <AssigneeMultiSelect teammates={teammates} selected={quickAssigneeUids} onToggle={toggleQuickAssignee} />
+          </div>
+        )}
+        {showQuickGroup && (
+          <div className="w-full border-t border-neutral-400/15 pt-3">
+            <p className="mb-1.5 text-[10px] uppercase tracking-widest text-neutral-600">
+              Group (optional — e.g. CAPEX. Pick an existing one or type a new name)
+            </p>
+            <input
+              value={quickCategory}
+              onChange={(e) => setQuickCategory(e.target.value)}
+              list="task-group-suggestions"
+              placeholder="e.g. CAPEX"
+              className="w-full max-w-xs min-w-0 rounded-md border border-neutral-400/20 bg-invictus-raised px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
+            />
+            <datalist id="task-group-suggestions">
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
           </div>
         )}
         {showQuickNotes && (
@@ -3321,6 +3407,37 @@ function TaskManager({
           );
         })}
       </div>
+
+      {categories.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1 text-xs text-neutral-500">
+            <Tag className="h-3.5 w-3.5" /> Groups:
+          </span>
+          <button
+            onClick={() => setGroupFilter(null)}
+            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+              !groupFilter
+                ? 'border-neutral-400/30 bg-invictus-raised text-neutral-100'
+                : 'border-neutral-400/20 bg-invictus-surface text-neutral-500 hover:text-neutral-300'
+            }`}
+          >
+            All
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c}
+              onClick={() => setGroupFilter((prev) => (prev === c ? null : c))}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                groupFilter === c
+                  ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
+                  : 'border-neutral-400/20 bg-invictus-surface text-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
 
       {viewMode === 'board' ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -4407,7 +4524,15 @@ function InvictusTracker() {
   // all of them, same as before — it just now covers more than one person).
   const handleEditTask = (
     id: string,
-    updates: { name: string; notes: string; priority: Priority; dueDate: string; pendingUids: string[]; pendingNames: Record<string, string> }
+    updates: {
+      name: string;
+      notes: string;
+      priority: Priority;
+      dueDate: string;
+      category: string;
+      pendingUids: string[];
+      pendingNames: Record<string, string>;
+    }
   ) => {
     if (!user) return;
     const prev = tasks.find((t) => t.id === id);
