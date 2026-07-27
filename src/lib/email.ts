@@ -19,15 +19,14 @@ export interface SendEmailResult {
   error?: string;
 }
 
-let cachedTransporter: Transporter | null = null;
-
+// A fresh transporter per send (not cached) — this is a low-volume weekly
+// job, not a hot path, so there's no reason to risk a stale instance ever
+// holding onto credentials from before an env var change.
 function getTransporter(user: string, pass: string): Transporter {
-  if (cachedTransporter) return cachedTransporter;
-  cachedTransporter = nodemailer.createTransport({
+  return nodemailer.createTransport({
     service: 'gmail',
     auth: { user, pass },
   });
-  return cachedTransporter;
 }
 
 export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<SendEmailResult> {
@@ -44,6 +43,10 @@ export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<
     });
     return { ok: true, id: info.messageId };
   } catch (error) {
-    return { ok: false, error: (error as Error).message };
+    // Include exactly what this deployment is using (never the password
+    // itself) so a stale-env-var vs. wrong-password mismatch is visible
+    // straight from the master console, without a Vercel dashboard trip.
+    const diag = `[GMAIL_USER=${user}, app password length=${pass.length}, has whitespace=${/\s/.test(pass)}]`;
+    return { ok: false, error: `${(error as Error).message} ${diag}` };
   }
 }
