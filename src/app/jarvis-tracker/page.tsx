@@ -4641,6 +4641,18 @@ function InvictusTracker() {
   const handleAddShow = (show: Show) => {
     if (!user || !teamId) return;
     setDoc(doc(db, 'shows', show.id), { date: show.date, type: show.type, title: show.title ?? null, completed: show.completed, teamId })
+      .then(async () => {
+        try {
+          const token = await user.getIdToken();
+          await fetch('/api/notify/show-scheduled', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ showType: show.type, showDate: show.date, showTitle: show.title ?? '', teamId }),
+          });
+        } catch (error) {
+          console.error('Show-scheduled notification failed:', error);
+        }
+      })
       .catch((e) => console.error('Failed to add show:', e));
   };
   const handleDeleteShow = (id: string) => {

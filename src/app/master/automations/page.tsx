@@ -14,9 +14,11 @@ import {
   AUTOMATION_TYPE_LABELS,
   DAY_LABELS,
   RECIPIENT_LABELS,
+  SCHEDULED_AUTOMATION_TYPES,
   automationDigestEmails,
   type Automation,
   type AutomationRecipients,
+  type AutomationType,
 } from '@/lib/automations';
 
 export default function AutomationsPage() {
@@ -27,6 +29,7 @@ export default function AutomationsPage() {
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [automationBusyId, setAutomationBusyId] = useState<string | null>(null);
   const [automationMessage, setAutomationMessage] = useState<string | null>(null);
+  const [newType, setNewType] = useState<AutomationType>('weeklyReport');
   const [newDay, setNewDay] = useState(5); // Friday
   const [newRecipients, setNewRecipients] = useState<AutomationRecipients>('both');
   const [newTeamId, setNewTeamId] = useState(''); // '' = every team
@@ -72,18 +75,19 @@ export default function AutomationsPage() {
     return unsub;
   }, [isMaster]);
 
-  const createWeeklyReportAutomation = async () => {
+  const isScheduledType = SCHEDULED_AUTOMATION_TYPES.includes(newType);
+
+  const createAutomation = async () => {
     // Fold in whatever's still sitting in the text box (typed but never
     // committed with Enter/+) so it's never silently dropped.
     const draft = newEmailDraft.trim();
     const emails = draft && !newDigestEmails.includes(draft) ? [...newDigestEmails, draft] : newDigestEmails;
     const team = newTeamId ? teams.find((t) => t.id === newTeamId) : undefined;
     await addDoc(collection(db, 'automations'), {
-      name: 'Weekly completed-tasks report',
-      type: 'weeklyReport',
+      name: AUTOMATION_TYPE_LABELS[newType],
+      type: newType,
       enabled: true,
-      dayOfWeek: newDay,
-      recipients: newRecipients,
+      ...(isScheduledType ? { dayOfWeek: newDay, recipients: newRecipients } : {}),
       teamId: newTeamId || null,
       teamName: team?.name ?? null,
       digestEmails: emails.length ? emails : [MASTER_ADMIN_EMAIL],
@@ -177,8 +181,10 @@ export default function AutomationsPage() {
                     </span>
                   </div>
                   <p className="text-[11px] text-neutral-500">
-                    Runs {DAY_LABELS[a.dayOfWeek]}s (~17:00 UTC) · {a.teamName || 'All teams'} · {RECIPIENT_LABELS[a.recipients]}
-                    {a.lastRunAt ? ` · last ran ${new Date(a.lastRunAt).toLocaleString()}` : ' · never run yet'}
+                    {a.type === 'showScheduled'
+                      ? `Fires when a show is scheduled · ${a.teamName || 'All teams'}`
+                      : `Runs ${DAY_LABELS[a.dayOfWeek ?? 5]}s (~17:00 UTC) · ${a.teamName || 'All teams'} · ${RECIPIENT_LABELS[a.recipients ?? 'both']}`}
+                    {a.lastRunAt ? ` · last ${a.type === 'showScheduled' ? 'fired' : 'ran'} ${new Date(a.lastRunAt).toLocaleString()}` : ' · never run yet'}
                   </p>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     {automationDigestEmails(a).map((email) => (
@@ -223,15 +229,17 @@ export default function AutomationsPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => runAutomationNow(a.id)}
-                    disabled={automationBusyId === a.id}
-                    className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-40"
-                    title="Run this automation now, regardless of schedule"
-                  >
-                    {automationBusyId === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                    Run now
-                  </button>
+                  {a.type !== 'showScheduled' && (
+                    <button
+                      onClick={() => runAutomationNow(a.id)}
+                      disabled={automationBusyId === a.id}
+                      className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-40"
+                      title="Run this automation now, regardless of schedule"
+                    >
+                      {automationBusyId === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                      Run now
+                    </button>
+                  )}
                   <button
                     onClick={() => toggleAutomation(a)}
                     className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest transition-colors ${
@@ -257,15 +265,26 @@ export default function AutomationsPage() {
           </div>
 
           <div className="flex flex-wrap items-end gap-3 border-t border-neutral-400/15 p-4">
-            <div className="w-40">
-              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Day</label>
+            <div className="w-64">
+              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Type</label>
               <InvictusSelect
-                value={String(newDay)}
-                onChange={(v) => setNewDay(Number(v))}
+                value={newType}
+                onChange={(v) => setNewType(v as AutomationType)}
                 className="bg-invictus-base/60"
-                options={DAY_LABELS.map((label, i) => ({ value: String(i), label }))}
+                options={Object.entries(AUTOMATION_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
               />
             </div>
+            {isScheduledType && (
+              <div className="w-40">
+                <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Day</label>
+                <InvictusSelect
+                  value={String(newDay)}
+                  onChange={(v) => setNewDay(Number(v))}
+                  className="bg-invictus-base/60"
+                  options={DAY_LABELS.map((label, i) => ({ value: String(i), label }))}
+                />
+              </div>
+            )}
             <div className="w-48">
               <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Team</label>
               <InvictusSelect
@@ -275,15 +294,17 @@ export default function AutomationsPage() {
                 options={[{ value: '', label: 'All teams' }, ...teams.map((t) => ({ value: t.id, label: t.name }))]}
               />
             </div>
-            <div className="w-56">
-              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Recipients</label>
-              <InvictusSelect
-                value={newRecipients}
-                onChange={(v) => setNewRecipients(v as AutomationRecipients)}
-                className="bg-invictus-base/60"
-                options={Object.entries(RECIPIENT_LABELS).map(([value, label]) => ({ value, label }))}
-              />
-            </div>
+            {isScheduledType && (
+              <div className="w-56">
+                <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Recipients</label>
+                <InvictusSelect
+                  value={newRecipients}
+                  onChange={(v) => setNewRecipients(v as AutomationRecipients)}
+                  className="bg-invictus-base/60"
+                  options={Object.entries(RECIPIENT_LABELS).map(([value, label]) => ({ value, label }))}
+                />
+              </div>
+            )}
             <div className="min-w-[16rem] flex-1">
               <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Digest emails</label>
               <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5">
@@ -321,10 +342,10 @@ export default function AutomationsPage() {
               </div>
             </div>
             <button
-              onClick={createWeeklyReportAutomation}
+              onClick={createAutomation}
               className="flex items-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20"
             >
-              <Plus className="h-4 w-4" /> Add weekly report
+              <Plus className="h-4 w-4" /> Add automation
             </button>
           </div>
         </div>

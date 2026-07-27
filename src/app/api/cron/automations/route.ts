@@ -33,6 +33,7 @@ export async function GET(req: Request) {
 
   for (const doc of snap.docs) {
     const automation = { id: doc.id, ...doc.data() } as Automation;
+    if (automation.type === 'showScheduled') continue; // event-triggered, not schedule-driven
     if (automation.dayOfWeek !== dayOfWeek) continue;
     if (automation.lastRunKey === runKey) continue;
     try {
