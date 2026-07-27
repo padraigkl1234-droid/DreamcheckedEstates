@@ -1,13 +1,9 @@
 import type { Firestore } from 'firebase-admin/firestore';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { getAdminBucket } from '@/lib/firebaseAdmin';
 import { sendEmail } from '@/lib/email';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { automationDigestEmails, type Automation } from '@/lib/automations';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const LINK_TTL_MS = 30 * DAY_MS;
 
 interface TaskDoc {
   name?: string;
@@ -29,33 +25,71 @@ interface CompletedTask {
   category?: string;
 }
 
-function buildPdf(title: string, rows: { name: string; date: string; category: string }[]): Buffer {
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  doc.setFontSize(16);
-  doc.text(title, 40, 40);
-  doc.setFontSize(9);
-  doc.setTextColor(120);
-  doc.text(`Generated ${new Date().toISOString().slice(0, 10)}`, 40, 56);
-  autoTable(doc, {
-    startY: 72,
-    head: [['Task', 'Completed', 'Group']],
-    body: rows.map((r) => [r.name, r.date, r.category || '—']),
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [40, 40, 40] },
-  });
-  return Buffer.from(doc.output('arraybuffer'));
+interface ReportRow {
+  name: string;
+  date: string;
+  category: string;
 }
 
-async function uploadPdf(path: string, buffer: Buffer): Promise<string> {
-  const bucket = getAdminBucket();
-  const file = bucket.file(path);
-  await file.save(buffer, { contentType: 'application/pdf' });
-  const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + LINK_TTL_MS });
-  return url;
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function emailBody(intro: string, url: string): string {
-  return `<p>${intro}</p><p><a href="${url}">Download the PDF</a></p><p style="color:#888;font-size:12px">Link valid for 30 days.</p>`;
+// Invictus-branded HTML email body (a dark header banner + a light table
+// card) — table-based layout throughout since that's what renders reliably
+// across Gmail/Outlook/etc., unlike flexbox/grid.
+function reportHtml({ heading, subheading, rows }: { heading: string; subheading: string; rows: ReportRow[] }): string {
+  const rowsHtml = rows
+    .map(
+      (r, i) => `
+      <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f7f7f8'};">
+        <td style="padding:10px 16px;font-size:13px;color:#1a1a1a;border-bottom:1px solid #ececec;">${escapeHtml(r.name)}</td>
+        <td style="padding:10px 16px;font-size:12px;color:#6b6b6b;border-bottom:1px solid #ececec;white-space:nowrap;">${r.date}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #ececec;">
+          ${
+            r.category
+              ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#fdeceb;color:#c0272d;font-weight:600;font-size:10px;letter-spacing:.04em;text-transform:uppercase;">${escapeHtml(r.category)}</span>`
+              : '<span style="color:#c7c7c7;font-size:12px;">—</span>'
+          }
+        </td>
+      </tr>`
+    )
+    .join('');
+
+  return `
+<div style="background:#eeeeee;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e2e2;">
+    <tr>
+      <td style="background:#111114;padding:20px 28px;">
+        <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc2626;margin-right:8px;vertical-align:middle;"></span>
+        <span style="font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#ffffff;vertical-align:middle;">Invictus</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:24px 28px 4px;">
+        <h1 style="margin:0;font-size:18px;color:#111114;">${escapeHtml(heading)}</h1>
+        <p style="margin:6px 0 0;font-size:13px;color:#6b6b6b;">${escapeHtml(subheading)}</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 0 8px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <th align="left" style="padding:8px 16px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a9a;border-bottom:2px solid #ececec;">Task</th>
+            <th align="left" style="padding:8px 16px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a9a;border-bottom:2px solid #ececec;">Completed</th>
+            <th align="left" style="padding:8px 16px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a9a;border-bottom:2px solid #ececec;">Group</th>
+          </tr>
+          ${rowsHtml}
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 24px;">
+        <p style="margin:0;font-size:11px;color:#a0a0a0;">Sent automatically by Invictus automations.</p>
+      </td>
+    </tr>
+  </table>
+</div>`;
 }
 
 export async function runWeeklyReport(db: Firestore, automation: Automation): Promise<{ detail: string }> {
@@ -90,29 +124,25 @@ export async function runWeeklyReport(db: Firestore, automation: Automation): Pr
         continue;
       }
       const sorted = [...tasks].sort((a, b) => b.completedAt - a.completedAt);
-      const rows = sorted.map((t) => ({
+      const rows: ReportRow[] = sorted.map((t) => ({
         name: t.name,
         date: new Date(t.completedAt).toISOString().slice(0, 10),
         category: t.category || '',
       }));
       const displayName = profile.displayName || profile.name || profile.email;
-      const pdf = buildPdf(`Weekly completed tasks — ${displayName}`, rows);
-      const url = await uploadPdf(`automation-reports/${uid}-${Date.now()}.pdf`, pdf);
-      const result = await sendEmail({
-        to: profile.email,
-        subject: 'Your weekly completed tasks',
-        html: emailBody(
-          `Here's your weekly completed-tasks report — ${tasks.length} task${tasks.length === 1 ? '' : 's'} completed this week.`,
-          url
-        ),
+      const html = reportHtml({
+        heading: 'Weekly completed tasks',
+        subheading: `${displayName} · ${tasks.length} task${tasks.length === 1 ? '' : 's'} completed this week`,
+        rows,
       });
+      const result = await sendEmail({ to: profile.email, subject: 'Your weekly completed tasks', html });
       if (result.ok) sentCount++;
       else errors.push(`${profile.email}: ${result.error}`);
     }
   }
 
   if (automation.recipients === 'digest' || automation.recipients === 'both') {
-    const allRows: { name: string; date: string; category: string }[] = [];
+    const allRows: ReportRow[] = [];
     for (const [uid, tasks] of completedByOwner) {
       const profile = userByUid.get(uid);
       const ownerName = profile?.displayName || profile?.name || uid;
@@ -125,19 +155,15 @@ export async function runWeeklyReport(db: Firestore, automation: Automation): Pr
       }
     }
     allRows.sort((a, b) => (a.date < b.date ? 1 : -1));
-    const pdf = buildPdf('Weekly completed tasks — team digest', allRows);
-    const url = await uploadPdf(`automation-reports/digest-${Date.now()}.pdf`, pdf);
     const digestEmails = automationDigestEmails(automation).length
       ? automationDigestEmails(automation)
       : [MASTER_ADMIN_EMAIL];
-    const result = await sendEmail({
-      to: digestEmails,
-      subject: 'Weekly team digest — completed tasks',
-      html: emailBody(
-        `Team-wide weekly digest — ${allRows.length} task${allRows.length === 1 ? '' : 's'} completed this week across ${completedByOwner.size} people.`,
-        url
-      ),
+    const html = reportHtml({
+      heading: 'Weekly team digest',
+      subheading: `${allRows.length} task${allRows.length === 1 ? '' : 's'} completed this week across ${completedByOwner.size} people`,
+      rows: allRows,
     });
+    const result = await sendEmail({ to: digestEmails, subject: 'Weekly team digest — completed tasks', html });
     if (result.ok) sentCount++;
     else errors.push(`${digestEmails.join(', ')}: ${result.error}`);
   }
