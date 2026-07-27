@@ -80,6 +80,7 @@ export async function runWeeklyReport(db: Firestore, automation: Automation): Pr
 
   let sentCount = 0;
   const skipped: string[] = [];
+  const errors: string[] = [];
 
   if (automation.recipients === 'perUser' || automation.recipients === 'both') {
     for (const [uid, tasks] of completedByOwner) {
@@ -106,6 +107,7 @@ export async function runWeeklyReport(db: Firestore, automation: Automation): Pr
         ),
       });
       if (result.ok) sentCount++;
+      else errors.push(`${profile.email}: ${result.error}`);
     }
   }
 
@@ -135,9 +137,11 @@ export async function runWeeklyReport(db: Firestore, automation: Automation): Pr
       ),
     });
     if (result.ok) sentCount++;
+    else errors.push(`${digestEmail}: ${result.error}`);
   }
 
-  return {
-    detail: `Sent ${sentCount} email(s)${skipped.length ? `, skipped ${skipped.length} (no email on file)` : ''}.`,
-  };
+  const parts = [`Sent ${sentCount} email(s)`];
+  if (skipped.length) parts.push(`skipped ${skipped.length} (no email on file)`);
+  if (errors.length) parts.push(`failed: ${errors.join('; ')}`);
+  return { detail: `${parts.join(', ')}.` };
 }
