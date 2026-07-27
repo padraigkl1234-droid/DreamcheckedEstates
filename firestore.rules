@@ -101,6 +101,12 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // Scheduled automations (e.g. the weekly email report). Master-only —
+    // this is infrastructure configuration, not per-user data.
+    match /automations/{id} {
+      allow read, write: if isMasterAdmin();
+    }
+
     // Connectivity probe.
     match /test/connection {
       allow read: if true;

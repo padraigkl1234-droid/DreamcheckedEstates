@@ -2,6 +2,8 @@ import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { getAuth, type Auth } from 'firebase-admin/auth';
 import { getMessaging, type Messaging } from 'firebase-admin/messaging';
+import { getStorage } from 'firebase-admin/storage';
+import type { Bucket } from '@google-cloud/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Server-side Firebase Admin, used by the Show Board webhook to flip checklist
@@ -39,4 +41,10 @@ export function getAdminAuth(): Auth {
 // Admin Cloud Messaging — used to send push notifications to device tokens.
 export function getAdminMessaging(): Messaging {
   return getMessaging(getAdminApp());
+}
+
+// Admin Storage bucket — used by scheduled automations to store generated
+// files (e.g. weekly report PDFs) and mint signed download links.
+export function getAdminBucket(): Bucket {
+  return getStorage(getAdminApp()).bucket(firebaseConfig.storageBucket);
 }

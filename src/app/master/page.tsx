@@ -2,14 +2,33 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { Crown, RefreshCw, Plus, Copy, Check, X, ShieldOff, ShieldCheck, Trash2, Archive, ArchiveRestore, Loader2, ArrowLeft, ListChecks, ChevronDown } from 'lucide-react';
+import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore';
+import {
+  Crown,
+  RefreshCw,
+  Plus,
+  Copy,
+  Check,
+  X,
+  ShieldOff,
+  ShieldCheck,
+  Trash2,
+  Archive,
+  ArchiveRestore,
+  Loader2,
+  ArrowLeft,
+  ListChecks,
+  ChevronDown,
+  Zap,
+  Play,
+} from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { featureEnabled, profileName, TOGGLEABLE_PAGES, type Team, type UserProfile } from '@/lib/teams';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { db } from '@/lib/firebase';
+import { AUTOMATION_TYPE_LABELS, DAY_LABELS, RECIPIENT_LABELS, type Automation, type AutomationRecipients } from '@/lib/automations';
 
 // Read-only shape — just enough to show status/progress. The master can
 // browse this for oversight, but has no edit/delete controls here; touching
@@ -65,6 +84,65 @@ export default function MasterPage() {
       else next.add(uid);
       return next;
     });
+
+  const [automations, setAutomations] = useState<Automation[]>([]);
+  const [automationBusyId, setAutomationBusyId] = useState<string | null>(null);
+  const [automationMessage, setAutomationMessage] = useState<string | null>(null);
+  const [newDay, setNewDay] = useState(5); // Friday
+  const [newRecipients, setNewRecipients] = useState<AutomationRecipients>('both');
+  const [newDigestEmail, setNewDigestEmail] = useState(MASTER_ADMIN_EMAIL);
+
+  // Automations config (master-only, per the Firestore rule). This is a small
+  // scheduled-jobs library — see src/lib/automations.ts and
+  // src/lib/automationHandlers for how each automation type actually runs.
+  useEffect(() => {
+    if (!isMaster) {
+      setAutomations([]);
+      return;
+    }
+    const unsub = onSnapshot(
+      query(collection(db, 'automations'), orderBy('createdAt', 'desc')),
+      (snap) => setAutomations(snap.docs.map((d) => ({ ...(d.data() as Omit<Automation, 'id'>), id: d.id }))),
+      (error) => console.error('Automations subscription failed:', error)
+    );
+    return unsub;
+  }, [isMaster]);
+
+  const createWeeklyReportAutomation = async () => {
+    await addDoc(collection(db, 'automations'), {
+      name: 'Weekly completed-tasks report',
+      type: 'weeklyReport',
+      enabled: true,
+      dayOfWeek: newDay,
+      recipients: newRecipients,
+      digestEmail: newDigestEmail.trim() || MASTER_ADMIN_EMAIL,
+      createdAt: Date.now(),
+    });
+  };
+
+  const toggleAutomation = (a: Automation) => updateDoc(doc(db, 'automations', a.id), { enabled: !a.enabled });
+  const deleteAutomation = (id: string) => deleteDoc(doc(db, 'automations', id));
+
+  const runAutomationNow = async (id: string) => {
+    if (!user) return;
+    setAutomationBusyId(id);
+    setAutomationMessage(null);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/automations/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || `Request failed (${res.status})`);
+      setAutomationMessage((data as { detail?: string }).detail || 'Done.');
+    } catch (e) {
+      setAutomationMessage(`Failed: ${(e as Error).message}`);
+    } finally {
+      setAutomationBusyId(null);
+    }
+  };
 
   // Read-only oversight: the master account can view (never edit/delete)
   // every task, across every team, for exactly this reason. An unfiltered
@@ -193,6 +271,101 @@ export default function MasterPage() {
           >
             <Plus className="h-4 w-4" /> Create Team
           </button>
+        </div>
+
+        {/* Automations: scheduled jobs (currently just the weekly report) */}
+        <div className="mb-8 border border-neutral-400/25 bg-invictus-surface/60 shadow-glow-subtle">
+          <div className="flex items-center gap-2 border-b border-neutral-400/15 p-4">
+            <Zap className="h-4 w-4 text-invictus-crimson-bright" />
+            <h2 className="font-display text-sm uppercase tracking-[0.15em] text-neutral-100">Automations</h2>
+          </div>
+
+          {automationMessage && <p className="border-b border-neutral-400/15 px-4 py-2 text-xs text-neutral-400">{automationMessage}</p>}
+
+          <div className="divide-y divide-neutral-400/10">
+            {automations.map((a) => (
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm text-neutral-100">{a.name}</p>
+                    <span className="rounded-full border border-neutral-400/25 bg-invictus-base/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-neutral-500">
+                      {AUTOMATION_TYPE_LABELS[a.type]}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-neutral-500">
+                    Runs {DAY_LABELS[a.dayOfWeek]}s (~17:00 UTC) · {RECIPIENT_LABELS[a.recipients]}
+                    {a.lastRunAt ? ` · last ran ${new Date(a.lastRunAt).toLocaleString()}` : ' · never run yet'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => runAutomationNow(a.id)}
+                    disabled={automationBusyId === a.id}
+                    className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-40"
+                    title="Run this automation now, regardless of schedule"
+                  >
+                    {automationBusyId === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                    Run now
+                  </button>
+                  <button
+                    onClick={() => toggleAutomation(a)}
+                    className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest transition-colors ${
+                      a.enabled
+                        ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20'
+                        : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-500 hover:text-neutral-300'
+                    }`}
+                  >
+                    {a.enabled ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                    {a.enabled ? 'Enabled' : 'Disabled'}
+                  </button>
+                  <button
+                    onClick={() => deleteAutomation(a.id)}
+                    className="rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-colors hover:bg-alert/20"
+                    title="Delete this automation"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {automations.length === 0 && <p className="px-4 py-6 text-center text-xs text-neutral-600">No automations configured yet.</p>}
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3 border-t border-neutral-400/15 p-4">
+            <div className="w-40">
+              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Day</label>
+              <InvictusSelect
+                value={String(newDay)}
+                onChange={(v) => setNewDay(Number(v))}
+                className="bg-invictus-base/60"
+                options={DAY_LABELS.map((label, i) => ({ value: String(i), label }))}
+              />
+            </div>
+            <div className="w-56">
+              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Recipients</label>
+              <InvictusSelect
+                value={newRecipients}
+                onChange={(v) => setNewRecipients(v as AutomationRecipients)}
+                className="bg-invictus-base/60"
+                options={Object.entries(RECIPIENT_LABELS).map(([value, label]) => ({ value, label }))}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Digest email</label>
+              <input
+                value={newDigestEmail}
+                onChange={(e) => setNewDigestEmail(e.target.value)}
+                placeholder={MASTER_ADMIN_EMAIL}
+                className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+              />
+            </div>
+            <button
+              onClick={createWeeklyReportAutomation}
+              className="flex items-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20"
+            >
+              <Plus className="h-4 w-4" /> Add weekly report
+            </button>
+          </div>
         </div>
 
         {loading && teams.length === 0 ? (
