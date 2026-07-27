@@ -39,7 +39,7 @@ export function Navbar() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <Pinwheel className="h-6 w-6 shrink-0 text-foreground" />
-          <span className="text-lg font-bold uppercase tracking-[0.15em] text-foreground">Invictus</span>
+          <span className="truncate text-lg font-bold uppercase tracking-[0.15em] text-foreground">{team?.name || 'Invictus'}</span>
         </div>
 
         <div className="flex items-center gap-2">
