@@ -38,7 +38,7 @@ export function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-40 border-b bg-background/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          <Pinwheel className="h-6 w-6 shrink-0 text-foreground" />
+          <Pinwheel className="h-6 w-6 shrink-0 animate-none text-foreground" />
           <span className="truncate text-lg font-bold uppercase tracking-[0.15em] text-foreground">{team?.name || 'Invictus'}</span>
         </div>
 
