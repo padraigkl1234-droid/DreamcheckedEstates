@@ -17,6 +17,7 @@ interface UserDoc {
   name?: string;
   displayName?: string;
   email?: string;
+  teamId?: string;
 }
 
 interface CompletedTask {
@@ -105,12 +106,24 @@ export async function runWeeklyReport(db: Firestore, automation: Automation): Pr
     completedByOwner.set(t.ownerUid, list);
   });
 
-  if (completedByOwner.size === 0) {
-    return { detail: 'No tasks completed in the last 7 days — nothing sent.' };
-  }
-
   const usersSnap = await db.collection('users').get();
   const userByUid = new Map(usersSnap.docs.map((d) => [d.id, d.data() as UserDoc]));
+
+  // Scope to one team, if this automation is limited to one — drop any
+  // owner who isn't a member of it before anything else runs.
+  if (automation.teamId) {
+    for (const uid of [...completedByOwner.keys()]) {
+      if (userByUid.get(uid)?.teamId !== automation.teamId) completedByOwner.delete(uid);
+    }
+  }
+
+  if (completedByOwner.size === 0) {
+    return {
+      detail: automation.teamId
+        ? `No tasks completed in the last 7 days for ${automation.teamName || 'this team'} — nothing sent.`
+        : 'No tasks completed in the last 7 days — nothing sent.',
+    };
+  }
 
   let sentCount = 0;
   const skipped: string[] = [];
@@ -159,7 +172,7 @@ export async function runWeeklyReport(db: Firestore, automation: Automation): Pr
       ? automationDigestEmails(automation)
       : [MASTER_ADMIN_EMAIL];
     const html = reportHtml({
-      heading: 'Weekly team digest',
+      heading: automation.teamName ? `Weekly digest — ${automation.teamName}` : 'Weekly team digest',
       subheading: `${allRows.length} task${allRows.length === 1 ? '' : 's'} completed this week across ${completedByOwner.size} people`,
       rows: allRows,
     });

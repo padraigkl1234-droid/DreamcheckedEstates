@@ -21,6 +21,11 @@ export interface Automation {
   enabled: boolean;
   dayOfWeek: number; // 0 (Sun) – 6 (Sat), evaluated in UTC
   recipients: AutomationRecipients;
+  // null/absent = every team (master-wide). Scoping to one team only counts
+  // completed tasks owned by that team's members. teamName is denormalized
+  // purely for display, so the row doesn't need a Firestore join to show it.
+  teamId?: string | null;
+  teamName?: string | null;
   digestEmails: string[];
   /** @deprecated superseded by digestEmails (single-address docs from before
    * multi-recipient support) — read through automationDigestEmails(), never

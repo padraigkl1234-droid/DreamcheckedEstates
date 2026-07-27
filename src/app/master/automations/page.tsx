@@ -9,6 +9,7 @@ import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { db } from '@/lib/firebase';
+import type { Team } from '@/lib/teams';
 import {
   AUTOMATION_TYPE_LABELS,
   DAY_LABELS,
@@ -22,11 +23,13 @@ export default function AutomationsPage() {
   const { user } = useAuth();
   const { isMaster } = useProfile();
 
+  const [teams, setTeams] = useState<Team[]>([]);
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [automationBusyId, setAutomationBusyId] = useState<string | null>(null);
   const [automationMessage, setAutomationMessage] = useState<string | null>(null);
   const [newDay, setNewDay] = useState(5); // Friday
   const [newRecipients, setNewRecipients] = useState<AutomationRecipients>('both');
+  const [newTeamId, setNewTeamId] = useState(''); // '' = every team
   const [newDigestEmails, setNewDigestEmails] = useState<string[]>([MASTER_ADMIN_EMAIL]);
   const [newEmailDraft, setNewEmailDraft] = useState('');
   const [rowEmailDraft, setRowEmailDraft] = useState<Record<string, string>>({});
@@ -55,22 +58,40 @@ export default function AutomationsPage() {
     return unsub;
   }, [isMaster]);
 
+  // Teams list, just for the scope dropdown below.
+  useEffect(() => {
+    if (!isMaster) {
+      setTeams([]);
+      return;
+    }
+    const unsub = onSnapshot(
+      collection(db, 'teams'),
+      (snap) => setTeams(snap.docs.map((d) => ({ ...(d.data() as Omit<Team, 'id'>), id: d.id }))),
+      (error) => console.error('Teams subscription failed:', error)
+    );
+    return unsub;
+  }, [isMaster]);
+
   const createWeeklyReportAutomation = async () => {
     // Fold in whatever's still sitting in the text box (typed but never
     // committed with Enter/+) so it's never silently dropped.
     const draft = newEmailDraft.trim();
     const emails = draft && !newDigestEmails.includes(draft) ? [...newDigestEmails, draft] : newDigestEmails;
+    const team = newTeamId ? teams.find((t) => t.id === newTeamId) : undefined;
     await addDoc(collection(db, 'automations'), {
       name: 'Weekly completed-tasks report',
       type: 'weeklyReport',
       enabled: true,
       dayOfWeek: newDay,
       recipients: newRecipients,
+      teamId: newTeamId || null,
+      teamName: team?.name ?? null,
       digestEmails: emails.length ? emails : [MASTER_ADMIN_EMAIL],
       createdAt: Date.now(),
     });
     setNewDigestEmails([MASTER_ADMIN_EMAIL]);
     setNewEmailDraft('');
+    setNewTeamId('');
   };
 
   const toggleAutomation = (a: Automation) => updateDoc(doc(db, 'automations', a.id), { enabled: !a.enabled });
@@ -156,7 +177,7 @@ export default function AutomationsPage() {
                     </span>
                   </div>
                   <p className="text-[11px] text-neutral-500">
-                    Runs {DAY_LABELS[a.dayOfWeek]}s (~17:00 UTC) · {RECIPIENT_LABELS[a.recipients]}
+                    Runs {DAY_LABELS[a.dayOfWeek]}s (~17:00 UTC) · {a.teamName || 'All teams'} · {RECIPIENT_LABELS[a.recipients]}
                     {a.lastRunAt ? ` · last ran ${new Date(a.lastRunAt).toLocaleString()}` : ' · never run yet'}
                   </p>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -243,6 +264,15 @@ export default function AutomationsPage() {
                 onChange={(v) => setNewDay(Number(v))}
                 className="bg-invictus-base/60"
                 options={DAY_LABELS.map((label, i) => ({ value: String(i), label }))}
+              />
+            </div>
+            <div className="w-48">
+              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Team</label>
+              <InvictusSelect
+                value={newTeamId}
+                onChange={setNewTeamId}
+                className="bg-invictus-base/60"
+                options={[{ value: '', label: 'All teams' }, ...teams.map((t) => ({ value: t.id, label: t.name }))]}
               />
             </div>
             <div className="w-56">
