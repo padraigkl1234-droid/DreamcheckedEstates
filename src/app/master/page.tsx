@@ -126,13 +126,17 @@ export default function MasterPage() {
   }, [isMaster]);
 
   const createWeeklyReportAutomation = async () => {
+    // Fold in whatever's still sitting in the text box (typed but never
+    // committed with Enter/+) so it's never silently dropped.
+    const draft = newEmailDraft.trim();
+    const emails = draft && !newDigestEmails.includes(draft) ? [...newDigestEmails, draft] : newDigestEmails;
     await addDoc(collection(db, 'automations'), {
       name: 'Weekly completed-tasks report',
       type: 'weeklyReport',
       enabled: true,
       dayOfWeek: newDay,
       recipients: newRecipients,
-      digestEmails: newDigestEmails.length ? newDigestEmails : [MASTER_ADMIN_EMAIL],
+      digestEmails: emails.length ? emails : [MASTER_ADMIN_EMAIL],
       createdAt: Date.now(),
     });
     setNewDigestEmails([MASTER_ADMIN_EMAIL]);
@@ -352,9 +356,24 @@ export default function MasterPage() {
                           setRowEmailDraft((prev) => ({ ...prev, [a.id]: '' }));
                         }
                       }}
-                      placeholder="+ add email"
+                      onBlur={() => {
+                        if (!(rowEmailDraft[a.id] ?? '').trim()) return;
+                        addDigestEmail(a, rowEmailDraft[a.id] ?? '');
+                        setRowEmailDraft((prev) => ({ ...prev, [a.id]: '' }));
+                      }}
+                      placeholder="add email…"
                       className="w-28 rounded-full border border-neutral-400/20 bg-transparent px-2 py-0.5 text-[10px] text-neutral-300 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none"
                     />
+                    <button
+                      onClick={() => {
+                        addDigestEmail(a, rowEmailDraft[a.id] ?? '');
+                        setRowEmailDraft((prev) => ({ ...prev, [a.id]: '' }));
+                      }}
+                      className="rounded-full border border-neutral-400/25 bg-invictus-base/60 p-1 text-neutral-400 hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                      title="Add this email"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -433,9 +452,17 @@ export default function MasterPage() {
                       addNewDigestEmail();
                     }
                   }}
-                  placeholder="email + Enter"
+                  onBlur={addNewDigestEmail}
+                  placeholder="add email…"
                   className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none"
                 />
+                <button
+                  onClick={addNewDigestEmail}
+                  className="rounded-full border border-neutral-400/25 bg-invictus-surface p-1 text-neutral-400 hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                  title="Add this email"
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
               </div>
             </div>
             <button
