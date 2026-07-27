@@ -4,7 +4,7 @@ import autoTable from 'jspdf-autotable';
 import { getAdminBucket } from '@/lib/firebaseAdmin';
 import { sendEmail } from '@/lib/email';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
-import type { Automation } from '@/lib/automations';
+import { automationDigestEmails, type Automation } from '@/lib/automations';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const LINK_TTL_MS = 30 * DAY_MS;
@@ -127,9 +127,11 @@ export async function runWeeklyReport(db: Firestore, automation: Automation): Pr
     allRows.sort((a, b) => (a.date < b.date ? 1 : -1));
     const pdf = buildPdf('Weekly completed tasks — team digest', allRows);
     const url = await uploadPdf(`automation-reports/digest-${Date.now()}.pdf`, pdf);
-    const digestEmail = automation.digestEmail || MASTER_ADMIN_EMAIL;
+    const digestEmails = automationDigestEmails(automation).length
+      ? automationDigestEmails(automation)
+      : [MASTER_ADMIN_EMAIL];
     const result = await sendEmail({
-      to: digestEmail,
+      to: digestEmails,
       subject: 'Weekly team digest — completed tasks',
       html: emailBody(
         `Team-wide weekly digest — ${allRows.length} task${allRows.length === 1 ? '' : 's'} completed this week across ${completedByOwner.size} people.`,
@@ -137,7 +139,7 @@ export async function runWeeklyReport(db: Firestore, automation: Automation): Pr
       ),
     });
     if (result.ok) sentCount++;
-    else errors.push(`${digestEmail}: ${result.error}`);
+    else errors.push(`${digestEmails.join(', ')}: ${result.error}`);
   }
 
   const parts = [`Sent ${sentCount} email(s)`];

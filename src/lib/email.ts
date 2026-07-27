@@ -6,7 +6,7 @@
 // dashboard to send to arbitrary recipients.
 
 export interface SendEmailInput {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
 }

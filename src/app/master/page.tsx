@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore';
 import {
   Crown,
   RefreshCw,
@@ -28,7 +28,14 @@ import { InvictusSelect } from '@/components/InvictusSelect';
 import { featureEnabled, profileName, TOGGLEABLE_PAGES, type Team, type UserProfile } from '@/lib/teams';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { db } from '@/lib/firebase';
-import { AUTOMATION_TYPE_LABELS, DAY_LABELS, RECIPIENT_LABELS, type Automation, type AutomationRecipients } from '@/lib/automations';
+import {
+  AUTOMATION_TYPE_LABELS,
+  DAY_LABELS,
+  RECIPIENT_LABELS,
+  automationDigestEmails,
+  type Automation,
+  type AutomationRecipients,
+} from '@/lib/automations';
 
 // Read-only shape — just enough to show status/progress. The master can
 // browse this for oversight, but has no edit/delete controls here; touching
@@ -90,7 +97,17 @@ export default function MasterPage() {
   const [automationMessage, setAutomationMessage] = useState<string | null>(null);
   const [newDay, setNewDay] = useState(5); // Friday
   const [newRecipients, setNewRecipients] = useState<AutomationRecipients>('both');
-  const [newDigestEmail, setNewDigestEmail] = useState(MASTER_ADMIN_EMAIL);
+  const [newDigestEmails, setNewDigestEmails] = useState<string[]>([MASTER_ADMIN_EMAIL]);
+  const [newEmailDraft, setNewEmailDraft] = useState('');
+  const [rowEmailDraft, setRowEmailDraft] = useState<Record<string, string>>({});
+
+  const addNewDigestEmail = () => {
+    const email = newEmailDraft.trim();
+    if (!email) return;
+    setNewDigestEmails((prev) => (prev.includes(email) ? prev : [...prev, email]));
+    setNewEmailDraft('');
+  };
+  const removeNewDigestEmail = (email: string) => setNewDigestEmails((prev) => prev.filter((e) => e !== email));
 
   // Automations config (master-only, per the Firestore rule). This is a small
   // scheduled-jobs library — see src/lib/automations.ts and
@@ -115,13 +132,30 @@ export default function MasterPage() {
       enabled: true,
       dayOfWeek: newDay,
       recipients: newRecipients,
-      digestEmail: newDigestEmail.trim() || MASTER_ADMIN_EMAIL,
+      digestEmails: newDigestEmails.length ? newDigestEmails : [MASTER_ADMIN_EMAIL],
       createdAt: Date.now(),
     });
+    setNewDigestEmails([MASTER_ADMIN_EMAIL]);
+    setNewEmailDraft('');
   };
 
   const toggleAutomation = (a: Automation) => updateDoc(doc(db, 'automations', a.id), { enabled: !a.enabled });
   const deleteAutomation = (id: string) => deleteDoc(doc(db, 'automations', id));
+
+  // Both writes also clear the legacy singular `digestEmail` field so an
+  // automation created before multi-recipient support migrates cleanly the
+  // first time its recipient list is touched.
+  const addDigestEmail = (a: Automation, rawEmail: string) => {
+    const email = rawEmail.trim();
+    if (!email) return;
+    const current = automationDigestEmails(a);
+    if (current.includes(email)) return;
+    return updateDoc(doc(db, 'automations', a.id), { digestEmails: [...current, email], digestEmail: deleteField() });
+  };
+  const removeDigestEmail = (a: Automation, email: string) => {
+    const current = automationDigestEmails(a).filter((e) => e !== email);
+    return updateDoc(doc(db, 'automations', a.id), { digestEmails: current, digestEmail: deleteField() });
+  };
 
   const runAutomationNow = async (id: string) => {
     if (!user) return;
@@ -296,6 +330,32 @@ export default function MasterPage() {
                     Runs {DAY_LABELS[a.dayOfWeek]}s (~17:00 UTC) · {RECIPIENT_LABELS[a.recipients]}
                     {a.lastRunAt ? ` · last ran ${new Date(a.lastRunAt).toLocaleString()}` : ' · never run yet'}
                   </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {automationDigestEmails(a).map((email) => (
+                      <span
+                        key={email}
+                        className="flex items-center gap-1 rounded-full border border-neutral-400/25 bg-invictus-base/60 px-2 py-0.5 text-[10px] text-neutral-300"
+                      >
+                        {email}
+                        <button onClick={() => removeDigestEmail(a, email)} className="text-neutral-500 hover:text-alert" title="Remove this email">
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      value={rowEmailDraft[a.id] ?? ''}
+                      onChange={(e) => setRowEmailDraft((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addDigestEmail(a, rowEmailDraft[a.id] ?? '');
+                          setRowEmailDraft((prev) => ({ ...prev, [a.id]: '' }));
+                        }
+                      }}
+                      placeholder="+ add email"
+                      className="w-28 rounded-full border border-neutral-400/20 bg-transparent px-2 py-0.5 text-[10px] text-neutral-300 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none"
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
@@ -350,14 +410,33 @@ export default function MasterPage() {
                 options={Object.entries(RECIPIENT_LABELS).map(([value, label]) => ({ value, label }))}
               />
             </div>
-            <div className="min-w-0 flex-1">
-              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Digest email</label>
-              <input
-                value={newDigestEmail}
-                onChange={(e) => setNewDigestEmail(e.target.value)}
-                placeholder={MASTER_ADMIN_EMAIL}
-                className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
-              />
+            <div className="min-w-[16rem] flex-1">
+              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Digest emails</label>
+              <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5">
+                {newDigestEmails.map((email) => (
+                  <span
+                    key={email}
+                    className="flex items-center gap-1 rounded-full border border-neutral-400/25 bg-invictus-surface px-2 py-0.5 text-[10px] text-neutral-300"
+                  >
+                    {email}
+                    <button onClick={() => removeNewDigestEmail(email)} className="text-neutral-500 hover:text-alert" title="Remove this email">
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  value={newEmailDraft}
+                  onChange={(e) => setNewEmailDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addNewDigestEmail();
+                    }
+                  }}
+                  placeholder="email + Enter"
+                  className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:outline-none"
+                />
+              </div>
             </div>
             <button
               onClick={createWeeklyReportAutomation}

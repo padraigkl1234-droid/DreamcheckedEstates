@@ -1,5 +1,5 @@
 // Shared types for the automations engine: a small library of scheduled
-// jobs (Firestore docs under /automations) that a single hourly cron
+// jobs (Firestore docs under /automations) that a single daily cron
 // (/api/cron/automations) checks and runs when due. New automation types are
 // added by (1) adding a variant here, (2) a handler under
 // src/lib/automationHandlers, and (3) a case in automationHandlers/registry.ts
@@ -21,11 +21,22 @@ export interface Automation {
   enabled: boolean;
   dayOfWeek: number; // 0 (Sun) – 6 (Sat), evaluated in UTC
   recipients: AutomationRecipients;
-  digestEmail: string;
+  digestEmails: string[];
+  /** @deprecated superseded by digestEmails (single-address docs from before
+   * multi-recipient support) — read through automationDigestEmails(), never
+   * directly. */
+  digestEmail?: string;
   lastRunKey?: string | null;
   lastRunAt?: number | null;
   lastRunDetail?: string | null;
   createdAt?: number;
+}
+
+// The one place that knows how to read a digest recipient list off an
+// automation doc, including ones created before multi-recipient support.
+export function automationDigestEmails(a: Pick<Automation, 'digestEmails' | 'digestEmail'>): string[] {
+  if (a.digestEmails?.length) return a.digestEmails;
+  return a.digestEmail ? [a.digestEmail] : [];
 }
 
 export const AUTOMATION_TYPE_LABELS: Record<AutomationType, string> = {
