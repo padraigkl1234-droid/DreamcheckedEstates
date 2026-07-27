@@ -1,9 +1,11 @@
-// Thin wrapper around the Resend REST API (no SDK dependency needed for a
-// single "send this email" call). Used by scheduled automations to deliver
-// reports. Requires RESEND_API_KEY; without a verified sending domain,
-// Resend's shared address only delivers to the account's own verified email —
-// set RESEND_FROM_EMAIL once a custom domain is verified in the Resend
-// dashboard to send to arbitrary recipients.
+import nodemailer, { type Transporter } from 'nodemailer';
+
+// Sends mail via Gmail SMTP using an account you control — no domain
+// verification needed, unlike Resend/SendGrid's default sandbox mode, so it
+// can deliver to any recipient immediately. Requires GMAIL_USER (the sending
+// Gmail address) and GMAIL_APP_PASSWORD (a 16-character App Password from
+// myaccount.google.com/apppasswords — only available once 2-Step
+// Verification is on; your normal Google password won't work here).
 
 export interface SendEmailInput {
   to: string | string[];
@@ -17,25 +19,30 @@ export interface SendEmailResult {
   error?: string;
 }
 
+let cachedTransporter: Transporter | null = null;
+
+function getTransporter(user: string, pass: string): Transporter {
+  if (cachedTransporter) return cachedTransporter;
+  cachedTransporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
+  return cachedTransporter;
+}
+
 export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<SendEmailResult> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY not configured' };
-  const from = process.env.RESEND_FROM_EMAIL || 'Invictus <onboarding@resend.dev>';
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) return { ok: false, error: 'GMAIL_USER / GMAIL_APP_PASSWORD not configured' };
 
   try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ from, to, subject, html }),
+    const info = await getTransporter(user, pass).sendMail({
+      from: `Invictus <${user}>`,
+      to,
+      subject,
+      html,
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return { ok: false, error: (data as { message?: string }).message || `Resend error (${res.status})` };
-    }
-    return { ok: true, id: (data as { id?: string }).id };
+    return { ok: true, id: info.messageId };
   } catch (error) {
     return { ok: false, error: (error as Error).message };
   }
