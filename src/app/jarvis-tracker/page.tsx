@@ -2098,6 +2098,11 @@ function zoneContains(z: SiteZone, px: number, py: number): boolean {
 const SITE_FEATURES: { label: string; zone: SiteZone; poly: Pt[]; cx: number; cy: number }[] =
   SITE_ZONES.map((z) => ({ label: z.label, zone: z, poly: zoneCorners(z), cx: z.x + z.w / 2, cy: z.y + z.h / 2 }));
 
+// The named places a task can be pinned to from Task Manager, where there's no
+// map to click. Grid references stay map-only — there are hundreds of them and
+// they mean nothing in a dropdown.
+const SITE_AREA_NAMES: string[] = Array.from(new Set(SITE_ZONES.map((z) => z.label))).sort();
+
 // 50 x 50 squares. Fine enough that each food-court unit gets a square of its
 // own — a coarser grid lumped several of them into one.
 const MAP_W = 1300;
@@ -3163,6 +3168,7 @@ function TaskManager({
       priority: Priority;
       dueDate: string;
       category: string;
+      area: string;
       pendingUids: string[];
       pendingNames: Record<string, string>;
     }
@@ -3212,9 +3218,11 @@ function TaskManager({
   const [quickNotes, setQuickNotes] = useState('');
   const [quickCategory, setQuickCategory] = useState('');
   const [quickAssigneeUids, setQuickAssigneeUids] = useState<string[]>([]);
+  const [quickArea, setQuickArea] = useState('');
   const [showQuickNotes, setShowQuickNotes] = useState(false);
   const [showQuickGroup, setShowQuickGroup] = useState(false);
   const [showQuickAssign, setShowQuickAssign] = useState(false);
+  const [showQuickArea, setShowQuickArea] = useState(false);
   const toggleQuickAssignee = (uid: string) =>
     setQuickAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
   const { playConfirm } = useSound();
@@ -3260,6 +3268,7 @@ function TaskManager({
   const [editPriority, setEditPriority] = useState<Priority>('Medium');
   const [editDueDate, setEditDueDate] = useState('');
   const [editCategory, setEditCategory] = useState('');
+  const [editArea, setEditArea] = useState('');
   const [editAssigneeUids, setEditAssigneeUids] = useState<string[]>([]);
   const toggleEditAssignee = (uid: string) =>
     setEditAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
@@ -3271,6 +3280,7 @@ function TaskManager({
     setEditPriority(task.priority);
     setEditDueDate(task.dueDate);
     setEditCategory(task.category ?? '');
+    setEditArea(task.area ?? '');
     setEditAssigneeUids(task.pendingUids ?? []);
   };
   const saveEdit = (task: Task) => {
@@ -3282,6 +3292,7 @@ function TaskManager({
       priority: editPriority,
       dueDate: editDueDate,
       category: editCategory.trim(),
+      area: editArea,
       pendingUids: assignees.map((a) => a.uid),
       pendingNames: Object.fromEntries(assignees.map((a) => [a.uid, a.name])),
     });
@@ -3404,6 +3415,7 @@ function TaskManager({
       status: 'Not Started',
       ...(quickNotes.trim() ? { notes: quickNotes.trim() } : {}),
       ...(quickCategory.trim() ? { category: quickCategory.trim() } : {}),
+      ...(quickArea ? { area: quickArea } : {}),
       ...(assignees.length
         ? {
             pendingUids: assignees.map((a) => a.uid),
@@ -3418,9 +3430,11 @@ function TaskManager({
     setQuickNotes('');
     setQuickCategory('');
     setQuickAssigneeUids([]);
+    setQuickArea('');
     setShowQuickNotes(false);
     setShowQuickGroup(false);
     setShowQuickAssign(false);
+    setShowQuickArea(false);
   };
 
   const FILTER_TABS: { key: 'all' | 'overdue' | TaskStatus; label: string; count: number }[] = [
@@ -3471,6 +3485,17 @@ function TaskManager({
           <option key={c} value={c} />
         ))}
       </datalist>
+      {/* Editing is also the way to move a task that's in the wrong place —
+          the site map only ever adopts tasks that have no location yet. */}
+      <div className="sm:col-span-2 lg:col-span-2">
+        <InvictusSelect
+          value={editArea}
+          onChange={setEditArea}
+          title="Location on the site map"
+          className="bg-invictus-base/60"
+          options={[{ value: '', label: 'No location' }, ...SITE_AREA_NAMES.map((a) => ({ value: a, label: a }))]}
+        />
+      </div>
       <div className="sm:col-span-2 lg:col-span-6">
         <p className="mb-1.5 text-[10px] uppercase tracking-widest text-neutral-600">
           Assign to teammates (optional — each has to accept)
@@ -4122,6 +4147,19 @@ function TaskManager({
         </button>
         <button
           type="button"
+          onClick={() => setShowQuickArea((v) => !v)}
+          title="Pin this task to a place on the site map (optional)"
+          className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+            showQuickArea || quickArea
+              ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
+              : 'border-neutral-400/20 bg-invictus-raised text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          <MapPin className="h-3.5 w-3.5" />
+          {quickArea || 'Location'}
+        </button>
+        <button
+          type="button"
           onClick={() => setShowQuickNotes((v) => !v)}
           title="Add a description (optional)"
           className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
@@ -4165,6 +4203,24 @@ function TaskManager({
                 <option key={c} value={c} />
               ))}
             </datalist>
+          </div>
+        )}
+        {showQuickArea && (
+          <div className="w-full border-t border-neutral-400/15 pt-3">
+            <p className="mb-1.5 text-[10px] uppercase tracking-widest text-neutral-600">
+              Location on the site map (optional — its materials count towards that area&apos;s cost)
+            </p>
+            <div className="max-w-xs">
+              <InvictusSelect
+                value={quickArea}
+                onChange={setQuickArea}
+                className="bg-invictus-raised"
+                options={[
+                  { value: '', label: 'No location' },
+                  ...SITE_AREA_NAMES.map((a) => ({ value: a, label: a })),
+                ]}
+              />
+            </div>
           </div>
         )}
         {showQuickNotes && (
@@ -5323,6 +5379,7 @@ function InvictusTracker() {
       priority: Priority;
       dueDate: string;
       category: string;
+      area: string;
       pendingUids: string[];
       pendingNames: Record<string, string>;
     }
