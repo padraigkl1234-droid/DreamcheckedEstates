@@ -115,6 +115,7 @@ interface Task {
   images?: TaskImage[]; // photos attached to the task
   materials?: TaskMaterial[]; // parts/products needed to do the task
   updates?: TaskUpdate[]; // timestamped additions to the description, oldest first
+  source?: 'estateRequest'; // created by an intake webhook rather than a person
   area?: string; // Dreamland site-map zone this task is pinned to, if any
   // --- Sharing (tasks live in a shared `tasks` collection, private by default) ---
   ownerUid?: string;
@@ -4977,9 +4978,30 @@ function InvictusTracker() {
   };
   const handleDeclineOffer = (id: string) => {
     if (!user) return;
+    const myName = user.displayName || user.email || 'Unknown';
+    const task = taskOffers.find((t) => t.id === id) ?? tasks.find((t) => t.id === id);
+    const stillPending = (task?.pendingUids ?? []).filter((uid) => uid !== user.uid);
+    // The owner of an intake request is the requests inbox, not a person who
+    // wanted it done — so once everyone offered it has declined and nobody has
+    // accepted, there's no one it belongs to. Archive it (rather than delete)
+    // so it's out of the task list but still recoverable and auditable.
+    const acceptedByOthers = (task?.participants ?? []).filter((uid) => uid !== task?.ownerUid);
+    const abandoned =
+      task?.source === 'estateRequest' && stillPending.length === 0 && acceptedByOthers.length === 0;
+
     updateDoc(doc(db, 'tasks', id), {
       pendingUids: arrayRemove(user.uid),
       [`pendingNames.${user.uid}`]: deleteField(),
+      ...(abandoned ? { archived: true, archivedAt: Date.now() } : {}),
+      updates: arrayUnion({
+        id: genId(),
+        text: abandoned
+          ? `${myName} declined this request. No one else was offered it, so it's been archived.`
+          : `${myName} declined this request.`,
+        at: Date.now(),
+        byUid: user.uid,
+        byName: myName,
+      }),
     }).catch(logTaskError('decline task offer'));
   };
 

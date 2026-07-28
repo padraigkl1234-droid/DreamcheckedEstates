@@ -182,6 +182,10 @@ export async function POST(req: Request) {
       status: 'Not Started',
       notes,
       category: 'Estate Request',
+      // Marks this as intake-created, so declining it archives the request
+      // instead of leaving it sitting with the inbox owner (see
+      // handleDeclineOffer).
+      source: 'estateRequest',
       createdAt: Date.now(),
       ownerUid,
       ownerName,
