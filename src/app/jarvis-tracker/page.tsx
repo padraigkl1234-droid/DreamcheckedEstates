@@ -1983,6 +1983,8 @@ interface SiteZone {
   rot?: number;       // box rotation (deg)
   labelRot?: number;  // text rotation (deg) — defaults to rot
   labelSize?: number; // font-size override, for units too small for the default
+  labelLines?: string[]; // wrap the label over several lines to fit a narrow box
+  shape?: 'ellipse';  // drawn (and hit-tested) as an oval rather than a box
   tone?: ZoneTone;
   noBadge?: boolean;  // skip task badge (for duplicate-labelled boxes)
 }
@@ -1999,16 +2001,22 @@ const SITE_ZONES: SiteZone[] = [
   { label: 'Ingress', x: 176, y: 152, w: 152, h: 45, tone: 'area' },
   { label: 'Roller Area', x: 138, y: 205, w: 188, h: 63, tone: 'area' },
   { label: 'Transit Area', x: 170, y: 287, w: 93, h: 57, tone: 'area' },
-  { label: 'Food Court', x: 198, y: 352, w: 100, h: 183, tone: 'area' },
   // Food-court outlets, ringing the central seating area as on the site plan:
   // the four units across the top, the two Peppermint bars along the bottom.
-  { label: 'Please Sir', x: 201, y: 356, w: 45, h: 20, rot: -10, tone: 'building', labelSize: 5.5 },
-  { label: 'Kerb Bar', x: 250, y: 356, w: 45, h: 20, rot: -6, tone: 'building', labelSize: 5.5 },
-  { label: 'Birdie Macs', x: 201, y: 384, w: 45, h: 20, rot: -3, tone: 'building', labelSize: 5.5 },
-  { label: 'Beastie Baos', x: 250, y: 384, w: 45, h: 20, rot: 4, tone: 'building', labelSize: 5.5 },
-  // Wider than the units above — the longest name needs the room.
-  { label: 'Peppermint Bar', x: 199, y: 505, w: 49, h: 20, tone: 'building', labelSize: 5.2 },
-  { label: 'Peppermint Bar', x: 249, y: 505, w: 49, h: 20, tone: 'building', labelSize: 5.2, noBadge: true },
+  // Each is sized and placed to own exactly one grid square (they sit on the
+  // centres of cols 4-5, rows 7-8 and 10), and they're listed *before* the
+  // Food Court so a square resolves to the unit standing on it rather than to
+  // the area around it.
+  // 44 x 36 centred on a square's middle: small enough that even rotated its
+  // corners stay inside that one square, so it never claims a neighbour's.
+  { label: 'Please Sir', x: 203, y: 357, w: 44, h: 36, rot: -8, tone: 'building', labelSize: 5.5 },
+  { label: 'Kerb Bar', x: 253, y: 357, w: 44, h: 36, rot: -5, tone: 'building', labelSize: 5.5 },
+  { label: 'Birdie Macs', x: 203, y: 407, w: 44, h: 36, rot: -3, tone: 'building', labelSize: 5.5 },
+  { label: 'Beastie Baos', x: 253, y: 407, w: 44, h: 36, rot: 4, tone: 'building', labelSize: 5.2 },
+  { label: 'Peppermint Bar', x: 203, y: 507, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'] },
+  { label: 'Peppermint Bar', x: 253, y: 507, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'], noBadge: true },
+  // The seating area itself is an oval on the plan, not a box.
+  { label: 'Food Court', x: 196, y: 348, w: 104, h: 204, shape: 'ellipse', tone: 'area' },
   { label: 'Scenic Stage', x: 301, y: 352, w: 42, h: 183, tone: 'area', labelRot: -90 },
   { label: 'Scenic Railway', x: 346, y: 352, w: 59, h: 185, tone: 'area', labelRot: -90 },
   { label: 'Scenic Railway', x: 341, y: 214, w: 62, h: 89, tone: 'area', labelRot: -90, noBadge: true },
@@ -2051,14 +2059,32 @@ function zoneCorners(z: SiteZone): Pt[] {
   return local.map(([dx, dy]) => [cx + dx * c - dy * s, cy + dx * s + dy * c] as Pt);
 }
 
-const SITE_FEATURES: { label: string; poly: Pt[]; cx: number; cy: number }[] =
-  SITE_ZONES.map((z) => ({ label: z.label, poly: zoneCorners(z), cx: z.x + z.w / 2, cy: z.y + z.h / 2 }));
+// Whether a point falls inside a zone, honouring both the box and oval shapes.
+function zoneContains(z: SiteZone, px: number, py: number): boolean {
+  const cx = z.x + z.w / 2;
+  const cy = z.y + z.h / 2;
+  if (z.shape === 'ellipse') {
+    const t = ((z.rot ?? 0) * Math.PI) / 180;
+    const dx = px - cx;
+    const dy = py - cy;
+    // Rotate the point into the ellipse's own axes, then the unit-circle test.
+    const lx = dx * Math.cos(t) + dy * Math.sin(t);
+    const ly = -dx * Math.sin(t) + dy * Math.cos(t);
+    return (lx / (z.w / 2)) ** 2 + (ly / (z.h / 2)) ** 2 <= 1;
+  }
+  return pointInPolygon(px, py, zoneCorners(z));
+}
 
-const GRID_COLS = 14;
-const GRID_ROWS = 12;
+const SITE_FEATURES: { label: string; zone: SiteZone; poly: Pt[]; cx: number; cy: number }[] =
+  SITE_ZONES.map((z) => ({ label: z.label, zone: z, poly: zoneCorners(z), cx: z.x + z.w / 2, cy: z.y + z.h / 2 }));
+
+// 50 x 50 squares. Fine enough that each food-court unit gets a square of its
+// own — a coarser grid lumped several of them into one.
+const GRID_COLS = 20;
+const GRID_ROWS = 18;
 const CELL_W = 1000 / GRID_COLS;
 const CELL_H = 900 / GRID_ROWS;
-const COL_LETTERS = 'ABCDEFGHIJKLMN';
+const COL_LETTERS = 'ABCDEFGHIJKLMNOPQRST';
 
 interface GridCell {
   col: number; row: number; ref: string;
@@ -2080,9 +2106,11 @@ const SITE_CELLS: GridCell[] = (() => {
       // square has its centre just outside the box. Array order breaks ties.
       const inCell = (px: number, py: number) => px >= x && px <= x + CELL_W && py >= y && py <= y + CELL_H;
       const landmark =
-        SITE_FEATURES.find((f) => pointInPolygon(cx, cy, f.poly))?.label ??
+        SITE_FEATURES.find((f) => zoneContains(f.zone, cx, cy))?.label ??
         SITE_FEATURES.find((f) => inCell(f.cx, f.cy))?.label ??
-        SITE_FEATURES.find((f) => f.poly.some(([px, py]) => inCell(px, py)))?.label ??
+        // Corner fallback only applies to boxes — an oval's bounding corners
+        // aren't part of it, and would claim squares well outside the shape.
+        SITE_FEATURES.find((f) => f.zone.shape !== 'ellipse' && f.poly.some(([px, py]) => inCell(px, py)))?.label ??
         null;
       // A square is clickable if it's inside the site boundary OR over a named zone.
       const inside = pointInPolygon(cx, cy, SITE_BOUNDARY) || landmark !== null;
@@ -2271,13 +2299,30 @@ function SiteMapPage({
               <polygon points={toPoints(EAST_PARK_POLY)} fill={MAP_C.green} stroke={MAP_C.greenStroke} strokeWidth={1} />
               <polygon points={toPoints(CLUSTER_POLY)} fill={MAP_C.passive} stroke={MAP_C.passiveStroke} strokeWidth={1} />
 
-              {/* Working zones */}
-              {SITE_ZONES.map((z, i) => {
+              {/* Working zones. Drawn with the enclosing areas first so units
+                  standing inside one (the food-court outlets) aren't painted
+                  over by it — the reverse of the array order, which puts those
+                  units first so they win the grid-square lookup. */}
+              {[...SITE_ZONES]
+                .sort((a, b) => (a.tone === 'building' ? 1 : 0) - (b.tone === 'building' ? 1 : 0))
+                .map((z, i) => {
                 const cx = z.x + z.w / 2;
                 const cy = z.y + z.h / 2;
                 const tone = ZONE_TONE[z.tone ?? 'area'];
                 const transform = z.rot ? `rotate(${z.rot} ${cx} ${cy})` : undefined;
-                return (
+                return z.shape === 'ellipse' ? (
+                  <ellipse
+                    key={`zone-${i}`}
+                    cx={cx}
+                    cy={cy}
+                    rx={z.w / 2}
+                    ry={z.h / 2}
+                    fill={tone.fill}
+                    stroke={tone.stroke}
+                    strokeWidth={1.2}
+                    transform={transform}
+                  />
+                ) : (
                   <rect
                     key={`zone-${i}`}
                     x={z.x}
@@ -2291,7 +2336,7 @@ function SiteMapPage({
                     transform={transform}
                   />
                 );
-              })}
+                })}
 
               {/* Roads */}
               <line x1={19} y1={132} x2={644} y2={114} stroke="rgba(180,180,190,0.35)" strokeWidth={3} />
@@ -2314,11 +2359,15 @@ function SiteMapPage({
                   const tone = ZONE_TONE[z.tone ?? 'area'];
                   const lr = z.labelRot ?? z.rot ?? 0;
                   const fs = z.labelSize ?? (z.w < 78 || z.h < 32 ? 7.5 : 9);
+                  const lines = z.labelLines ?? [z.label];
+                  // Centre the block vertically: shift up by half the extra
+                  // lines, then step each line down by one line-height.
+                  const top = cy + (z.labelSize ? 2 : 3) - ((lines.length - 1) * fs * 1.15) / 2;
                   return (
                     <text
                       key={`zlbl-${i}`}
                       x={cx}
-                      y={cy + (z.labelSize ? 2 : 3)}
+                      y={top}
                       fontSize={fs}
                       fontWeight={600}
                       // Tight units can't spare the extra tracking.
@@ -2326,7 +2375,11 @@ function SiteMapPage({
                       fill={tone.text}
                       transform={lr ? `rotate(${lr} ${cx} ${cy})` : undefined}
                     >
-                      {z.label}
+                      {lines.map((line, li) => (
+                        <tspan key={li} x={cx} dy={li === 0 ? 0 : fs * 1.15}>
+                          {line}
+                        </tspan>
+                      ))}
                     </text>
                   );
                 })}
