@@ -2002,14 +2002,16 @@ interface SiteZone {
 const SITE_ZONES: SiteZone[] = [
   // Frontage / peripheral buildings (sit north of the boundary, still clickable)
   { label: 'Cinema', x: 30, y: 44, w: 84, h: 34, tone: 'building' },
-  { label: 'Cinque Ports', x: 143, y: 57, w: 62, h: 47, tone: 'building' },
-  { label: 'Ballroom', x: 33, y: 146, w: 58, h: 55, tone: 'building' },
-  { label: 'Hall by the Sea', x: 71, y: 251, w: 62, h: 89, tone: 'building' },
+  { label: 'Cinque Ports', x: 143, y: 52, w: 84, h: 50, tone: 'building' },
+  { label: 'Ballroom', x: 33, y: 146, w: 66, h: 46, tone: 'building' },
+  { label: 'Boardroom', x: 33, y: 198, w: 66, h: 34, tone: 'building', labelSize: 6.5 },
+  { label: 'Hall by the Sea', x: 52, y: 264, w: 58, h: 82, tone: 'building', labelSize: 7, labelLines: ['Hall by', 'the Sea'] },
   // Operational areas
-  { label: 'Concourse', x: 96, y: 150, w: 46, h: 50, tone: 'area' },
-  { label: 'Ingress', x: 176, y: 152, w: 152, h: 45, tone: 'area' },
-  { label: 'Roller Area', x: 138, y: 205, w: 188, h: 63, tone: 'area' },
-  { label: 'Transit Area', x: 170, y: 287, w: 93, h: 57, tone: 'area' },
+  { label: 'Concourse', x: 116, y: 240, w: 50, h: 44, tone: 'area', labelSize: 6.5 },
+  { label: 'Arcade', x: 170, y: 154, w: 150, h: 46, tone: 'area' },
+  { label: 'Ingress', x: 332, y: 154, w: 130, h: 46, tone: 'area' },
+  { label: 'Roller Area', x: 170, y: 214, w: 160, h: 56, tone: 'area' },
+  { label: 'Transit Area', x: 170, y: 288, w: 200, h: 54, tone: 'area' },
   // Food-court outlets, standing around the rim of the seating oval as on the
   // plan: four along the top, the two Peppermint bars below to the left.
   // Each is 44 x 36 centred on a grid square's middle — small enough that even
@@ -2022,23 +2024,25 @@ const SITE_ZONES: SiteZone[] = [
   { label: 'Kerb Bar', x: 255, y: 360, w: 40, h: 30, rot: -16, tone: 'building', labelSize: 5.5 },
   { label: 'Birdie Macs', x: 353, y: 357, w: 44, h: 36, rot: -6, tone: 'building', labelSize: 5.5 },
   { label: 'Beastie Baos', x: 403, y: 357, w: 44, h: 36, rot: 10, tone: 'building', labelSize: 5.2 },
-  { label: 'Peppermint Bar', x: 203, y: 557, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'] },
-  { label: 'Peppermint Bar', x: 303, y: 557, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'], noBadge: true },
+  { label: 'Peppermint Bar', x: 253, y: 557, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'] },
+  { label: 'Peppermint Bar', x: 353, y: 557, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'], noBadge: true },
   // The seating area itself is a wide oval on the plan, not a box.
-  { label: 'Food Court', x: 170, y: 380, w: 300, h: 190, shape: 'ellipse', tone: 'area' },
+  { label: 'Food Court', x: 230, y: 390, w: 220, h: 180, shape: 'ellipse', tone: 'area' },
   { label: 'Scenic Stage', x: 491, y: 380, w: 44, h: 190, tone: 'area', labelRot: -90 },
   { label: 'Scenic Railway', x: 546, y: 366, w: 60, h: 218, tone: 'area', labelRot: -90 },
-  { label: 'Scenic Railway', x: 531, y: 214, w: 62, h: 89, tone: 'area', labelRot: -90, noBadge: true },
+  { label: 'Scenic Railway', x: 528, y: 152, w: 62, h: 116, tone: 'area', labelRot: -90, noBadge: true },
   { label: 'Shed', x: 521, y: 306, w: 84, h: 26, tone: 'area' },
-  { label: 'Teddy & Betty / Ark', x: 632, y: 348, w: 62, h: 148, rot: -28, tone: 'area' },
-  { label: 'VIP', x: 108, y: 380, w: 44, h: 80, rot: -50, tone: 'area' },
-  { label: 'Container Toilets', x: 508, y: 606, w: 100, h: 34, tone: 'area' },
-  // Rides (several pitches share the label)
+  { label: 'Teddy & Betty / Ark', x: 640, y: 348, w: 62, h: 148, rot: -28, tone: 'area', labelSize: 7, labelLines: ['Teddy & Betty', '/ Ark'] },
+  { label: 'VIP', x: 130, y: 390, w: 44, h: 80, rot: -50, tone: 'area' },
+  { label: 'Container Toilets', x: 508, y: 600, w: 100, h: 34, tone: 'area', labelSize: 7 },
+  // Rides (several pitches share the label). The long diagonal pitch belongs
+  // to the western cluster below the food court, so unlike the rest of the
+  // east side it doesn't take the +190 shift.
   { label: 'Rides', x: 620, y: 520, w: 80, h: 44, tone: 'area' },
   { label: 'Rides', x: 648, y: 580, w: 54, h: 80, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 582, y: 700, w: 92, h: 32, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 515, y: 664, w: 128, h: 46, rot: -34, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 353, y: 640, w: 66, h: 27, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 582, y: 716, w: 92, h: 32, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 330, y: 634, w: 128, h: 46, rot: -34, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 275, y: 600, w: 50, h: 27, tone: 'area', noBadge: true },
   // Logistics (SE)
   { label: 'Boneyard', x: 850, y: 405, w: 150, h: 388, tone: 'storage' },
   { label: 'Bars storage', x: 695, y: 662, w: 148, h: 126, tone: 'storage' },
