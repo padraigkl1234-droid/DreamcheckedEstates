@@ -452,19 +452,32 @@ export default function AutomationsPage() {
                 </p>
                 <pre className="overflow-x-auto rounded border border-neutral-400/20 bg-invictus-base/60 p-2 font-mono text-[10px] text-neutral-400">{`{
   "token": "<ESTATE_REQUEST_SECRET>",
-  "title": "<form: what needs doing>",
-  "details": "<form: description>",
-  "location": "<form: location>",
-  "requestedBy": "<form: responder email>",
-  "priority": "<form: priority>",
-  "dueDate": "<form: needed by>"
+  "details": "<Please provide as much detail as possible…>",
+  "location": "<Location>",
+  "department": "<Department/Team>",
+  "requestedBy": "<Full Name>",
+  "priority": "<Urgency Level>",
+  "dueDate": "<Due By>",
+  "assigneeName": "<Assigned To>"
 }`}</pre>
                 <p>
-                  Only <code className="text-neutral-400">token</code> and{' '}
-                  <code className="text-neutral-400">title</code> are required — leave out any field your form
-                  doesn&apos;t capture. Add{' '}
-                  <code className="text-neutral-400">&quot;assigneeEmail&quot;</code> to route a request to someone
-                  other than the person selected above.
+                  Values in angle brackets are the form&apos;s own questions — pick each from Power Automate&apos;s
+                  dynamic-content list. Only <code className="text-neutral-400">token</code> and{' '}
+                  <code className="text-neutral-400">details</code> are required; leave out anything your form
+                  doesn&apos;t ask.
+                </p>
+                <p>
+                  The form has no title field, so the task is named from the location and the first line of the
+                  detail (e.g. <em className="text-neutral-400">&quot;Roller disco doors — Doors next to cafe do not
+                  close&quot;</em>). Urgency maps to priority: Critical/Emergency and High become{' '}
+                  <strong className="text-neutral-400">High</strong>, Standard becomes{' '}
+                  <strong className="text-neutral-400">Medium</strong>, Scheduled becomes{' '}
+                  <strong className="text-neutral-400">Low</strong>.
+                </p>
+                <p>
+                  <code className="text-neutral-400">assigneeName</code> is matched against people&apos;s names in
+                  Invictus, so &quot;Assigned To&quot; routes the request to that person instead of the default
+                  above. An unrecognised name falls back to the default and is noted on the task rather than lost.
                 </p>
                 <p>
                   Set <code className="text-neutral-400">ESTATE_REQUEST_SECRET</code> in Vercel (any long random

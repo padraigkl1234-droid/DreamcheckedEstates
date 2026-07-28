@@ -13,17 +13,22 @@ export const dynamic = 'force-dynamic';
 // a push notification and an Accept/Decline card, so taking the job is their
 // call. Declining leaves the request with the owner to re-route.
 //
-// Expected JSON body:
+// Field names mirror the Estates Request Form's own columns, so a Power
+// Automate flow can wire each answer straight through:
 //   {
-//     "token":        "<ESTATE_REQUEST_SECRET>",
-//     "title":        "Broken light — Ballroom corridor",   // required
-//     "details":      "Flickering since Tuesday",           // optional
-//     "location":     "Ballroom",                           // optional
-//     "requestedBy":  "someone@dreamland.co.uk",            // optional
-//     "priority":     "High",                               // optional
-//     "dueDate":      "2026-08-05",                         // optional
-//     "assigneeEmail":"tradesperson@dreamland.co.uk"        // optional — overrides
-//   }                                                      //   the default approver
+//     "token":        "<ESTATE_REQUEST_SECRET>",  // required
+//     "details":      "Doors next to cafe don't close",  // required (the form's
+//                                                       //   "what happened" answer)
+//     "title":        "Short summary",            // optional — derived from
+//                                                 //   location + details if absent
+//     "location":     "Roller disco doors",       // optional
+//     "department":   "Guest Experience",         // optional
+//     "requestedBy":  "Alex Lee",                 // optional (Full Name)
+//     "priority":     "High: Needs attention…",   // optional (Urgency Level)
+//     "dueDate":      "2026-08-05",               // optional (Due By)
+//     "assigneeName": "Steven Barnard",           // optional (Assigned To) — either
+//     "assigneeEmail":"steven@…"                  //   of these overrides the default
+//   }
 
 interface UserDoc {
   name?: string;
@@ -35,12 +40,27 @@ interface UserDoc {
 }
 
 const nameOf = (u: UserDoc | undefined, fallback: string) => u?.displayName || u?.name || u?.email || fallback;
+const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
+// The form's Urgency Level answers are long sentences ("Critical/Emergency:
+// Immediate risk to safety…"), so match on the leading label rather than
+// expecting a bare High/Medium/Low.
 function normalizePriority(raw: string): 'High' | 'Medium' | 'Low' {
-  const v = raw.trim().toLowerCase();
-  if (v.startsWith('high') || v.startsWith('urgent') || v.startsWith('critical')) return 'High';
-  if (v.startsWith('low')) return 'Low';
-  return 'Medium';
+  const v = normalize(raw);
+  if (v.startsWith('critical') || v.startsWith('emergency') || v.startsWith('high') || v.startsWith('urgent')) {
+    return 'High';
+  }
+  if (v.startsWith('scheduled') || v.startsWith('low')) return 'Low';
+  return 'Medium'; // "Standard: General request (3–5 business days)" and anything unrecognised
+}
+
+// The form has no title field — just a free-text description — so build a
+// readable one-liner from the location and the first sentence of the detail.
+function deriveTitle(details: string, location: string): string {
+  const firstLine = details.split(/\r?\n/)[0].trim();
+  const firstSentence = firstLine.split(/(?<=[.!?])\s/)[0].trim() || firstLine;
+  const summary = firstSentence.length > 80 ? `${firstSentence.slice(0, 77).trimEnd()}…` : firstSentence;
+  return location ? `${location} — ${summary}` : summary;
 }
 
 export async function POST(req: Request) {
@@ -61,30 +81,46 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const title = str('title');
-  if (!title) {
-    return NextResponse.json({ error: 'Missing title' }, { status: 400 });
-  }
   const details = str('details');
   const location = str('location');
+  const department = str('department');
   const requestedBy = str('requestedBy');
   const priority = normalizePriority(str('priority'));
   const dueDate = str('dueDate').slice(0, 10);
   const assigneeEmail = str('assigneeEmail').toLowerCase();
+  const assigneeName = str('assigneeName');
+
+  const title = str('title') || (details ? deriveTitle(details, location) : '');
+  if (!title) {
+    return NextResponse.json({ error: 'Missing details (or title)' }, { status: 400 });
+  }
 
   try {
     const db = getAdminDb();
 
-    // Who the request goes to: an explicit assigneeEmail from the flow wins,
+    // Who the request goes to: an explicit assignee from the flow wins,
     // otherwise the default approver configured in the master console.
     const config = (await db.collection('config').doc('estateRequests').get()).data() as
       | { approverUid?: string; teamId?: string | null }
       | undefined;
 
     let approverUid = config?.approverUid ?? '';
+    let assigneeUnmatched = '';
     if (assigneeEmail) {
       const match = await db.collection('users').where('email', '==', assigneeEmail).limit(1).get();
-      if (!match.empty) approverUid = match.docs[0].id;
+      if (match.empty) assigneeUnmatched = assigneeEmail;
+      else approverUid = match.docs[0].id;
+    } else if (assigneeName) {
+      // The sheet's "Assigned To" holds display names ("Steven Barnard"), not
+      // emails, so match those against the roster. An unrecognised name falls
+      // back to the default approver rather than dropping the request.
+      const all = await db.collection('users').get();
+      const hit = all.docs.find((d) => {
+        const u = d.data() as UserDoc;
+        return [u.displayName, u.name].some((n) => n && normalize(n) === normalize(assigneeName));
+      });
+      if (hit) approverUid = hit.id;
+      else assigneeUnmatched = assigneeName;
     }
     if (!approverUid) {
       return NextResponse.json(
@@ -108,11 +144,14 @@ export async function POST(req: Request) {
     const approverName = nameOf(approver, 'Teammate');
 
     // Everything the form captured beyond the title becomes the description,
-    // which is also the opening entry of the task's timeline.
+    // which is also the opening entry of the task's timeline. An unmatched
+    // "Assigned To" is recorded here so it isn't silently lost.
     const notes = [
       details,
       location ? `Location: ${location}` : '',
+      department ? `Department: ${department}` : '',
       requestedBy ? `Requested by: ${requestedBy}` : '',
+      assigneeUnmatched ? `Form requested "${assigneeUnmatched}" — no matching Invictus account` : '',
       `Submitted via Estate Request form on ${new Date().toLocaleDateString('en-GB')}`,
     ]
       .filter(Boolean)
