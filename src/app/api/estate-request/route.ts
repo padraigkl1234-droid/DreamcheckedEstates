@@ -87,8 +87,11 @@ export async function POST(req: Request) {
   const requestedBy = str('requestedBy');
   const priority = normalizePriority(str('priority'));
   const dueDate = str('dueDate').slice(0, 10);
-  const assigneeEmail = str('assigneeEmail').toLowerCase();
-  const assigneeName = str('assigneeName');
+  // An anonymous Microsoft Form returns the literal string "anonymous" for
+  // responder fields — treat that as "not supplied" rather than a real name.
+  const isAnon = (v: string) => !v || v.toLowerCase() === 'anonymous';
+  const assigneeEmail = isAnon(str('assigneeEmail')) ? '' : str('assigneeEmail').toLowerCase();
+  const assigneeName = isAnon(str('assigneeName')) ? '' : str('assigneeName');
 
   const title = str('title') || (details ? deriveTitle(details, location) : '');
   if (!title) {
@@ -147,25 +150,25 @@ export async function POST(req: Request) {
     const owner = ownerDoc.data() as UserDoc | undefined;
     const ownerName = nameOf(owner, 'Estate Requests');
 
-    // The owner already sees the task as a participant, so never offer it to
-    // them as well — that would leave them approving their own request.
-    const approvers = approverDocs
-      .map((d) => ({ uid: d.id, data: d.data() as UserDoc | undefined }))
-      .filter((a) => a.uid !== ownerUid);
+    // Everyone picked in the console is offered it — including the master, who
+    // is also the owner. They'd otherwise never get an Accept/Decline card for
+    // requests they'd chosen to send themselves.
+    const approvers = approverDocs.map((d) => ({ uid: d.id, data: d.data() as UserDoc | undefined }));
 
     // Everything the form captured beyond the title becomes the description,
-    // which is also the opening entry of the task's timeline. An unmatched
-    // "Assigned To" is recorded here so it isn't silently lost.
-    const notes = [
-      details,
+    // which is also the opening entry of the task's timeline. The detail sits
+    // on its own, then the form's fields as a labelled block, so the row reads
+    // as prose rather than a run-on line.
+    const fields = [
       location ? `Location: ${location}` : '',
       department ? `Department: ${department}` : '',
       requestedBy ? `Requested by: ${requestedBy}` : '',
-      assigneeUnmatched ? `Form requested "${assigneeUnmatched}" — no matching Invictus account` : '',
-      `Submitted via Estate Request form on ${new Date().toLocaleDateString('en-GB')}`,
-    ]
-      .filter(Boolean)
-      .join('\n');
+      // An unmatched "Assigned To" is recorded so it isn't silently lost.
+      assigneeUnmatched ? `Form asked for: ${assigneeUnmatched} (no matching Invictus account)` : '',
+      `Submitted: ${new Date().toLocaleDateString('en-GB')} via Estate Request form`,
+    ].filter(Boolean);
+
+    const notes = [details, fields.join('\n')].filter(Boolean).join('\n\n');
 
     // Everyone configured is offered the request and any one of them can take
     // it — same shape as offering a task to several teammates in the app.

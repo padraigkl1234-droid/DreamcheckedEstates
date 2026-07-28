@@ -3122,7 +3122,11 @@ function TaskManager({
                 </span>
               )}
             </p>
-            {task.notes && <p className="mt-1.5 text-sm leading-relaxed text-neutral-400">{task.notes}</p>}
+            {/* pre-wrap so multi-line descriptions (e.g. an intake form's
+                Location/Department lines) keep their line breaks. */}
+            {task.notes && (
+              <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-neutral-400">{task.notes}</p>
+            )}
             {(task.updates?.length ?? 0) > 0 && timelineOpenFor !== task.id && (
               <button
                 onClick={() => openTimeline(task.id)}
