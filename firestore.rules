@@ -107,6 +107,13 @@ service cloud.firestore {
       allow read, write: if isMasterAdmin();
     }
 
+    // Integration settings (e.g. who estate requests get offered to). Written
+    // from the master console; the webhook itself reads it via the Admin SDK,
+    // which bypasses these rules.
+    match /config/{id} {
+      allow read, write: if isMasterAdmin();
+    }
+
     // Connectivity probe.
     match /test/connection {
       allow read: if true;

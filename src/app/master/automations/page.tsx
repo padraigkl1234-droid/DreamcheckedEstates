@@ -2,14 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore';
-import { ArrowLeft, Check, Loader2, Play, Plus, Trash2, X, Zap } from 'lucide-react';
+import { addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, orderBy, query, setDoc, updateDoc } from 'firebase/firestore';
+import { ArrowLeft, Check, ClipboardList, Copy, Loader2, Play, Plus, Trash2, X, Zap } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { db } from '@/lib/firebase';
-import type { Team } from '@/lib/teams';
+import { profileName, type Team, type UserProfile } from '@/lib/teams';
 import {
   AUTOMATION_TYPE_LABELS,
   DAY_LABELS,
@@ -36,6 +36,12 @@ export default function AutomationsPage() {
   const [newDigestEmails, setNewDigestEmails] = useState<string[]>([MASTER_ADMIN_EMAIL]);
   const [newEmailDraft, setNewEmailDraft] = useState('');
   const [rowEmailDraft, setRowEmailDraft] = useState<Record<string, string>>({});
+
+  // Estate-request intake: which person incoming form submissions get offered
+  // to. Stored in config/estateRequests, read by /api/estate-request.
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [approverUid, setApproverUid] = useState('');
+  const [copiedHook, setCopiedHook] = useState(false);
 
   const addNewDigestEmail = () => {
     const email = newEmailDraft.trim();
@@ -74,6 +80,38 @@ export default function AutomationsPage() {
     );
     return unsub;
   }, [isMaster]);
+
+  // The people roster (for the estate-request approver picker) and the
+  // currently-saved approver.
+  useEffect(() => {
+    if (!isMaster) return;
+    const unsubUsers = onSnapshot(
+      collection(db, 'users'),
+      (snap) => setUsers(snap.docs.map((d) => ({ ...(d.data() as Omit<UserProfile, 'uid'>), uid: d.id }))),
+      (error) => console.error('Users subscription failed:', error)
+    );
+    const unsubConfig = onSnapshot(
+      doc(db, 'config', 'estateRequests'),
+      (snap) => setApproverUid((snap.data()?.approverUid as string) ?? ''),
+      (error) => console.error('Estate-request config subscription failed:', error)
+    );
+    return () => {
+      unsubUsers();
+      unsubConfig();
+    };
+  }, [isMaster]);
+
+  const saveApprover = async (uid: string) => {
+    setApproverUid(uid);
+    const person = users.find((u) => u.uid === uid);
+    await setDoc(
+      doc(db, 'config', 'estateRequests'),
+      { approverUid: uid, approverName: person ? profileName(person) : '', teamId: person?.teamId ?? null },
+      { merge: true }
+    );
+  };
+
+  const webhookUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/api/estate-request`;
 
   const isScheduledType = SCHEDULED_AUTOMATION_TYPES.includes(newType);
 
@@ -347,6 +385,93 @@ export default function AutomationsPage() {
             >
               <Plus className="h-4 w-4" /> Add automation
             </button>
+          </div>
+        </div>
+
+        {/* Inbound integration: Estate Request form → task offer */}
+        <div className="mt-8 border border-neutral-400/25 bg-invictus-surface/60 shadow-glow-subtle">
+          <div className="flex items-center gap-2 border-b border-neutral-400/15 p-4">
+            <ClipboardList className="h-4 w-4 text-invictus-crimson-bright" />
+            <div>
+              <h2 className="font-display text-sm uppercase tracking-[0.15em] text-neutral-100">Estate request intake</h2>
+              <p className="text-[11px] text-neutral-500">
+                Turns Estate Request form submissions into tasks, offered to one person to accept or decline.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4 p-4">
+            <div className="max-w-md">
+              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Send requests to</label>
+              <InvictusSelect
+                value={approverUid}
+                onChange={saveApprover}
+                className="bg-invictus-base/60"
+                options={[
+                  { value: '', label: 'Nobody — intake disabled' },
+                  ...users
+                    .filter((u) => !u.blocked)
+                    .map((u) => ({ value: u.uid, label: `${profileName(u)}${u.email ? ` · ${u.email}` : ''}` })),
+                ]}
+              />
+              <p className="mt-1 text-[11px] text-neutral-500">
+                They get a push notification and an Accept/Decline card. Declining leaves the request with you to
+                re-route.
+              </p>
+            </div>
+
+            <div className="max-w-2xl">
+              <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Webhook URL</label>
+              <div className="flex items-center gap-2">
+                <code className="min-w-0 flex-1 truncate rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 font-mono text-xs text-neutral-300">
+                  {webhookUrl}
+                </code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(webhookUrl);
+                    setCopiedHook(true);
+                    setTimeout(() => setCopiedHook(false), 1500);
+                  }}
+                  className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                >
+                  {copiedHook ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedHook ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            <details className="max-w-2xl rounded-md border border-neutral-400/20 bg-invictus-base/40 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-neutral-300">
+                Power Automate setup — what to send
+              </summary>
+              <div className="mt-3 space-y-2 text-[11px] leading-relaxed text-neutral-500">
+                <p>
+                  In Power Automate: <strong className="text-neutral-400">When a new response is submitted</strong>{' '}
+                  (Microsoft Forms) → <strong className="text-neutral-400">Get response details</strong> →{' '}
+                  <strong className="text-neutral-400">HTTP POST</strong> to the URL above, with this JSON body:
+                </p>
+                <pre className="overflow-x-auto rounded border border-neutral-400/20 bg-invictus-base/60 p-2 font-mono text-[10px] text-neutral-400">{`{
+  "token": "<ESTATE_REQUEST_SECRET>",
+  "title": "<form: what needs doing>",
+  "details": "<form: description>",
+  "location": "<form: location>",
+  "requestedBy": "<form: responder email>",
+  "priority": "<form: priority>",
+  "dueDate": "<form: needed by>"
+}`}</pre>
+                <p>
+                  Only <code className="text-neutral-400">token</code> and{' '}
+                  <code className="text-neutral-400">title</code> are required — leave out any field your form
+                  doesn&apos;t capture. Add{' '}
+                  <code className="text-neutral-400">&quot;assigneeEmail&quot;</code> to route a request to someone
+                  other than the person selected above.
+                </p>
+                <p>
+                  Set <code className="text-neutral-400">ESTATE_REQUEST_SECRET</code> in Vercel (any long random
+                  string) and use the same value as the token — that&apos;s what stops anyone else posting requests.
+                </p>
+              </div>
+            </details>
           </div>
         </div>
       </div>
