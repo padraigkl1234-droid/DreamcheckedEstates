@@ -2031,13 +2031,17 @@ const SITE_ZONES: SiteZone[] = [
   { label: 'Peppermint Bar', x: 353, y: 557, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'], noBadge: true },
   // The seating area itself is a wide oval on the plan, not a box.
   { label: 'Food Court', x: 230, y: 390, w: 220, h: 180, shape: 'ellipse', tone: 'area' },
+  // The two long bars run in line with the stage, one either side of it.
+  { label: 'Long Bar (Wheel)', x: 495, y: 270, w: 35, h: 100, tone: 'area', labelRot: -90, labelSize: 6.5 },
   { label: 'Scenic Stage', x: 491, y: 380, w: 44, h: 190, tone: 'area', labelRot: -90 },
+  { label: 'Long Bar (Waltzers)', x: 495, y: 580, w: 35, h: 100, tone: 'area', labelRot: -90, labelSize: 6.5 },
   { label: 'Scenic Railway', x: 546, y: 366, w: 60, h: 218, tone: 'area', labelRot: -90 },
   { label: 'Scenic Railway', x: 528, y: 152, w: 62, h: 116, tone: 'area', labelRot: -90, noBadge: true },
-  { label: 'Shed', x: 521, y: 306, w: 84, h: 26, tone: 'area' },
+  // Nudged east of the long bar that now runs up this side of the stage.
+  { label: 'Shed', x: 534, y: 306, w: 84, h: 26, tone: 'area' },
   { label: 'Teddy & Betty / Ark', x: 640, y: 348, w: 62, h: 148, rot: -28, tone: 'area', labelSize: 7, labelLines: ['Teddy & Betty', '/ Ark'] },
   { label: 'VIP', x: 130, y: 390, w: 44, h: 80, rot: -50, tone: 'area' },
-  { label: 'Container Toilets', x: 508, y: 600, w: 100, h: 34, tone: 'area', labelSize: 7 },
+  { label: 'Container Toilets', x: 534, y: 600, w: 100, h: 34, tone: 'area', labelSize: 7 },
   // Rides (several pitches share the label). The long diagonal pitch belongs
   // to the western cluster below the food court, so unlike the rest of the
   // east side it doesn't take the +190 shift.
