@@ -71,6 +71,9 @@ import {
   Tag,
   Package,
   MessageSquarePlus,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -2252,6 +2255,59 @@ function SiteMapPage({
   const [assigneeUids, setAssigneeUids] = useState<string[]>([]);
   const [pinTaskId, setPinTaskId] = useState('');
   const { playConfirm } = useSound();
+
+  // Zoom/pan. The viewBox is the window onto the map: shrinking it magnifies,
+  // and `pan` is its top-left corner. Zoom 1 shows the whole site.
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 6;
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  // Set while a drag is in progress so the click it ends with doesn't also
+  // select whichever square happened to be under the cursor.
+  const draggedRef = useRef(false);
+
+  const clampPan = (p: { x: number; y: number }, z: number) => ({
+    x: Math.max(0, Math.min(MAP_W - MAP_W / z, p.x)),
+    y: Math.max(0, Math.min(MAP_H - MAP_H / z, p.y)),
+  });
+
+  // Zoom about the middle of what's currently on screen, so the view doesn't
+  // lurch sideways as you step in and out.
+  const zoomBy = (factor: number) => {
+    const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
+    if (next === zoom) return;
+    const cx = pan.x + MAP_W / zoom / 2;
+    const cy = pan.y + MAP_H / zoom / 2;
+    setZoom(next);
+    setPan(clampPan({ x: cx - MAP_W / next / 2, y: cy - MAP_H / next / 2 }, next));
+  };
+  const resetView = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    draggedRef.current = false;
+    if (zoom <= 1) return; // nothing to pan to when the whole site is in view
+    dragRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const d = dragRef.current;
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!d || !rect) return;
+    if (!draggedRef.current && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) return; // ignore jitter
+    draggedRef.current = true;
+    const unitsPerPx = MAP_W / zoom / rect.width;
+    setPan(
+      clampPan({ x: d.panX - (e.clientX - d.x) * unitsPerPx, y: d.panY - (e.clientY - d.y) * unitsPerPx }, zoom)
+    );
+  };
+  const handlePointerUp = () => {
+    dragRef.current = null;
+  };
   const teammates = team.filter((m) => m.uid !== currentUid);
   const toggleAssignee = (uid: string) =>
     setAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
@@ -2380,7 +2436,50 @@ function SiteMapPage({
             )}
           </div>
           <div className="relative w-full overflow-hidden rounded-xl border border-neutral-400/20 bg-invictus-base">
-            <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} className="h-auto w-full" role="img" aria-label="Dreamland site map grid">
+            <div className="absolute right-2 top-2 z-10 flex flex-col gap-1">
+              <button
+                onClick={() => zoomBy(1.5)}
+                disabled={zoom >= MAX_ZOOM}
+                className="rounded-md border border-neutral-400/30 bg-invictus-base/90 p-1.5 text-neutral-300 backdrop-blur transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-30"
+                title="Zoom in"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => zoomBy(1 / 1.5)}
+                disabled={zoom <= MIN_ZOOM}
+                className="rounded-md border border-neutral-400/30 bg-invictus-base/90 p-1.5 text-neutral-300 backdrop-blur transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-30"
+                title="Zoom out"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <button
+                onClick={resetView}
+                disabled={zoom === 1 && pan.x === 0 && pan.y === 0}
+                className="rounded-md border border-neutral-400/30 bg-invictus-base/90 p-1.5 text-neutral-300 backdrop-blur transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright disabled:opacity-30"
+                title="Fit the whole site"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
+              {zoom > 1 && (
+                <span className="rounded-md border border-neutral-400/25 bg-invictus-base/90 px-1 py-0.5 text-center font-mono text-[10px] text-neutral-400 backdrop-blur">
+                  {zoom.toFixed(1)}×
+                </span>
+              )}
+            </div>
+            <svg
+              ref={svgRef}
+              viewBox={`${pan.x} ${pan.y} ${MAP_W / zoom} ${MAP_H / zoom}`}
+              className={`h-auto w-full ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+              // Without this, a touch drag scrolls the page instead of panning.
+              style={{ touchAction: zoom > 1 ? 'none' : undefined }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              role="img"
+              aria-label="Dreamland site map grid"
+            >
               {/* Site boundary */}
               <polygon points={toPoints(SITE_BOUNDARY)} fill={MAP_C.boundaryFill} stroke={MAP_C.accent} strokeWidth={2} strokeLinejoin="round" />
 
@@ -2510,7 +2609,10 @@ function SiteMapPage({
                   className="cursor-pointer"
                   onMouseEnter={() => setHoverRef(cell.ref)}
                   onMouseLeave={() => setHoverRef((r) => (r === cell.ref ? null : r))}
-                  onClick={() => setSelectedRef(cell.ref)}
+                  onClick={() => {
+                    if (draggedRef.current) return; // this click ended a pan
+                    setSelectedRef(cell.ref);
+                  }}
                 />
               ))}
 
