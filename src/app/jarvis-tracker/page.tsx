@@ -2233,12 +2233,14 @@ function SiteMapPage({
   team,
   currentUid,
   onAddTask,
+  onSetTaskArea,
 }: {
   tasks: Task[];
   archivedTasks: Task[];
   team: TeamMember[];
   currentUid: string;
   onAddTask: (task: Task) => void;
+  onSetTaskArea: (id: string, area: string) => void;
 }) {
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
   const [hoverRef, setHoverRef] = useState<string | null>(null);
@@ -2248,6 +2250,7 @@ function SiteMapPage({
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
   const [assigneeUids, setAssigneeUids] = useState<string[]>([]);
+  const [pinTaskId, setPinTaskId] = useState('');
   const { playConfirm } = useSound();
   const teammates = team.filter((m) => m.uid !== currentUid);
   const toggleAssignee = (uid: string) =>
@@ -2295,6 +2298,18 @@ function SiteMapPage({
     [costedTasks, selectedCell]
   );
   const selectedAreaCost = selectedCell ? (costByArea[selectedCell.areaKey] ?? 0) : 0;
+
+  // Live tasks that were never pinned anywhere — these are what the square
+  // can adopt. Already-placed tasks are left alone; moving one is a different
+  // action from placing an unplaced one.
+  const unplacedTasks = useMemo(() => tasks.filter((t) => !t.area), [tasks]);
+
+  const handlePinTask = () => {
+    if (!selectedCell || !pinTaskId) return;
+    onSetTaskArea(pinTaskId, selectedCell.areaKey);
+    setPinTaskId('');
+    playConfirm();
+  };
 
   const handleAssign = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2707,6 +2722,37 @@ function SiteMapPage({
                   })}
                 </div>
               </div>
+
+              {unplacedTasks.length > 0 && (
+                <div className="border-t border-neutral-400/15 pt-4">
+                  <Kicker>Place an existing task ({unplacedTasks.length} unplaced)</Kicker>
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <InvictusSelect
+                        value={pinTaskId}
+                        onChange={setPinTaskId}
+                        className="bg-invictus-base/60"
+                        options={[
+                          { value: '', label: 'Choose a task…' },
+                          ...unplacedTasks.map((t) => ({ value: t.id, label: t.name })),
+                        ]}
+                      />
+                    </div>
+                    <button
+                      onClick={handlePinTask}
+                      disabled={!pinTaskId}
+                      className="flex shrink-0 items-center gap-1.5 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 transition-all hover:bg-invictus-crimson-bright/20 disabled:opacity-40"
+                      title={`Pin this task to ${selectedCell.areaKey}`}
+                    >
+                      <MapPin className="h-3.5 w-3.5" /> Place
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-neutral-500">
+                    Tasks made in Task Manager have no location until you put one here — placing one pins it to{' '}
+                    {selectedCell.areaKey} and folds its materials into that square&apos;s cost.
+                  </p>
+                </div>
+              )}
 
               <form onSubmit={handleAssign} className="flex flex-col gap-2 border-t border-neutral-400/15 pt-4">
                 <Kicker>Assign a task to {selectedCell.areaKey}</Kicker>
@@ -5189,6 +5235,11 @@ function InvictusTracker() {
     if (!user) return;
     updateDoc(doc(db, 'tasks', id), { images }).catch(logTaskError('update task images'));
   };
+  // Pin an existing task to a place on the site map (it had none until now).
+  const handleSetTaskArea = (id: string, area: string) => {
+    if (!user) return;
+    updateDoc(doc(db, 'tasks', id), { area }).catch(logTaskError('set task location'));
+  };
   const handleSetTaskMaterials = (id: string, materials: TaskMaterial[]) => {
     if (!user) return;
     updateDoc(doc(db, 'tasks', id), { materials }).catch(logTaskError('update task materials'));
@@ -5390,6 +5441,7 @@ function InvictusTracker() {
                 team={team}
                 currentUid={user?.uid ?? ''}
                 onAddTask={handleAddTask}
+                onSetTaskArea={handleSetTaskArea}
               />
             )}
             {activePage === 'tasks' && (
