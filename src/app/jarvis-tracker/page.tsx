@@ -1998,7 +1998,6 @@ interface SiteZone {
   labelLines?: string[]; // wrap the label over several lines to fit a narrow box
   shape?: 'ellipse';  // drawn (and hit-tested) as an oval rather than a box
   tone?: ZoneTone;
-  noBadge?: boolean;  // skip task badge (for duplicate-labelled boxes)
 }
 
 // Working zones, positioned to match the user's marked-up plan.
@@ -2028,7 +2027,7 @@ const SITE_ZONES: SiteZone[] = [
   { label: 'Birdie Macs', x: 353, y: 357, w: 44, h: 36, rot: -6, tone: 'building', labelSize: 5.5 },
   { label: 'Beastie Baos', x: 403, y: 357, w: 44, h: 36, rot: 10, tone: 'building', labelSize: 5.2 },
   { label: 'Peppermint Bar', x: 253, y: 557, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'] },
-  { label: 'Peppermint Bar', x: 353, y: 557, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'], noBadge: true },
+  { label: 'Peppermint Bar', x: 353, y: 557, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'] },
   // The seating area itself is a wide oval on the plan, not a box.
   { label: 'Food Court', x: 230, y: 390, w: 220, h: 180, shape: 'ellipse', tone: 'area' },
   // The two long bars run in line with the stage, one either side of it.
@@ -2036,7 +2035,7 @@ const SITE_ZONES: SiteZone[] = [
   { label: 'Scenic Stage', x: 491, y: 380, w: 44, h: 190, tone: 'area', labelRot: -90 },
   { label: 'Long Bar (Waltzers)', x: 495, y: 580, w: 35, h: 100, tone: 'area', labelRot: -90, labelSize: 6.5 },
   { label: 'Scenic Railway', x: 546, y: 366, w: 60, h: 218, tone: 'area', labelRot: -90 },
-  { label: 'Scenic Railway', x: 528, y: 152, w: 62, h: 116, tone: 'area', labelRot: -90, noBadge: true },
+  { label: 'Scenic Railway', x: 528, y: 152, w: 62, h: 116, tone: 'area', labelRot: -90 },
   // Nudged east of the long bar that now runs up this side of the stage.
   { label: 'Shed', x: 534, y: 306, w: 84, h: 26, tone: 'area' },
   { label: 'Teddy & Betty / Ark', x: 640, y: 348, w: 62, h: 148, rot: -28, tone: 'area', labelSize: 7, labelLines: ['Teddy & Betty', '/ Ark'] },
@@ -2046,10 +2045,10 @@ const SITE_ZONES: SiteZone[] = [
   // to the western cluster below the food court, so unlike the rest of the
   // east side it doesn't take the +190 shift.
   { label: 'Rides', x: 620, y: 520, w: 80, h: 44, tone: 'area' },
-  { label: 'Rides', x: 648, y: 580, w: 54, h: 80, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 582, y: 716, w: 92, h: 32, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 330, y: 634, w: 128, h: 46, rot: -34, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 275, y: 600, w: 50, h: 27, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 648, y: 580, w: 54, h: 80, tone: 'area' },
+  { label: 'Rides', x: 582, y: 716, w: 92, h: 32, tone: 'area' },
+  { label: 'Rides', x: 330, y: 634, w: 128, h: 46, rot: -34, tone: 'area' },
+  { label: 'Rides', x: 275, y: 600, w: 50, h: 27, tone: 'area' },
   // Logistics (SE)
   { label: 'Boneyard', x: 850, y: 405, w: 150, h: 388, tone: 'storage' },
   { label: 'Bars storage', x: 695, y: 662, w: 148, h: 126, tone: 'storage' },
@@ -2272,7 +2271,9 @@ function SiteMapPage({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
-  const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const dragRef = useRef<{ x: number; y: number; panX: number; panY: number; pointerId: number; captured: boolean } | null>(
+    null
+  );
   // Set while a drag is in progress so the click it ends with doesn't also
   // select whichever square happened to be under the cursor.
   const draggedRef = useRef(false);
@@ -2300,21 +2301,31 @@ function SiteMapPage({
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     draggedRef.current = false;
     if (zoom <= 1) return; // nothing to pan to when the whole site is in view
-    dragRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
-    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y, pointerId: e.pointerId, captured: false };
   };
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const d = dragRef.current;
     const rect = svgRef.current?.getBoundingClientRect();
     if (!d || !rect) return;
     if (!draggedRef.current && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) return; // ignore jitter
+    if (!d.captured) {
+      // Capture only once this is a genuine drag. Capturing on pointer-down
+      // instead would retarget the following click to the <svg>, so a square
+      // would never receive it and nothing could be selected while zoomed.
+      e.currentTarget.setPointerCapture(d.pointerId);
+      d.captured = true;
+    }
     draggedRef.current = true;
     const unitsPerPx = MAP_W / zoom / rect.width;
     setPan(
       clampPan({ x: d.panX - (e.clientX - d.x) * unitsPerPx, y: d.panY - (e.clientY - d.y) * unitsPerPx }, zoom)
     );
   };
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    const d = dragRef.current;
+    if (d?.captured && e.currentTarget.hasPointerCapture(d.pointerId)) {
+      e.currentTarget.releasePointerCapture(d.pointerId);
+    }
     dragRef.current = null;
   };
   const teammates = team.filter((m) => m.uid !== currentUid);
@@ -2628,7 +2639,12 @@ function SiteMapPage({
               {mapMode === 'tasks' ? (
                 <>
                   {/* Task-count badges on named zones */}
-                  {SITE_ZONES.filter((z) => !z.noBadge && (activeCountByArea[z.label] ?? 0) > 0).map((z, i) => (
+                  {/* Badged on every box carrying the name, not just the first.
+                      Several pitches share a name (Rides, Peppermint Bar), and
+                      badging only one left the others looking like they had no
+                      work on them. The number is that area's count, so it reads
+                      the same wherever the area appears. */}
+                  {SITE_ZONES.filter((z) => (activeCountByArea[z.label] ?? 0) > 0).map((z, i) => (
                     <g key={`badge-${i}`} pointerEvents="none">
                       <circle cx={z.x + z.w / 2} cy={z.y + z.h / 2 - 14} r={9} fill={MAP_C.accent} stroke="rgb(var(--invictus-base))" strokeWidth={1} />
                       <text x={z.x + z.w / 2} y={z.y + z.h / 2 - 10.5} fontSize={11} fontWeight={700} fill={MAP_C.boundaryFill} textAnchor="middle">
