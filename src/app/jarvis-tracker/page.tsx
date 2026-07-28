@@ -167,6 +167,12 @@ function formatMoney(value: number): string {
   return `£${value.toFixed(2)}`;
 }
 
+// Short form for map badges, where there's only room for a few characters.
+function formatMoneyCompact(value: number): string {
+  if (value >= 1000) return `£${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
+  return `£${Math.round(value)}`;
+}
+
 function materialsTotal(materials: TaskMaterial[] | undefined): number {
   return (materials ?? []).reduce((sum, m) => sum + (m.price ?? 0) * (m.quantity || 1), 0);
 }
@@ -2230,6 +2236,8 @@ function SiteMapPage({
 }) {
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
   const [hoverRef, setHoverRef] = useState<string | null>(null);
+  // 'tasks' shows how much work sits where; 'cost' shows what it's costing.
+  const [mapMode, setMapMode] = useState<'tasks' | 'cost'>('tasks');
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
@@ -2249,10 +2257,27 @@ function SiteMapPage({
     return counts;
   }, [tasks]);
 
+  // What each part of the site is costing: the materials logged against every
+  // task pinned there, summed. Completed tasks still count — the money was
+  // spent — but archived ones aren't in `tasks` at all.
+  const costByArea = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const t of tasks) {
+      if (!t.area) continue;
+      const cost = materialsTotal(t.materials);
+      if (cost > 0) totals[t.area] = (totals[t.area] ?? 0) + cost;
+    }
+    return totals;
+  }, [tasks]);
+
+  const maxAreaCost = useMemo(() => Math.max(0, ...Object.values(costByArea)), [costByArea]);
+  const siteTotalCost = useMemo(() => Object.values(costByArea).reduce((a, b) => a + b, 0), [costByArea]);
+
   const tasksForArea = useMemo(
     () => (selectedCell ? tasks.filter((t) => t.area === selectedCell.areaKey) : []),
     [tasks, selectedCell]
   );
+  const selectedAreaCost = selectedCell ? (costByArea[selectedCell.areaKey] ?? 0) : 0;
 
   const handleAssign = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2282,6 +2307,12 @@ function SiteMapPage({
   const cellFill = (cell: GridCell): string => {
     if (cell.ref === selectedRef) return 'rgb(var(--invictus-crimson-bright) / 0.45)';
     if (cell.ref === hoverRef) return 'rgb(var(--invictus-crimson-bright) / 0.22)';
+    if (mapMode === 'cost' && maxAreaCost > 0) {
+      const cost = costByArea[cell.areaKey] ?? 0;
+      // Ramp from the cheapest spend to the dearest, so the hot squares are
+      // the ones eating the budget rather than simply the ones with any spend.
+      if (cost > 0) return heatColor(cost / maxAreaCost);
+    }
     return 'rgb(var(--invictus-crimson-bright) / 0.04)';
   };
 
@@ -2294,6 +2325,28 @@ function SiteMapPage({
             area (Food Court, Boneyard, Scenic Railway&hellip;) tag the task with that area; open
             ground tags a grid reference. Assigned tasks flow straight into Task Manager.
           </p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              {(['tasks', 'cost'] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMapMode(m)}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    mapMode === m
+                      ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
+                      : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-400 hover:text-neutral-200'
+                  }`}
+                >
+                  {m === 'tasks' ? 'Tasks' : 'Material cost'}
+                </button>
+              ))}
+            </div>
+            {mapMode === 'cost' && (
+              <p className="text-xs text-neutral-500">
+                Site total <span className="font-semibold text-neutral-200">{formatMoney(siteTotalCost)}</span>
+              </p>
+            )}
+          </div>
           <div className="relative w-full overflow-hidden rounded-xl border border-neutral-400/20 bg-invictus-base">
             <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} className="h-auto w-full" role="img" aria-label="Dreamland site map grid">
               {/* Site boundary */}
@@ -2412,6 +2465,14 @@ function SiteMapPage({
                   width={CELL_W}
                   height={CELL_H}
                   fill={cellFill(cell)}
+                  // Squares are drawn over the zones and their labels, so the
+                  // heat shading has to stay translucent enough to read the
+                  // map through it.
+                  fillOpacity={
+                    mapMode === 'cost' && cell.ref !== selectedRef && cell.ref !== hoverRef && (costByArea[cell.areaKey] ?? 0) > 0
+                      ? 0.5
+                      : 1
+                  }
                   stroke={cell.ref === selectedRef ? MAP_C.accent : MAP_C.lineStrong}
                   strokeWidth={cell.ref === selectedRef ? 2 : 0.75}
                   className="cursor-pointer"
@@ -2421,24 +2482,58 @@ function SiteMapPage({
                 />
               ))}
 
-              {/* Task-count badges on named zones */}
-              {SITE_ZONES.filter((z) => !z.noBadge && (activeCountByArea[z.label] ?? 0) > 0).map((z, i) => (
-                <g key={`badge-${i}`} pointerEvents="none">
-                  <circle cx={z.x + z.w / 2} cy={z.y + z.h / 2 - 14} r={9} fill={MAP_C.accent} stroke="rgb(var(--invictus-base))" strokeWidth={1} />
-                  <text x={z.x + z.w / 2} y={z.y + z.h / 2 - 10.5} fontSize={11} fontWeight={700} fill={MAP_C.boundaryFill} textAnchor="middle">
-                    {activeCountByArea[z.label]}
-                  </text>
-                </g>
-              ))}
-              {/* Badges on grid-reference cells that carry tasks */}
-              {SITE_CELLS.filter((c) => c.inside && !c.landmark && (activeCountByArea[c.areaKey] ?? 0) > 0).map((cell) => (
-                <g key={`gbadge-${cell.ref}`} pointerEvents="none">
-                  <circle cx={cell.cx} cy={cell.cy} r={9} fill={MAP_C.accent} stroke="rgb(var(--invictus-base))" strokeWidth={1} />
-                  <text x={cell.cx} y={cell.cy + 3.5} fontSize={11} fontWeight={700} fill={MAP_C.boundaryFill} textAnchor="middle">
-                    {activeCountByArea[cell.areaKey]}
-                  </text>
-                </g>
-              ))}
+              {mapMode === 'tasks' ? (
+                <>
+                  {/* Task-count badges on named zones */}
+                  {SITE_ZONES.filter((z) => !z.noBadge && (activeCountByArea[z.label] ?? 0) > 0).map((z, i) => (
+                    <g key={`badge-${i}`} pointerEvents="none">
+                      <circle cx={z.x + z.w / 2} cy={z.y + z.h / 2 - 14} r={9} fill={MAP_C.accent} stroke="rgb(var(--invictus-base))" strokeWidth={1} />
+                      <text x={z.x + z.w / 2} y={z.y + z.h / 2 - 10.5} fontSize={11} fontWeight={700} fill={MAP_C.boundaryFill} textAnchor="middle">
+                        {activeCountByArea[z.label]}
+                      </text>
+                    </g>
+                  ))}
+                  {/* Badges on grid-reference cells that carry tasks */}
+                  {SITE_CELLS.filter((c) => c.inside && !c.landmark && (activeCountByArea[c.areaKey] ?? 0) > 0).map((cell) => (
+                    <g key={`gbadge-${cell.ref}`} pointerEvents="none">
+                      <circle cx={cell.cx} cy={cell.cy} r={9} fill={MAP_C.accent} stroke="rgb(var(--invictus-base))" strokeWidth={1} />
+                      <text x={cell.cx} y={cell.cy + 3.5} fontSize={11} fontWeight={700} fill={MAP_C.boundaryFill} textAnchor="middle">
+                        {activeCountByArea[cell.areaKey]}
+                      </text>
+                    </g>
+                  ))}
+                </>
+              ) : (
+                /* Cost mode: one price tag per named area, and per loose grid
+                   square, drawn on the first square that carries it so a wide
+                   area doesn't repeat its total across every square it spans. */
+                SITE_CELLS.filter(
+                  (c) =>
+                    c.inside &&
+                    (costByArea[c.areaKey] ?? 0) > 0 &&
+                    SITE_CELLS.find((o) => o.inside && o.areaKey === c.areaKey) === c
+                ).map((cell) => {
+                  const label = formatMoneyCompact(costByArea[cell.areaKey]);
+                  const w = 12 + label.length * 6.5;
+                  return (
+                    <g key={`cost-${cell.ref}`} pointerEvents="none">
+                      <rect
+                        x={cell.cx - w / 2}
+                        y={cell.cy - 9}
+                        width={w}
+                        height={18}
+                        rx={9}
+                        fill="rgb(var(--invictus-base))"
+                        stroke={MAP_C.accent}
+                        strokeWidth={1}
+                      />
+                      <text x={cell.cx} y={cell.cy + 4} fontSize={11} fontWeight={700} fill={MAP_C.accent} textAnchor="middle">
+                        {label}
+                      </text>
+                    </g>
+                  );
+                })
+              )}
             </svg>
           </div>
           {/* Legend */}
@@ -2455,20 +2550,66 @@ function SiteMapPage({
               <span className="h-3 w-3 shrink-0 rounded-[3px] border border-neutral-400/25 bg-neutral-700/40" />
               <span className="text-xs text-neutral-500">Car park</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-invictus-crimson-bright text-[8px] font-bold text-invictus-surface">1</span>
-              <span className="text-xs text-neutral-500">Tasks assigned</span>
-            </div>
+            {mapMode === 'tasks' ? (
+              <div className="flex items-center gap-1.5">
+                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-invictus-crimson-bright text-[8px] font-bold text-invictus-surface">1</span>
+                <span className="text-xs text-neutral-500">Tasks assigned</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span className="flex h-3 w-16 shrink-0 overflow-hidden rounded-[3px] border border-neutral-400/25">
+                  {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+                    <span key={t} className="h-full flex-1" style={{ background: heatColor(t) }} />
+                  ))}
+                </span>
+                <span className="text-xs text-neutral-500">
+                  Material spend — low to high{maxAreaCost > 0 ? ` (peak ${formatMoney(maxAreaCost)})` : ''}
+                </span>
+              </div>
+            )}
           </div>
         </Panel>
 
         <Panel title={selectedCell ? (selectedCell.landmark ?? `Grid ${selectedCell.ref}`) : 'Grid Square'} icon={MapPin} refCode="0107-M">
           {!selectedCell ? (
-            <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-3 text-center">
-              <MapPin className="h-8 w-8 text-neutral-700" />
-              <p className="text-xs text-neutral-500">
-                Click a grid square on the map to view its tasks and assign new ones.
-              </p>
+            <div className="flex h-full min-h-[12rem] flex-col gap-4">
+              <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
+                <MapPin className="h-8 w-8 text-neutral-700" />
+                <p className="text-xs text-neutral-500">
+                  Click a grid square on the map to view its tasks and assign new ones.
+                </p>
+              </div>
+              {siteTotalCost > 0 && (
+                <div className="border-t border-neutral-400/15 pt-4">
+                  <div className="mb-2 flex items-baseline justify-between gap-2">
+                    <Kicker>Material spend by area</Kicker>
+                    <span className="text-sm font-bold text-invictus-crimson-bright">{formatMoney(siteTotalCost)}</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {Object.entries(costByArea)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 8)
+                      .map(([area, cost]) => (
+                        <button
+                          key={area}
+                          onClick={() => setSelectedRef(SITE_CELLS.find((c) => c.inside && c.areaKey === area)?.ref ?? null)}
+                          className="flex w-full items-center gap-2 rounded-md border border-neutral-400/20 bg-invictus-base/40 px-2.5 py-1.5 text-left transition-colors hover:border-invictus-crimson-bright/40"
+                        >
+                          <span className="min-w-0 flex-1 truncate text-xs text-neutral-200">{area}</span>
+                          {/* Bar length is share of the dearest area, so the
+                              ranking reads at a glance. */}
+                          <span className="hidden h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-neutral-400/15 sm:block">
+                            <span
+                              className="block h-full rounded-full bg-invictus-crimson-bright"
+                              style={{ width: `${maxAreaCost > 0 ? (cost / maxAreaCost) * 100 : 0}%` }}
+                            />
+                          </span>
+                          <span className="shrink-0 text-xs font-semibold text-neutral-300">{formatMoney(cost)}</span>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -2492,23 +2633,47 @@ function SiteMapPage({
                 </button>
               </div>
 
+              {selectedAreaCost > 0 && (
+                <div className="rounded-lg border border-invictus-crimson-bright/30 bg-invictus-crimson-bright/5 px-3 py-2.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[10px] uppercase tracking-widest text-neutral-500">Material cost here</span>
+                    <span className="text-lg font-bold text-invictus-crimson-bright">{formatMoney(selectedAreaCost)}</span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-neutral-500">
+                    {siteTotalCost > 0 ? `${Math.round((selectedAreaCost / siteTotalCost) * 100)}% of site spend` : ''}
+                  </p>
+                </div>
+              )}
+
               <div>
                 <Kicker>Tasks here ({tasksForArea.length})</Kicker>
                 <div className="mt-2 space-y-1.5">
                   {tasksForArea.length === 0 && (
                     <p className="py-2 text-xs text-neutral-600">No tasks assigned to this location yet.</p>
                   )}
-                  {tasksForArea.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex items-center justify-between gap-2 rounded-md border border-neutral-400/20 bg-invictus-base/40 px-2.5 py-1.5"
-                    >
-                      <span className="min-w-0 flex-1 truncate text-xs text-neutral-200">{t.name}</span>
-                      <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${STATUS_STYLES[t.status]}`}>
-                        {t.status}
-                      </span>
-                    </div>
-                  ))}
+                  {tasksForArea.map((t) => {
+                    const cost = materialsTotal(t.materials);
+                    return (
+                      <div
+                        key={t.id}
+                        className="flex items-center justify-between gap-2 rounded-md border border-neutral-400/20 bg-invictus-base/40 px-2.5 py-1.5"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-xs text-neutral-200">{t.name}</span>
+                        {cost > 0 && (
+                          <span
+                            className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-neutral-300"
+                            title={`${t.materials!.length} material(s)`}
+                          >
+                            <Package className="h-3 w-3 text-neutral-500" />
+                            {formatMoney(cost)}
+                          </span>
+                        )}
+                        <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${STATUS_STYLES[t.status]}`}>
+                          {t.status}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
