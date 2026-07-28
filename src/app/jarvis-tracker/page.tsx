@@ -2229,11 +2229,13 @@ function AssigneeMultiSelect({
 
 function SiteMapPage({
   tasks,
+  archivedTasks,
   team,
   currentUid,
   onAddTask,
 }: {
   tasks: Task[];
+  archivedTasks: Task[];
   team: TeamMember[];
   currentUid: string;
   onAddTask: (task: Task) => void;
@@ -2261,25 +2263,36 @@ function SiteMapPage({
     return counts;
   }, [tasks]);
 
+  // Archived work still counts towards what a place has cost — filing a job
+  // away doesn't unspend the money — so spend is summed over both lists even
+  // though the task-count badges only track live work.
+  const costedTasks = useMemo(() => [...tasks, ...archivedTasks], [tasks, archivedTasks]);
+
   // What each part of the site is costing: the materials logged against every
-  // task pinned there, summed. Completed tasks still count — the money was
-  // spent — but archived ones aren't in `tasks` at all.
+  // task pinned there, summed.
   const costByArea = useMemo(() => {
     const totals: Record<string, number> = {};
-    for (const t of tasks) {
+    for (const t of costedTasks) {
       if (!t.area) continue;
       const cost = materialsTotal(t.materials);
       if (cost > 0) totals[t.area] = (totals[t.area] ?? 0) + cost;
     }
     return totals;
-  }, [tasks]);
+  }, [costedTasks]);
 
   const maxAreaCost = useMemo(() => Math.max(0, ...Object.values(costByArea)), [costByArea]);
   const siteTotalCost = useMemo(() => Object.values(costByArea).reduce((a, b) => a + b, 0), [costByArea]);
 
+  // Archived jobs are listed too, live work first — without them the per-task
+  // figures wouldn't add up to the area total shown above them.
   const tasksForArea = useMemo(
-    () => (selectedCell ? tasks.filter((t) => t.area === selectedCell.areaKey) : []),
-    [tasks, selectedCell]
+    () =>
+      selectedCell
+        ? costedTasks
+            .filter((t) => t.area === selectedCell.areaKey)
+            .sort((a, b) => Number(a.archived ?? false) - Number(b.archived ?? false))
+        : [],
+    [costedTasks, selectedCell]
   );
   const selectedAreaCost = selectedCell ? (costByArea[selectedCell.areaKey] ?? 0) : 0;
 
@@ -2650,7 +2663,13 @@ function SiteMapPage({
               )}
 
               <div>
-                <Kicker>Tasks here ({tasksForArea.length})</Kicker>
+                <Kicker>
+                  Tasks here ({tasksForArea.filter((t) => !t.archived).length}
+                  {tasksForArea.some((t) => t.archived)
+                    ? ` + ${tasksForArea.filter((t) => t.archived).length} archived`
+                    : ''}
+                  )
+                </Kicker>
                 <div className="mt-2 space-y-1.5">
                   {tasksForArea.length === 0 && (
                     <p className="py-2 text-xs text-neutral-600">No tasks assigned to this location yet.</p>
@@ -2660,20 +2679,28 @@ function SiteMapPage({
                     return (
                       <div
                         key={t.id}
-                        className="flex items-center justify-between gap-2 rounded-md border border-neutral-400/20 bg-invictus-base/40 px-2.5 py-1.5"
+                        className={`flex items-center justify-between gap-2 rounded-md border border-neutral-400/20 px-2.5 py-1.5 ${
+                          t.archived ? 'bg-invictus-base/20' : 'bg-invictus-base/40'
+                        }`}
                       >
-                        <span className="min-w-0 flex-1 truncate text-xs text-neutral-200">{t.name}</span>
+                        <span className={`min-w-0 flex-1 truncate text-xs ${t.archived ? 'text-neutral-500' : 'text-neutral-200'}`}>
+                          {t.name}
+                        </span>
                         {cost > 0 && (
                           <span
-                            className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-neutral-300"
+                            className={`flex shrink-0 items-center gap-1 text-[11px] font-semibold ${t.archived ? 'text-neutral-500' : 'text-neutral-300'}`}
                             title={`${t.materials!.length} material(s)`}
                           >
                             <Package className="h-3 w-3 text-neutral-500" />
                             {formatMoney(cost)}
                           </span>
                         )}
-                        <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${STATUS_STYLES[t.status]}`}>
-                          {t.status}
+                        <span
+                          className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                            t.archived ? 'border-neutral-400/25 bg-invictus-base/60 text-neutral-500' : STATUS_STYLES[t.status]
+                          }`}
+                        >
+                          {t.archived ? 'Archived' : t.status}
                         </span>
                       </div>
                     );
@@ -5357,7 +5384,13 @@ function InvictusTracker() {
               />
             )}
             {activePage === 'sitemap' && (
-              <SiteMapPage tasks={tasks} team={team} currentUid={user?.uid ?? ''} onAddTask={handleAddTask} />
+              <SiteMapPage
+                tasks={tasks}
+                archivedTasks={archivedTasks}
+                team={team}
+                currentUid={user?.uid ?? ''}
+                onAddTask={handleAddTask}
+              />
             )}
             {activePage === 'tasks' && (
               <TaskManager
