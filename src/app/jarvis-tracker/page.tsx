@@ -2490,7 +2490,9 @@ function SiteMapPage({
             <svg
               ref={svgRef}
               viewBox={`${pan.x} ${pan.y} ${MAP_W / zoom} ${MAP_H / zoom}`}
-              className={`h-auto w-full ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+              // select-none: without it, dragging to pan sweeps a text
+              // selection across the zone labels and highlights them.
+              className={`h-auto w-full select-none ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
               // Without this, a touch drag scrolls the page instead of panning.
               style={{ touchAction: zoom > 1 ? 'none' : undefined }}
               onPointerDown={handlePointerDown}
