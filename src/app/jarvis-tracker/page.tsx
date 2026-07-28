@@ -70,6 +70,7 @@ import {
   ChevronDown,
   Tag,
   Package,
+  MessageSquarePlus,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -113,6 +114,7 @@ interface Task {
   notes?: string;
   images?: TaskImage[]; // photos attached to the task
   materials?: TaskMaterial[]; // parts/products needed to do the task
+  updates?: TaskUpdate[]; // timestamped additions to the description, oldest first
   area?: string; // Dreamland site-map zone this task is pinned to, if any
   // --- Sharing (tasks live in a shared `tasks` collection, private by default) ---
   ownerUid?: string;
@@ -139,6 +141,24 @@ interface TaskMaterial {
   url?: string;
   price?: number;
   quantity: number;
+}
+
+// One dated addition to a task's description. Entries are append-only — the
+// point is the audit trail, so they're never edited in place, only added to.
+interface TaskUpdate {
+  id: string;
+  text: string;
+  at: number;
+  byUid?: string;
+  byName?: string;
+}
+
+function formatUpdateStamp(at: number): string {
+  const d = new Date(at);
+  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · ${d.toLocaleTimeString(
+    'en-GB',
+    { hour: '2-digit', minute: '2-digit' }
+  )}`;
 }
 
 // Materials are priced in GBP — this app is used by a UK operator.
@@ -2702,6 +2722,7 @@ function TaskManager({
   onEdit,
   onSetImages,
   onSetMaterials,
+  onAddUpdate,
   onFileReport,
 }: {
   tasks: Task[];
@@ -2730,6 +2751,7 @@ function TaskManager({
   ) => void;
   onSetImages: (id: string, images: TaskImage[]) => void;
   onSetMaterials: (id: string, materials: TaskMaterial[]) => void;
+  onAddUpdate: (id: string, update: TaskUpdate) => void;
   onFileReport: (task: Task) => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
@@ -2921,6 +2943,29 @@ function TaskManager({
     setMaterialDraft({ name: '', url: '', price: '', quantity: '1' });
     playConfirm();
   };
+  // Timeline of dated additions to a task's description. Same open/draft-per-
+  // task pattern as materials above.
+  const [timelineOpenFor, setTimelineOpenFor] = useState<string | null>(null);
+  const [updateDraft, setUpdateDraft] = useState('');
+
+  const openTimeline = (id: string) => {
+    setTimelineOpenFor((prev) => (prev === id ? null : id));
+    setUpdateDraft('');
+  };
+  const addUpdate = (task: Task) => {
+    const text = updateDraft.trim();
+    if (!text) return;
+    onAddUpdate(task.id, {
+      id: genId(),
+      text,
+      at: Date.now(),
+      byUid: currentUid,
+      byName: team.find((m) => m.uid === currentUid)?.name || 'Someone',
+    });
+    setUpdateDraft('');
+    playConfirm();
+  };
+
   const removeMaterial = (task: Task, materialId: string) =>
     onSetMaterials(task.id, (task.materials ?? []).filter((m) => m.id !== materialId));
   const setMaterialQuantity = (task: Task, materialId: string, quantity: number) =>
@@ -3078,6 +3123,16 @@ function TaskManager({
               )}
             </p>
             {task.notes && <p className="mt-1.5 text-sm leading-relaxed text-neutral-400">{task.notes}</p>}
+            {(task.updates?.length ?? 0) > 0 && timelineOpenFor !== task.id && (
+              <button
+                onClick={() => openTimeline(task.id)}
+                className="mt-1.5 flex items-center gap-1 text-left text-xs text-neutral-500 transition-colors hover:text-invictus-crimson-bright"
+              >
+                <MessageSquarePlus className="h-3 w-3 shrink-0" />
+                {task.updates!.length} update{task.updates!.length === 1 ? '' : 's'} · last{' '}
+                {formatUpdateStamp(task.updates![task.updates!.length - 1].at)}
+              </button>
+            )}
             {((task.pendingUids?.length ?? 0) > 0 || (task.participants?.length ?? 0) > 1) && (
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 {(task.pendingUids ?? []).map((uid) => (
@@ -3153,6 +3208,20 @@ function TaskManager({
               <Package className="h-3.5 w-3.5" />
               {(task.materials?.length ?? 0) > 0 && (
                 <span className="text-xs font-semibold">{task.materials!.length}</span>
+              )}
+            </button>
+            <button
+              onClick={() => openTimeline(task.id)}
+              className={`flex items-center gap-1.5 rounded-md border p-1.5 transition-all ${
+                timelineOpenFor === task.id || (task.updates?.length ?? 0) > 0
+                  ? 'border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 text-invictus-crimson-bright'
+                  : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright'
+              }`}
+              title="Add an update — every addition is timestamped"
+            >
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+              {(task.updates?.length ?? 0) > 0 && (
+                <span className="text-xs font-semibold">{task.updates!.length}</span>
               )}
             </button>
             <button
@@ -3355,6 +3424,74 @@ function TaskManager({
             </div>
           </div>
         )}
+        {timelineOpenFor === task.id && (
+          <div className="ml-8 rounded-xl border border-neutral-400/25 bg-invictus-base/40 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+              <MessageSquarePlus className="h-3 w-3" /> Task timeline
+            </p>
+
+            <div className="mb-3 space-y-0">
+              {/* The original description opens the timeline, dated from when
+                  the task was created. */}
+              {task.notes && (
+                <div className="relative border-l border-neutral-400/50 pb-3 pl-4">
+                  <span className="absolute -left-[3px] top-1.5 h-1.5 w-1.5 rounded-full bg-neutral-500" />
+                  <p className="text-[10px] uppercase tracking-widest text-neutral-600">
+                    Description{task.createdAt ? ` · ${formatUpdateStamp(task.createdAt)}` : ''}
+                    {task.ownerName ? ` · ${task.ownerName}` : ''}
+                  </p>
+                  <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-neutral-300">{task.notes}</p>
+                </div>
+              )}
+              {(task.updates ?? []).map((u, i, arr) => (
+                <div
+                  key={u.id}
+                  className={`relative pl-4 ${i === arr.length - 1 ? '' : 'border-l border-neutral-400/50 pb-3'}`}
+                >
+                  <span className="absolute -left-[3px] top-1.5 h-1.5 w-1.5 rounded-full bg-invictus-crimson-bright" />
+                  {/* The last entry has no full-height line — just a stub down to
+                      its own dot, so the timeline visibly terminates. */}
+                  {i === arr.length - 1 && <span className="absolute -left-px top-0 h-1.5 border-l border-neutral-400/50" />}
+                  <p className="text-[10px] uppercase tracking-widest text-neutral-600">
+                    {formatUpdateStamp(u.at)}
+                    {u.byName ? ` · ${u.byName}` : ''}
+                  </p>
+                  <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-neutral-200">{u.text}</p>
+                </div>
+              ))}
+              {!task.notes && (task.updates?.length ?? 0) === 0 && (
+                <p className="text-xs text-neutral-600">No updates yet — add the first one below.</p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
+                <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Add an update</label>
+                <textarea
+                  value={updateDraft}
+                  onChange={(e) => setUpdateDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Enter sends; Shift+Enter makes a new line.
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      addUpdate(task);
+                    }
+                  }}
+                  rows={2}
+                  placeholder="What's changed? (Enter to save, Shift+Enter for a new line)"
+                  className="w-full resize-y rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={() => addUpdate(task)}
+                disabled={!updateDraft.trim()}
+                className="flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-3 py-1.5 text-xs font-bold text-invictus-crimson-bright transition-all hover:bg-invictus-crimson-bright/20 disabled:opacity-40"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -3421,6 +3558,14 @@ function TaskManager({
             >
               <Package className="h-2.5 w-2.5" /> {task.materials!.length}
               {materialsTotal(task.materials) > 0 ? ` · ${formatMoney(materialsTotal(task.materials))}` : ''}
+            </span>
+          )}
+          {(task.updates?.length ?? 0) > 0 && (
+            <span
+              className="flex items-center gap-1 rounded-full border border-neutral-400/25 bg-invictus-base/60 px-2 py-0.5 text-[11px] font-medium text-neutral-400"
+              title={`${task.updates!.length} timeline update(s)`}
+            >
+              <MessageSquarePlus className="h-2.5 w-2.5" /> {task.updates!.length}
             </span>
           )}
         </div>
@@ -4778,6 +4923,12 @@ function InvictusTracker() {
     if (!user) return;
     updateDoc(doc(db, 'tasks', id), { materials }).catch(logTaskError('update task materials'));
   };
+  // arrayUnion rather than a whole-array write: several people share a task,
+  // and two of them posting an update at once shouldn't drop either entry.
+  const handleAddTaskUpdate = (id: string, update: TaskUpdate) => {
+    if (!user) return;
+    updateDoc(doc(db, 'tasks', id), { updates: arrayUnion(update) }).catch(logTaskError('add task update'));
+  };
   // Jump to the Reports view with the form pre-filled to back this task.
   const handleFileReport = (task: Task) => {
     setReportDraft({ taskId: task.id, taskName: task.name, title: task.name });
@@ -4961,6 +5112,7 @@ function InvictusTracker() {
                 onEdit={handleEditTask}
                 onSetImages={handleSetTaskImages}
                 onSetMaterials={handleSetTaskMaterials}
+                onAddUpdate={handleAddTaskUpdate}
                 onFileReport={handleFileReport}
               />
             )}
