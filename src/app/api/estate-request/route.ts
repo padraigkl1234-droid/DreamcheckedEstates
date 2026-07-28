@@ -99,30 +99,36 @@ export async function POST(req: Request) {
     const db = getAdminDb();
 
     // Who the request goes to: an explicit assignee from the flow wins,
-    // otherwise the default approver configured in the master console.
+    // otherwise the default approvers configured in the master console.
+    // approverUid (singular) is the pre-multi-recipient shape, still read so
+    // existing config keeps working.
     const config = (await db.collection('config').doc('estateRequests').get()).data() as
-      | { approverUid?: string; teamId?: string | null }
+      | { approverUids?: string[]; approverUid?: string; teamId?: string | null }
       | undefined;
 
-    let approverUid = config?.approverUid ?? '';
+    let approverUids = config?.approverUids?.length
+      ? config.approverUids
+      : config?.approverUid
+        ? [config.approverUid]
+        : [];
     let assigneeUnmatched = '';
     if (assigneeEmail) {
       const match = await db.collection('users').where('email', '==', assigneeEmail).limit(1).get();
       if (match.empty) assigneeUnmatched = assigneeEmail;
-      else approverUid = match.docs[0].id;
+      else approverUids = [match.docs[0].id];
     } else if (assigneeName) {
       // The sheet's "Assigned To" holds display names ("Steven Barnard"), not
       // emails, so match those against the roster. An unrecognised name falls
-      // back to the default approver rather than dropping the request.
+      // back to the configured approvers rather than dropping the request.
       const all = await db.collection('users').get();
       const hit = all.docs.find((d) => {
         const u = d.data() as UserDoc;
         return [u.displayName, u.name].some((n) => n && normalize(n) === normalize(assigneeName));
       });
-      if (hit) approverUid = hit.id;
+      if (hit) approverUids = [hit.id];
       else assigneeUnmatched = assigneeName;
     }
-    if (!approverUid) {
+    if (!approverUids.length) {
       return NextResponse.json(
         { error: 'No approver configured — set one in Master Console → Automations.' },
         { status: 400 }
@@ -132,16 +138,20 @@ export async function POST(req: Request) {
     // The request is owned by the master account so every incoming request is
     // visible for oversight even before anyone accepts it.
     const masterSnap = await db.collection('users').where('email', '==', MASTER_ADMIN_EMAIL).limit(1).get();
-    const ownerUid = masterSnap.empty ? approverUid : masterSnap.docs[0].id;
+    const ownerUid = masterSnap.empty ? approverUids[0] : masterSnap.docs[0].id;
 
-    const [ownerDoc, approverDoc] = await Promise.all([
+    const [ownerDoc, ...approverDocs] = await Promise.all([
       db.collection('users').doc(ownerUid).get(),
-      db.collection('users').doc(approverUid).get(),
+      ...approverUids.map((uid) => db.collection('users').doc(uid).get()),
     ]);
     const owner = ownerDoc.data() as UserDoc | undefined;
-    const approver = approverDoc.data() as UserDoc | undefined;
     const ownerName = nameOf(owner, 'Estate Requests');
-    const approverName = nameOf(approver, 'Teammate');
+
+    // The owner already sees the task as a participant, so never offer it to
+    // them as well — that would leave them approving their own request.
+    const approvers = approverDocs
+      .map((d) => ({ uid: d.id, data: d.data() as UserDoc | undefined }))
+      .filter((a) => a.uid !== ownerUid);
 
     // Everything the form captured beyond the title becomes the description,
     // which is also the opening entry of the task's timeline. An unmatched
@@ -157,9 +167,9 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join('\n');
 
-    // When the approver *is* the owner there's nobody to offer it to — the
-    // task is simply theirs, so skip the pending/accept step.
-    const offering = approverUid !== ownerUid;
+    // Everyone configured is offered the request and any one of them can take
+    // it — same shape as offering a task to several teammates in the app.
+    const pendingNames = Object.fromEntries(approvers.map((a) => [a.uid, nameOf(a.data, 'Teammate')]));
 
     const ref = db.collection('tasks').doc();
     await ref.set({
@@ -175,25 +185,26 @@ export async function POST(req: Request) {
       teamId: config?.teamId ?? owner?.teamId ?? null,
       participants: [ownerUid],
       participantNames: { [ownerUid]: ownerName },
-      pendingUids: offering ? [approverUid] : [],
-      pendingNames: offering ? { [approverUid]: approverName } : {},
+      pendingUids: approvers.map((a) => a.uid),
+      pendingNames,
       archived: false,
     });
 
-    // Best-effort push — the task exists either way.
+    // Best-effort push to each person offered it — the task exists either way.
     let sent = 0;
-    const tokens = approver?.fcmTokens ?? [];
-    if (offering && tokens.length && notifEnabled(approver?.notifPrefs, 'taskAssignments')) {
-      const result = await pushToTokens(db, getAdminMessaging(), approverUid, tokens, {
+    for (const a of approvers) {
+      const tokens = a.data?.fcmTokens ?? [];
+      if (!tokens.length || !notifEnabled(a.data?.notifPrefs, 'taskAssignments')) continue;
+      const result = await pushToTokens(db, getAdminMessaging(), a.uid, tokens, {
         title: 'New estate request',
         body: `"${title}" — tap to accept or decline`,
         url: '/jarvis-tracker?page=tasks',
         tag: `task-${ref.id}`,
       });
-      sent = result.sent;
+      sent += result.sent;
     }
 
-    return NextResponse.json({ ok: true, taskId: ref.id, offeredTo: offering ? approverName : null, sent });
+    return NextResponse.json({ ok: true, taskId: ref.id, offeredTo: Object.values(pendingNames), sent });
   } catch (error) {
     console.error('estate-request webhook error:', error);
     return NextResponse.json({ error: `Server error: ${(error as Error)?.message || 'unknown'}` }, { status: 500 });

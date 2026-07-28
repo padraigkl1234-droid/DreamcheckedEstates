@@ -40,7 +40,9 @@ export default function AutomationsPage() {
   // Estate-request intake: which person incoming form submissions get offered
   // to. Stored in config/estateRequests, read by /api/estate-request.
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [approverUid, setApproverUid] = useState('');
+  const [approverUids, setApproverUids] = useState<string[]>([]);
+  const [savingApprovers, setSavingApprovers] = useState(false);
+  const [approverMsg, setApproverMsg] = useState<string | null>(null);
   const [copiedHook, setCopiedHook] = useState(false);
 
   const addNewDigestEmail = () => {
@@ -92,8 +94,18 @@ export default function AutomationsPage() {
     );
     const unsubConfig = onSnapshot(
       doc(db, 'config', 'estateRequests'),
-      (snap) => setApproverUid((snap.data()?.approverUid as string) ?? ''),
-      (error) => console.error('Estate-request config subscription failed:', error)
+      (snap) => {
+        const data = snap.data();
+        // approverUid (singular) is the pre-multi-recipient shape.
+        const list = (data?.approverUids as string[] | undefined) ?? [];
+        setApproverUids(list.length ? list : data?.approverUid ? [data.approverUid as string] : []);
+      },
+      (error) => {
+        console.error('Estate-request config subscription failed:', error);
+        setApproverMsg(
+          "Can't read the setting — publish the latest Firestore rules (the /config block) in the Firebase Console."
+        );
+      }
     );
     return () => {
       unsubUsers();
@@ -101,14 +113,30 @@ export default function AutomationsPage() {
     };
   }, [isMaster]);
 
-  const saveApprover = async (uid: string) => {
-    setApproverUid(uid);
-    const person = users.find((u) => u.uid === uid);
-    await setDoc(
-      doc(db, 'config', 'estateRequests'),
-      { approverUid: uid, approverName: person ? profileName(person) : '', teamId: person?.teamId ?? null },
-      { merge: true }
-    );
+  const toggleApprover = (uid: string) =>
+    setApproverUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
+
+  const saveApprovers = async () => {
+    setSavingApprovers(true);
+    setApproverMsg(null);
+    const chosen = users.filter((u) => approverUids.includes(u.uid));
+    try {
+      await setDoc(
+        doc(db, 'config', 'estateRequests'),
+        {
+          approverUids,
+          approverNames: chosen.map((u) => profileName(u)),
+          teamId: chosen[0]?.teamId ?? null,
+        },
+        { merge: true }
+      );
+      setApproverMsg('Saved.');
+    } catch (e) {
+      // Almost always the Firestore rule for /config not being published yet.
+      setApproverMsg(`Couldn't save: ${(e as Error).message}`);
+    } finally {
+      setSavingApprovers(false);
+    }
   };
 
   const webhookUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/api/estate-request`;
@@ -401,22 +429,49 @@ export default function AutomationsPage() {
           </div>
 
           <div className="space-y-4 p-4">
-            <div className="max-w-md">
+            <div className="max-w-2xl">
               <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Send requests to</label>
-              <InvictusSelect
-                value={approverUid}
-                onChange={saveApprover}
-                className="bg-invictus-base/60"
-                options={[
-                  { value: '', label: 'Nobody — intake disabled' },
-                  ...users
-                    .filter((u) => !u.blocked)
-                    .map((u) => ({ value: u.uid, label: `${profileName(u)}${u.email ? ` · ${u.email}` : ''}` })),
-                ]}
-              />
-              <p className="mt-1 text-[11px] text-neutral-500">
-                They get a push notification and an Accept/Decline card. Declining leaves the request with you to
-                re-route.
+              <div className="flex flex-wrap gap-1.5">
+                {users
+                  .filter((u) => !u.blocked)
+                  .map((u) => {
+                    const on = approverUids.includes(u.uid);
+                    return (
+                      <button
+                        key={u.uid}
+                        onClick={() => toggleApprover(u.uid)}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                          on
+                            ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
+                            : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-400 hover:text-neutral-200'
+                        }`}
+                        title={u.email ?? undefined}
+                      >
+                        {profileName(u)}
+                      </button>
+                    );
+                  })}
+                {users.length === 0 && <p className="text-xs text-neutral-600">No people found.</p>}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={saveApprovers}
+                  disabled={savingApprovers}
+                  className="flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 transition-all hover:bg-invictus-crimson-bright/20 disabled:opacity-40"
+                >
+                  {savingApprovers ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  Save
+                </button>
+                {approverMsg && (
+                  <span className={`text-[11px] ${approverMsg === 'Saved.' ? 'text-emerald-300' : 'text-alert'}`}>
+                    {approverMsg}
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-[11px] text-neutral-500">
+                {approverUids.length === 0
+                  ? 'Nobody selected — intake is disabled and incoming requests will be rejected.'
+                  : 'Everyone selected gets a push notification and an Accept/Decline card; whoever accepts takes it on. Declining leaves the request with you to re-route.'}
               </p>
             </div>
 
