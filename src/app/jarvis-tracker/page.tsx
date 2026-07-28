@@ -1982,6 +1982,7 @@ interface SiteZone {
   x: number; y: number; w: number; h: number;
   rot?: number;       // box rotation (deg)
   labelRot?: number;  // text rotation (deg) — defaults to rot
+  labelSize?: number; // font-size override, for units too small for the default
   tone?: ZoneTone;
   noBadge?: boolean;  // skip task badge (for duplicate-labelled boxes)
 }
@@ -1999,6 +2000,15 @@ const SITE_ZONES: SiteZone[] = [
   { label: 'Roller Area', x: 138, y: 205, w: 188, h: 63, tone: 'area' },
   { label: 'Transit Area', x: 170, y: 287, w: 93, h: 57, tone: 'area' },
   { label: 'Food Court', x: 198, y: 352, w: 100, h: 183, tone: 'area' },
+  // Food-court outlets, ringing the central seating area as on the site plan:
+  // the four units across the top, the two Peppermint bars along the bottom.
+  { label: 'Please Sir', x: 201, y: 356, w: 45, h: 20, rot: -10, tone: 'building', labelSize: 5.5 },
+  { label: 'Kerb Bar', x: 250, y: 356, w: 45, h: 20, rot: -6, tone: 'building', labelSize: 5.5 },
+  { label: 'Birdie Macs', x: 201, y: 384, w: 45, h: 20, rot: -3, tone: 'building', labelSize: 5.5 },
+  { label: 'Beastie Baos', x: 250, y: 384, w: 45, h: 20, rot: 4, tone: 'building', labelSize: 5.5 },
+  // Wider than the units above — the longest name needs the room.
+  { label: 'Peppermint Bar', x: 199, y: 505, w: 49, h: 20, tone: 'building', labelSize: 5.2 },
+  { label: 'Peppermint Bar', x: 249, y: 505, w: 49, h: 20, tone: 'building', labelSize: 5.2, noBadge: true },
   { label: 'Scenic Stage', x: 301, y: 352, w: 42, h: 183, tone: 'area', labelRot: -90 },
   { label: 'Scenic Railway', x: 346, y: 352, w: 59, h: 185, tone: 'area', labelRot: -90 },
   { label: 'Scenic Railway', x: 341, y: 214, w: 62, h: 89, tone: 'area', labelRot: -90, noBadge: true },
@@ -2303,15 +2313,16 @@ function SiteMapPage({
                   const cy = z.y + z.h / 2;
                   const tone = ZONE_TONE[z.tone ?? 'area'];
                   const lr = z.labelRot ?? z.rot ?? 0;
-                  const fs = z.w < 78 || z.h < 32 ? 7.5 : 9;
+                  const fs = z.labelSize ?? (z.w < 78 || z.h < 32 ? 7.5 : 9);
                   return (
                     <text
                       key={`zlbl-${i}`}
                       x={cx}
-                      y={cy + 3}
+                      y={cy + (z.labelSize ? 2 : 3)}
                       fontSize={fs}
                       fontWeight={600}
-                      letterSpacing={0.5}
+                      // Tight units can't spare the extra tracking.
+                      letterSpacing={z.labelSize ? 0.2 : 0.5}
                       fill={tone.text}
                       transform={lr ? `rotate(${lr} ${cx} ${cy})` : undefined}
                     >
