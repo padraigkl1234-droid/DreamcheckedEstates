@@ -69,6 +69,7 @@ import {
   ImagePlus,
   ChevronDown,
   Tag,
+  Package,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -111,6 +112,7 @@ interface Task {
   category?: string;
   notes?: string;
   images?: TaskImage[]; // photos attached to the task
+  materials?: TaskMaterial[]; // parts/products needed to do the task
   area?: string; // Dreamland site-map zone this task is pinned to, if any
   // --- Sharing (tasks live in a shared `tasks` collection, private by default) ---
   ownerUid?: string;
@@ -126,6 +128,26 @@ interface TaskImage {
   url: string;
   path: string; // storage path, for deletion
   uploadedAt: number;
+}
+
+// A product/part needed to complete a task. Price is per-unit, so the line
+// total is price × quantity; both price and url are optional, since you often
+// know what you need before you've found where to buy it.
+interface TaskMaterial {
+  id: string;
+  name: string;
+  url?: string;
+  price?: number;
+  quantity: number;
+}
+
+// Materials are priced in GBP — this app is used by a UK operator.
+function formatMoney(value: number): string {
+  return `£${value.toFixed(2)}`;
+}
+
+function materialsTotal(materials: TaskMaterial[] | undefined): number {
+  return (materials ?? []).reduce((sum, m) => sum + (m.price ?? 0) * (m.quantity || 1), 0);
 }
 
 // A user who has signed in at least once — the assignable-people roster.
@@ -2679,6 +2701,7 @@ function TaskManager({
   onDeclineOffer,
   onEdit,
   onSetImages,
+  onSetMaterials,
   onFileReport,
 }: {
   tasks: Task[];
@@ -2706,6 +2729,7 @@ function TaskManager({
     }
   ) => void;
   onSetImages: (id: string, images: TaskImage[]) => void;
+  onSetMaterials: (id: string, materials: TaskMaterial[]) => void;
   onFileReport: (task: Task) => void;
 }) {
   const completedCount = tasks.filter((t) => t.status === 'Completed').length;
@@ -2870,6 +2894,40 @@ function TaskManager({
     deleteObject(storageRef(storage, img.path)).catch(() => {});
     onSetImages(task.id, (task.images ?? []).filter((i) => i.path !== img.path));
   };
+
+  // Materials (products/parts needed) per task. The panel is opened per task
+  // from the row's Materials button; the draft is keyed by task id so opening
+  // a different task doesn't inherit a half-typed entry.
+  const [materialsOpenFor, setMaterialsOpenFor] = useState<string | null>(null);
+  const [materialDraft, setMaterialDraft] = useState({ name: '', url: '', price: '', quantity: '1' });
+
+  const openMaterials = (id: string) => {
+    setMaterialsOpenFor((prev) => (prev === id ? null : id));
+    setMaterialDraft({ name: '', url: '', price: '', quantity: '1' });
+  };
+  const addMaterial = (task: Task) => {
+    const name = materialDraft.name.trim();
+    if (!name) return;
+    const price = parseFloat(materialDraft.price);
+    const quantity = parseInt(materialDraft.quantity, 10);
+    const material: TaskMaterial = {
+      id: genId(),
+      name,
+      ...(materialDraft.url.trim() ? { url: materialDraft.url.trim() } : {}),
+      ...(Number.isFinite(price) && price >= 0 ? { price } : {}),
+      quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+    };
+    onSetMaterials(task.id, [...(task.materials ?? []), material]);
+    setMaterialDraft({ name: '', url: '', price: '', quantity: '1' });
+    playConfirm();
+  };
+  const removeMaterial = (task: Task, materialId: string) =>
+    onSetMaterials(task.id, (task.materials ?? []).filter((m) => m.id !== materialId));
+  const setMaterialQuantity = (task: Task, materialId: string, quantity: number) =>
+    onSetMaterials(
+      task.id,
+      (task.materials ?? []).map((m) => (m.id === materialId ? { ...m, quantity: Math.max(1, quantity) } : m))
+    );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -3084,6 +3142,20 @@ function TaskManager({
               {uploadingImageFor === task.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
             </button>
             <button
+              onClick={() => openMaterials(task.id)}
+              className={`flex items-center gap-1.5 rounded-md border p-1.5 transition-all ${
+                materialsOpenFor === task.id || (task.materials?.length ?? 0) > 0
+                  ? 'border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 text-invictus-crimson-bright'
+                  : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright'
+              }`}
+              title="Materials needed for this task"
+            >
+              <Package className="h-3.5 w-3.5" />
+              {(task.materials?.length ?? 0) > 0 && (
+                <span className="text-xs font-semibold">{task.materials!.length}</span>
+              )}
+            </button>
+            <button
               onClick={() => startEdit(task)}
               className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
               title="Edit task"
@@ -3136,6 +3208,151 @@ function TaskManager({
                 </button>
               </div>
             ))}
+          </div>
+        )}
+        {materialsOpenFor === task.id && (
+          <div className="ml-8 rounded-xl border border-neutral-400/25 bg-invictus-base/40 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+                <Package className="h-3 w-3" /> Materials needed
+              </p>
+              {materialsTotal(task.materials) > 0 && (
+                <p className="text-xs font-semibold text-neutral-300">
+                  Total {formatMoney(materialsTotal(task.materials))}
+                </p>
+              )}
+            </div>
+
+            {(task.materials?.length ?? 0) > 0 && (
+              <div className="mb-3 space-y-1.5">
+                {task.materials!.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-400/20 bg-invictus-surface px-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      {m.url ? (
+                        <a
+                          href={m.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-sm font-medium text-invictus-crimson-bright hover:underline"
+                        >
+                          {m.name}
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </a>
+                      ) : (
+                        <p className="text-sm font-medium text-neutral-200">{m.name}</p>
+                      )}
+                      <p className="text-[11px] text-neutral-500">
+                        {m.price != null ? `${formatMoney(m.price)} each` : 'No price'}
+                        {m.price != null && m.quantity > 1 ? ` · ${formatMoney(m.price * m.quantity)} total` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setMaterialQuantity(task, m.id, m.quantity - 1)}
+                        disabled={m.quantity <= 1}
+                        className="rounded border border-neutral-400/25 px-1.5 py-0.5 text-xs text-neutral-400 transition-colors hover:text-neutral-100 disabled:opacity-30"
+                        title="Decrease quantity"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-[2ch] text-center text-xs font-semibold text-neutral-200">{m.quantity}</span>
+                      <button
+                        onClick={() => setMaterialQuantity(task, m.id, m.quantity + 1)}
+                        className="rounded border border-neutral-400/25 px-1.5 py-0.5 text-xs text-neutral-400 transition-colors hover:text-neutral-100"
+                        title="Increase quantity"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => removeMaterial(task, m.id)}
+                      className="rounded-md border border-alert/30 bg-alert/10 p-1 text-alert transition-all hover:bg-alert/20"
+                      title="Remove material"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="min-w-[10rem] flex-1">
+                <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Item</label>
+                <input
+                  value={materialDraft.name}
+                  onChange={(e) => setMaterialDraft((d) => ({ ...d, name: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addMaterial(task);
+                    }
+                  }}
+                  placeholder="e.g. Fire door closer"
+                  className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none"
+                />
+              </div>
+              <div className="min-w-[10rem] flex-1">
+                <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Product link</label>
+                <input
+                  value={materialDraft.url}
+                  onChange={(e) => setMaterialDraft((d) => ({ ...d, url: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addMaterial(task);
+                    }
+                  }}
+                  placeholder="https://… (optional)"
+                  className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none"
+                />
+              </div>
+              <div className="w-24">
+                <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Price £</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={materialDraft.price}
+                  onChange={(e) => setMaterialDraft((d) => ({ ...d, price: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addMaterial(task);
+                    }
+                  }}
+                  placeholder="0.00"
+                  className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none"
+                />
+              </div>
+              <div className="w-20">
+                <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Qty</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={materialDraft.quantity}
+                  onChange={(e) => setMaterialDraft((d) => ({ ...d, quantity: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addMaterial(task);
+                    }
+                  }}
+                  className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-sm text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={() => addMaterial(task)}
+                disabled={!materialDraft.name.trim()}
+                className="flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-3 py-1.5 text-xs font-bold text-invictus-crimson-bright transition-all hover:bg-invictus-crimson-bright/20 disabled:opacity-40"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -3195,6 +3412,15 @@ function TaskManager({
           {task.category && (
             <span className="flex items-center gap-1 rounded-full border border-neutral-400/25 bg-invictus-base/60 px-2 py-0.5 text-[11px] font-medium text-neutral-400">
               <Tag className="h-2.5 w-2.5" /> {task.category}
+            </span>
+          )}
+          {(task.materials?.length ?? 0) > 0 && (
+            <span
+              className="flex items-center gap-1 rounded-full border border-neutral-400/25 bg-invictus-base/60 px-2 py-0.5 text-[11px] font-medium text-neutral-400"
+              title={`${task.materials!.length} material(s) needed`}
+            >
+              <Package className="h-2.5 w-2.5" /> {task.materials!.length}
+              {materialsTotal(task.materials) > 0 ? ` · ${formatMoney(materialsTotal(task.materials))}` : ''}
             </span>
           )}
         </div>
@@ -4548,6 +4774,10 @@ function InvictusTracker() {
     if (!user) return;
     updateDoc(doc(db, 'tasks', id), { images }).catch(logTaskError('update task images'));
   };
+  const handleSetTaskMaterials = (id: string, materials: TaskMaterial[]) => {
+    if (!user) return;
+    updateDoc(doc(db, 'tasks', id), { materials }).catch(logTaskError('update task materials'));
+  };
   // Jump to the Reports view with the form pre-filled to back this task.
   const handleFileReport = (task: Task) => {
     setReportDraft({ taskId: task.id, taskName: task.name, title: task.name });
@@ -4730,6 +4960,7 @@ function InvictusTracker() {
                 onDeclineOffer={handleDeclineOffer}
                 onEdit={handleEditTask}
                 onSetImages={handleSetTaskImages}
+                onSetMaterials={handleSetTaskMaterials}
                 onFileReport={handleFileReport}
               />
             )}
