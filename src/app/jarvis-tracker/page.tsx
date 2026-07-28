@@ -1966,12 +1966,15 @@ function CalendarPage({
 // layout for the event build.
 type Pt = [number, number];
 
+// The eastern half sits 190 further out than the traced plan, to give the food
+// court the width it has on the ground — its outlets ring a wide oval and were
+// unreadable squeezed into the original span.
 const SITE_BOUNDARY: Pt[] = [
-  [19, 144], [300, 126], [644, 127], [853, 465], [965, 705],
-  [706, 858], [420, 773], [290, 674], [64, 386],
+  [19, 144], [300, 126], [834, 127], [1043, 465], [1155, 705],
+  [896, 858], [610, 773], [290, 674], [64, 386],
 ];
-const CAR_PARK_POLY: Pt[] = [[426, 220], [644, 127], [853, 465], [486, 457]];
-const EAST_PARK_POLY: Pt[] = [[648, 470], [812, 360], [905, 600], [800, 720], [690, 612]];
+const CAR_PARK_POLY: Pt[] = [[616, 220], [834, 127], [1043, 465], [676, 457]];
+const EAST_PARK_POLY: Pt[] = [[838, 470], [1002, 360], [1095, 600], [990, 720], [880, 612]];
 const CLUSTER_POLY: Pt[] = [
   [30, 148], [330, 150], [348, 230], [330, 300], [250, 358], [110, 360], [55, 300], [30, 205],
 ];
@@ -2001,38 +2004,38 @@ const SITE_ZONES: SiteZone[] = [
   { label: 'Ingress', x: 176, y: 152, w: 152, h: 45, tone: 'area' },
   { label: 'Roller Area', x: 138, y: 205, w: 188, h: 63, tone: 'area' },
   { label: 'Transit Area', x: 170, y: 287, w: 93, h: 57, tone: 'area' },
-  // Food-court outlets, ringing the central seating area as on the site plan:
-  // the four units across the top, the two Peppermint bars along the bottom.
-  // Each is sized and placed to own exactly one grid square (they sit on the
-  // centres of cols 4-5, rows 7-8 and 10), and they're listed *before* the
-  // Food Court so a square resolves to the unit standing on it rather than to
-  // the area around it.
-  // 44 x 36 centred on a square's middle: small enough that even rotated its
-  // corners stay inside that one square, so it never claims a neighbour's.
-  { label: 'Please Sir', x: 203, y: 357, w: 44, h: 36, rot: -8, tone: 'building', labelSize: 5.5 },
-  { label: 'Kerb Bar', x: 253, y: 357, w: 44, h: 36, rot: -5, tone: 'building', labelSize: 5.5 },
-  { label: 'Birdie Macs', x: 203, y: 407, w: 44, h: 36, rot: -3, tone: 'building', labelSize: 5.5 },
-  { label: 'Beastie Baos', x: 253, y: 407, w: 44, h: 36, rot: 4, tone: 'building', labelSize: 5.2 },
-  { label: 'Peppermint Bar', x: 203, y: 507, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'] },
-  { label: 'Peppermint Bar', x: 253, y: 507, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'], noBadge: true },
-  // The seating area itself is an oval on the plan, not a box.
-  { label: 'Food Court', x: 196, y: 348, w: 104, h: 204, shape: 'ellipse', tone: 'area' },
-  { label: 'Scenic Stage', x: 301, y: 352, w: 42, h: 183, tone: 'area', labelRot: -90 },
-  { label: 'Scenic Railway', x: 346, y: 352, w: 59, h: 185, tone: 'area', labelRot: -90 },
-  { label: 'Scenic Railway', x: 341, y: 214, w: 62, h: 89, tone: 'area', labelRot: -90, noBadge: true },
-  { label: 'Shed', x: 331, y: 306, w: 84, h: 26, tone: 'area' },
-  { label: 'Teddy & Betty / Ark', x: 442, y: 348, w: 62, h: 148, rot: -28, tone: 'area' },
-  { label: 'VIP', x: 128, y: 375, w: 44, h: 80, rot: -50, tone: 'area' },
-  { label: 'Container Toilets', x: 318, y: 566, w: 100, h: 34, tone: 'area' },
+  // Food-court outlets, standing around the rim of the seating oval as on the
+  // plan: four along the top, the two Peppermint bars below to the left.
+  // Each is 44 x 36 centred on a grid square's middle — small enough that even
+  // rotated its corners stay inside that one square, so it never claims a
+  // neighbour's — and they're listed *before* the Food Court so a square
+  // resolves to the unit standing on it rather than the area around it.
+  // These two sit at the steepest angles, so they're a size down again — a
+  // 44-wide box swings out of its square past about 10 degrees.
+  { label: 'Please Sir', x: 205, y: 360, w: 40, h: 30, rot: -22, tone: 'building', labelSize: 5.5 },
+  { label: 'Kerb Bar', x: 255, y: 360, w: 40, h: 30, rot: -16, tone: 'building', labelSize: 5.5 },
+  { label: 'Birdie Macs', x: 353, y: 357, w: 44, h: 36, rot: -6, tone: 'building', labelSize: 5.5 },
+  { label: 'Beastie Baos', x: 403, y: 357, w: 44, h: 36, rot: 10, tone: 'building', labelSize: 5.2 },
+  { label: 'Peppermint Bar', x: 203, y: 557, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'] },
+  { label: 'Peppermint Bar', x: 303, y: 557, w: 44, h: 36, tone: 'building', labelSize: 6, labelLines: ['Peppermint', 'Bar'], noBadge: true },
+  // The seating area itself is a wide oval on the plan, not a box.
+  { label: 'Food Court', x: 170, y: 380, w: 300, h: 190, shape: 'ellipse', tone: 'area' },
+  { label: 'Scenic Stage', x: 491, y: 380, w: 44, h: 190, tone: 'area', labelRot: -90 },
+  { label: 'Scenic Railway', x: 546, y: 366, w: 60, h: 218, tone: 'area', labelRot: -90 },
+  { label: 'Scenic Railway', x: 531, y: 214, w: 62, h: 89, tone: 'area', labelRot: -90, noBadge: true },
+  { label: 'Shed', x: 521, y: 306, w: 84, h: 26, tone: 'area' },
+  { label: 'Teddy & Betty / Ark', x: 632, y: 348, w: 62, h: 148, rot: -28, tone: 'area' },
+  { label: 'VIP', x: 108, y: 380, w: 44, h: 80, rot: -50, tone: 'area' },
+  { label: 'Container Toilets', x: 508, y: 606, w: 100, h: 34, tone: 'area' },
   // Rides (several pitches share the label)
-  { label: 'Rides', x: 430, y: 520, w: 80, h: 44, tone: 'area' },
-  { label: 'Rides', x: 458, y: 580, w: 54, h: 80, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 392, y: 700, w: 92, h: 32, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 325, y: 634, w: 128, h: 46, rot: -34, tone: 'area', noBadge: true },
-  { label: 'Rides', x: 250, y: 560, w: 66, h: 27, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 620, y: 520, w: 80, h: 44, tone: 'area' },
+  { label: 'Rides', x: 648, y: 580, w: 54, h: 80, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 582, y: 700, w: 92, h: 32, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 515, y: 664, w: 128, h: 46, rot: -34, tone: 'area', noBadge: true },
+  { label: 'Rides', x: 353, y: 640, w: 66, h: 27, tone: 'area', noBadge: true },
   // Logistics (SE)
-  { label: 'Boneyard', x: 660, y: 405, w: 150, h: 388, tone: 'storage' },
-  { label: 'Bars storage', x: 505, y: 662, w: 148, h: 126, tone: 'storage' },
+  { label: 'Boneyard', x: 850, y: 405, w: 150, h: 388, tone: 'storage' },
+  { label: 'Bars storage', x: 695, y: 662, w: 148, h: 126, tone: 'storage' },
 ];
 
 function pointInPolygon(x: number, y: number, poly: Pt[]): boolean {
@@ -2080,11 +2083,13 @@ const SITE_FEATURES: { label: string; zone: SiteZone; poly: Pt[]; cx: number; cy
 
 // 50 x 50 squares. Fine enough that each food-court unit gets a square of its
 // own — a coarser grid lumped several of them into one.
-const GRID_COLS = 20;
+const MAP_W = 1300;
+const MAP_H = 900;
+const GRID_COLS = 26;
 const GRID_ROWS = 18;
-const CELL_W = 1000 / GRID_COLS;
-const CELL_H = 900 / GRID_ROWS;
-const COL_LETTERS = 'ABCDEFGHIJKLMNOPQRST';
+const CELL_W = MAP_W / GRID_COLS;
+const CELL_H = MAP_H / GRID_ROWS;
+const COL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 interface GridCell {
   col: number; row: number; ref: string;
@@ -2290,7 +2295,7 @@ function SiteMapPage({
             ground tags a grid reference. Assigned tasks flow straight into Task Manager.
           </p>
           <div className="relative w-full overflow-hidden rounded-xl border border-neutral-400/20 bg-invictus-base">
-            <svg viewBox="0 0 1000 900" className="h-auto w-full" role="img" aria-label="Dreamland site map grid">
+            <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} className="h-auto w-full" role="img" aria-label="Dreamland site map grid">
               {/* Site boundary */}
               <polygon points={toPoints(SITE_BOUNDARY)} fill={MAP_C.boundaryFill} stroke={MAP_C.accent} strokeWidth={2} strokeLinejoin="round" />
 
@@ -2339,15 +2344,15 @@ function SiteMapPage({
                 })}
 
               {/* Roads */}
-              <line x1={19} y1={132} x2={644} y2={114} stroke="rgba(180,180,190,0.35)" strokeWidth={3} />
-              <line x1={644} y1={127} x2={965} y2={520} stroke="rgba(180,180,190,0.35)" strokeWidth={3} />
+              <line x1={19} y1={132} x2={834} y2={114} stroke="rgba(180,180,190,0.35)" strokeWidth={3} />
+              <line x1={834} y1={127} x2={1155} y2={520} stroke="rgba(180,180,190,0.35)" strokeWidth={3} />
 
               {/* Context labels */}
               <g fontFamily="inherit" textAnchor="middle" style={{ textTransform: 'uppercase' }}>
                 <text x={330} y={104} fontSize={12} letterSpacing={2} fill={MAP_C.labelDim}>Hall by the Sea Road</text>
-                <text x={812} y={300} fontSize={12} letterSpacing={2} fill={MAP_C.labelDim} transform="rotate(58 812 300)">Belgrave Road</text>
+                <text x={1002} y={300} fontSize={12} letterSpacing={2} fill={MAP_C.labelDim} transform="rotate(58 1002 300)">Belgrave Road</text>
                 <text x={70} y={500} fontSize={11} fill={MAP_C.labelDim}>Arlington Car Park</text>
-                <text x={600} y={300} fontSize={11} fontWeight={600} fill={MAP_C.labelDim}>Dreamland Car Park</text>
+                <text x={790} y={300} fontSize={11} fontWeight={600} fill={MAP_C.labelDim}>Dreamland Car Park</text>
                 <text x={70} y={120} fontSize={8} fill={MAP_C.accent}>Undercover Entrance</text>
               </g>
 
@@ -2391,10 +2396,10 @@ function SiteMapPage({
               {/* Grid lines */}
               <g stroke={MAP_C.line} strokeWidth={1}>
                 {Array.from({ length: GRID_COLS - 1 }, (_, i) => (
-                  <line key={`v${i}`} x1={(i + 1) * CELL_W} y1={0} x2={(i + 1) * CELL_W} y2={900} />
+                  <line key={`v${i}`} x1={(i + 1) * CELL_W} y1={0} x2={(i + 1) * CELL_W} y2={MAP_H} />
                 ))}
                 {Array.from({ length: GRID_ROWS - 1 }, (_, i) => (
-                  <line key={`h${i}`} x1={0} y1={(i + 1) * CELL_H} x2={1000} y2={(i + 1) * CELL_H} />
+                  <line key={`h${i}`} x1={0} y1={(i + 1) * CELL_H} x2={MAP_W} y2={(i + 1) * CELL_H} />
                 ))}
               </g>
 
