@@ -2316,6 +2316,9 @@ function SiteMapPage({
       d.captured = true;
     }
     draggedRef.current = true;
+    // Belt and braces with the select-none class: if a selection did start,
+    // drop it so the labels don't stay highlighted as you drag.
+    window.getSelection()?.removeAllRanges();
     const unitsPerPx = MAP_W / zoom / rect.width;
     setPan(
       clampPan({ x: d.panX - (e.clientX - d.x) * unitsPerPx, y: d.panY - (e.clientY - d.y) * unitsPerPx }, zoom)
@@ -2495,6 +2498,12 @@ function SiteMapPage({
               className={`h-auto w-full select-none ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
               // Without this, a touch drag scrolls the page instead of panning.
               style={{ touchAction: zoom > 1 ? 'none' : undefined }}
+              // Stops a drag starting a text selection at all. Safe for
+              // clicks — preventDefault on mousedown suppresses selection and
+              // focus, but the click event still fires.
+              onMouseDown={(e) => {
+                if (zoom > 1) e.preventDefault();
+              }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
