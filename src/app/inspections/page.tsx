@@ -25,25 +25,33 @@ import {
   ImagePlus,
   MessageSquare,
   Asterisk,
+  Tag,
+  CalendarClock,
+  Users,
 } from 'lucide-react';
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { AppSidebar, AppMobileNav } from '@/components/AppSidebar';
 import { InvictusSelect } from '@/components/InvictusSelect';
-import { featureEnabled, isCommander, profileName } from '@/lib/teams';
+import { featureEnabled, isCommander, profileName, type UserProfile } from '@/lib/teams';
+import { DAY_LABELS } from '@/lib/automations';
 import {
   INSPECTION_OUTCOMES,
   INSPECTION_OUTCOME_STYLES,
+  MAX_DAY_OF_MONTH,
   QUESTION_TYPES,
+  RECURRENCE_LABELS,
   STARTER_TEMPLATES,
   blankAnswers,
   blankQuestion,
   countByOutcome,
   isUnanswered,
   newQuestionId,
+  ordinal,
   overallOutcome,
   recordAnswers,
+  scheduleSummary,
   summarise,
   templateQuestions,
   type InspectionAnswer,
@@ -51,9 +59,14 @@ import {
   type InspectionPhoto,
   type InspectionQuestion,
   type InspectionQuestionType,
+  type InspectionSchedule,
   type InspectionTemplate,
+  type RecurrenceFrequency,
 } from '@/lib/inspections';
 import type { Report, ReportAttachment, ReportVisibility } from '@/lib/reports';
+
+const NEW_GROUP = '__new_group__';
+const UNGROUPED = 'Ungrouped';
 
 const inputClass =
   'w-full min-w-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50';
@@ -81,6 +94,7 @@ export default function InspectionsPage() {
 
   const [templates, setTemplates] = useState<InspectionTemplate[]>([]);
   const [recent, setRecent] = useState<Report[]>([]);
+  const [roster, setRoster] = useState<UserProfile[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [showBuilder, setShowBuilder] = useState(false);
@@ -88,6 +102,8 @@ export default function InspectionsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [running, setRunning] = useState<InspectionTemplate | null>(null);
+  // Collapsed groups only — new groups (and the first visit) default open.
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user || !teamId) {
@@ -157,6 +173,20 @@ export default function InspectionsPage() {
     };
   }, [user, teamId, amCommander]);
 
+  // The team roster, for the assignee picker — who a due inspection raises a
+  // task for.
+  useEffect(() => {
+    if (!user || !teamId) {
+      setRoster([]);
+      return;
+    }
+    return onSnapshot(
+      query(collection(db, 'users'), where('teamId', '==', teamId)),
+      (snap) => setRoster(snap.docs.map((d) => ({ ...(d.data() as Omit<UserProfile, 'uid'>), uid: d.id }))),
+      (e) => console.error('Roster subscription failed:', e)
+    );
+  }, [user, teamId]);
+
   const lastRunByTemplate = useMemo(() => {
     const map = new Map<string, Report>();
     // `recent` is newest-first, so the first hit per template is the latest.
@@ -175,7 +205,11 @@ export default function InspectionsPage() {
   const saveTemplate = async (draft: {
     name: string;
     description: string;
+    group: string;
     questions: InspectionQuestion[];
+    schedule: InspectionSchedule;
+    assigneeUids: string[];
+    assigneeNames: string[];
   }) => {
     if (!user || !teamId) throw new Error('You need to be in a team to create an inspection.');
     const id = editing?.id ?? genId('insp');
@@ -183,7 +217,11 @@ export default function InspectionsPage() {
       id,
       name: draft.name,
       ...(draft.description ? { description: draft.description } : {}),
+      ...(draft.group ? { group: draft.group } : {}),
       questions: draft.questions,
+      schedule: draft.schedule,
+      assigneeUids: draft.assigneeUids,
+      assigneeNames: draft.assigneeNames,
       teamId,
       createdAt: editing?.createdAt ?? Date.now(),
       createdBy: editing?.createdBy ?? user.uid,
@@ -200,6 +238,7 @@ export default function InspectionsPage() {
         id,
         name: starter.name,
         description: starter.description,
+        group: starter.group,
         questions: starter.questions.map((q) => ({ ...q, id: newQuestionId() })),
         teamId,
         createdAt: Date.now(),
@@ -244,6 +283,35 @@ export default function InspectionsPage() {
     (s) => !templates.some((t) => t.name.trim().toLowerCase() === s.name.trim().toLowerCase())
   );
 
+  // Templates bucketed by group — named groups alphabetically, then anything
+  // without one last, so a team can organise its list (e.g. "H&S", "Estates")
+  // without being forced to pick a group at all.
+  const groups: { name: string; items: InspectionTemplate[] }[] = (() => {
+    const map = new Map<string, InspectionTemplate[]>();
+    for (const t of templates) {
+      const key = t.group?.trim() || UNGROUPED;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(t);
+    }
+    const names = Array.from(map.keys())
+      .filter((n) => n !== UNGROUPED)
+      .sort((a, b) => a.localeCompare(b));
+    if (map.has(UNGROUPED)) names.push(UNGROUPED);
+    return names.map((name) => ({ name, items: map.get(name)! }));
+  })();
+
+  const existingGroups = Array.from(
+    new Set(templates.map((t) => t.group?.trim()).filter((g): g is string => Boolean(g)))
+  ).sort();
+
+  const toggleGroup = (name: string) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+
   return chrome(
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -275,6 +343,8 @@ export default function InspectionsPage() {
         <TemplateBuilder
           key={editing?.id ?? 'new'}
           template={editing}
+          existingGroups={existingGroups}
+          roster={roster}
           onCancel={() => {
             setShowBuilder(false);
             setEditing(null);
@@ -283,82 +353,115 @@ export default function InspectionsPage() {
         />
       )}
 
-      {/* Templates */}
-      <div className="space-y-2">
+      {/* Templates, bucketed by group */}
+      <div className="space-y-5">
         {templates.length === 0 && !showBuilder && (
           <p className="py-8 text-center text-xs text-neutral-600">
             No inspections yet. Build one, or start from a ready-made checklist below.
           </p>
         )}
-        {templates.map((t) => {
-          const isOpen = expanded === t.id;
-          const last = lastRunByTemplate.get(t.id);
-          const questions = templateQuestions(t);
+        {groups.map((g) => {
+          const isGroupOpen = !collapsedGroups.has(g.name);
           return (
-            <section key={t.id} className="overflow-hidden rounded-xl border border-neutral-400/20 bg-invictus-surface/60">
-              <div className="flex flex-wrap items-center gap-2 p-4">
-                <button
-                  onClick={() => setExpanded(isOpen ? null : t.id)}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                  aria-expanded={isOpen}
-                >
-                  <ChevronDown className={`h-4 w-4 shrink-0 text-neutral-500 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-neutral-100">{t.name}</p>
-                    <p className="truncate text-[11px] text-neutral-500">
-                      {questions.length} question{questions.length === 1 ? '' : 's'}
-                      {last ? ` · last run ${last.date} — ${last.outcome === 'fail' ? 'failed' : 'passed'}` : ' · never run'}
-                    </p>
-                  </div>
-                </button>
-                {user && (
-                  <>
-                    <button
-                      onClick={() => setRunning(t)}
-                      className="flex shrink-0 items-center gap-1.5 rounded-md border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20"
-                    >
-                      <Play className="h-3 w-3" /> Run
-                    </button>
-                    <button
-                      onClick={() => openBuilder(t)}
-                      title={`Edit ${t.name}`}
-                      className="shrink-0 rounded-md border border-neutral-400/20 bg-invictus-base px-2 py-1.5 text-neutral-500 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={() => removeTemplate(t)}
-                      onMouseLeave={() => setConfirmDeleteId((cur) => (cur === t.id ? null : cur))}
-                      title={confirmDeleteId === t.id ? 'Click again to delete' : `Delete ${t.name}`}
-                      className={`shrink-0 rounded-md border px-2 py-1.5 transition-colors ${
-                        confirmDeleteId === t.id
-                          ? 'border-alert/70 bg-alert/20 text-alert'
-                          : 'border-neutral-400/20 bg-invictus-base text-neutral-500 hover:border-alert/50 hover:text-alert'
-                      }`}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </>
-                )}
-              </div>
-              {isOpen && (
-                <div className="border-t border-neutral-400/15 px-5 py-3">
-                  {t.description && <p className="mb-2 text-xs text-neutral-500">{t.description}</p>}
-                  <ol className="space-y-1.5 text-[13px] text-neutral-300">
-                    {questions.map((q, i) => (
-                      <li key={q.id} className="flex flex-wrap items-baseline gap-2">
-                        <span className="font-mono text-[11px] text-neutral-600">{i + 1}.</span>
-                        <span>{q.label || <span className="italic text-neutral-600">Untitled question</span>}</span>
-                        <span className="rounded-full border border-neutral-400/25 px-1.5 py-0.5 text-[9px] uppercase tracking-widest text-neutral-500">
-                          {QUESTION_TYPES.find((x) => x.value === q.type)?.label ?? q.type}
-                        </span>
-                        {q.required && <span className="text-[10px] text-alert">required</span>}
-                      </li>
-                    ))}
-                  </ol>
+            <div key={g.name}>
+              <button onClick={() => toggleGroup(g.name)} className="mb-2 flex w-full items-center gap-2 text-left">
+                <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-neutral-500 transition-transform ${isGroupOpen ? '' : '-rotate-90'}`} />
+                <Tag className="h-3 w-3 shrink-0 text-neutral-600" />
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">{g.name}</span>
+                <span className="rounded-full border border-neutral-400/25 px-1.5 py-0.5 text-[9px] text-neutral-500">{g.items.length}</span>
+                <span className="h-px flex-1 bg-neutral-400/15" />
+              </button>
+              {isGroupOpen && (
+                <div className="space-y-2">
+                  {g.items.map((t) => {
+                    const isOpen = expanded === t.id;
+                    const last = lastRunByTemplate.get(t.id);
+                    const questions = templateQuestions(t);
+                    const schedule = scheduleSummary(t.schedule, DAY_LABELS);
+                    return (
+                      <section key={t.id} className="overflow-hidden rounded-xl border border-neutral-400/20 bg-invictus-surface/60">
+                        <div className="flex flex-wrap items-center gap-2 p-4">
+                          <button
+                            onClick={() => setExpanded(isOpen ? null : t.id)}
+                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                            aria-expanded={isOpen}
+                          >
+                            <ChevronDown className={`h-4 w-4 shrink-0 text-neutral-500 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-neutral-100">{t.name}</p>
+                              <p className="truncate text-[11px] text-neutral-500">
+                                {questions.length} question{questions.length === 1 ? '' : 's'}
+                                {last ? ` · last run ${last.date} — ${last.outcome === 'fail' ? 'failed' : 'passed'}` : ' · never run'}
+                              </p>
+                              {(schedule || !!t.assigneeNames?.length) && (
+                                <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-neutral-600">
+                                  {schedule && (
+                                    <span className="flex items-center gap-1">
+                                      <CalendarClock className="h-3 w-3" /> {schedule}
+                                    </span>
+                                  )}
+                                  {!!t.assigneeNames?.length && (
+                                    <span className="flex items-center gap-1">
+                                      <Users className="h-3 w-3" /> {t.assigneeNames.join(', ')}
+                                    </span>
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                          {user && (
+                            <>
+                              <button
+                                onClick={() => setRunning(t)}
+                                className="flex shrink-0 items-center gap-1.5 rounded-md border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20"
+                              >
+                                <Play className="h-3 w-3" /> Run
+                              </button>
+                              <button
+                                onClick={() => openBuilder(t)}
+                                title={`Edit ${t.name}`}
+                                className="shrink-0 rounded-md border border-neutral-400/20 bg-invictus-base px-2 py-1.5 text-neutral-500 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => removeTemplate(t)}
+                                onMouseLeave={() => setConfirmDeleteId((cur) => (cur === t.id ? null : cur))}
+                                title={confirmDeleteId === t.id ? 'Click again to delete' : `Delete ${t.name}`}
+                                className={`shrink-0 rounded-md border px-2 py-1.5 transition-colors ${
+                                  confirmDeleteId === t.id
+                                    ? 'border-alert/70 bg-alert/20 text-alert'
+                                    : 'border-neutral-400/20 bg-invictus-base text-neutral-500 hover:border-alert/50 hover:text-alert'
+                                }`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        {isOpen && (
+                          <div className="border-t border-neutral-400/15 px-5 py-3">
+                            {t.description && <p className="mb-2 text-xs text-neutral-500">{t.description}</p>}
+                            <ol className="space-y-1.5 text-[13px] text-neutral-300">
+                              {questions.map((q, i) => (
+                                <li key={q.id} className="flex flex-wrap items-baseline gap-2">
+                                  <span className="font-mono text-[11px] text-neutral-600">{i + 1}.</span>
+                                  <span>{q.label || <span className="italic text-neutral-600">Untitled question</span>}</span>
+                                  <span className="rounded-full border border-neutral-400/25 px-1.5 py-0.5 text-[9px] uppercase tracking-widest text-neutral-500">
+                                    {QUESTION_TYPES.find((x) => x.value === q.type)?.label ?? q.type}
+                                  </span>
+                                  {q.required && <span className="text-[10px] text-alert">required</span>}
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
                 </div>
               )}
-            </section>
+            </div>
           );
         })}
       </div>
@@ -440,20 +543,41 @@ export default function InspectionsPage() {
 
 function TemplateBuilder({
   template,
+  existingGroups,
+  roster,
   onCancel,
   onSave,
 }: {
   template: InspectionTemplate | null;
+  existingGroups: string[];
+  roster: UserProfile[];
   onCancel: () => void;
-  onSave: (draft: { name: string; description: string; questions: InspectionQuestion[] }) => Promise<void>;
+  onSave: (draft: {
+    name: string;
+    description: string;
+    group: string;
+    questions: InspectionQuestion[];
+    schedule: InspectionSchedule;
+    assigneeUids: string[];
+    assigneeNames: string[];
+  }) => Promise<void>;
 }) {
   const [name, setName] = useState(template?.name ?? '');
   const [description, setDescription] = useState(template?.description ?? '');
   const [questions, setQuestions] = useState<InspectionQuestion[]>(
     template ? templateQuestions(template).map((q) => ({ ...q })) : [blankQuestion()]
   );
+  const [groupChoice, setGroupChoice] = useState(template?.group?.trim() || '');
+  const [newGroupName, setNewGroupName] = useState('');
+  const [frequency, setFrequency] = useState<RecurrenceFrequency>(template?.schedule?.frequency ?? 'none');
+  const [dayOfWeek, setDayOfWeek] = useState(template?.schedule?.dayOfWeek ?? 1); // Monday
+  const [dayOfMonth, setDayOfMonth] = useState(template?.schedule?.dayOfMonth ?? 1);
+  const [assigneeUids, setAssigneeUids] = useState<string[]>(template?.assigneeUids ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const toggleAssignee = (uid: string) =>
+    setAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
 
   const patch = (id: string, changes: Partial<InspectionQuestion>) =>
     setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, ...changes } : q)));
@@ -515,6 +639,10 @@ function TemplateBuilder({
       setError(`"${badChoice.label}" needs at least two options.`);
       return;
     }
+    if (frequency !== 'none' && !assigneeUids.length) {
+      setError('Pick at least one person for the schedule to raise a task for, or set it back to Manual only.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -522,7 +650,23 @@ function TemplateBuilder({
       const stripped = cleaned.map((q) =>
         Object.fromEntries(Object.entries(q).filter(([, v]) => v !== undefined && v !== false))
       ) as unknown as InspectionQuestion[];
-      await onSave({ name: name.trim(), description: description.trim(), questions: stripped });
+      const group = groupChoice === NEW_GROUP ? newGroupName.trim() : groupChoice;
+      const schedule: InspectionSchedule =
+        frequency === 'weekly'
+          ? { frequency, dayOfWeek }
+          : frequency === 'monthly'
+            ? { frequency, dayOfMonth }
+            : { frequency: 'none' };
+      const chosen = roster.filter((u) => assigneeUids.includes(u.uid));
+      await onSave({
+        name: name.trim(),
+        description: description.trim(),
+        group,
+        questions: stripped,
+        schedule,
+        assigneeUids: chosen.map((u) => u.uid),
+        assigneeNames: chosen.map((u) => profileName(u)),
+      });
     } catch (err) {
       console.error('Failed to save inspection template:', err);
       setError(`Save failed — ${(err as Error).message}`);
@@ -548,6 +692,27 @@ function TemplateBuilder({
           placeholder="What this inspection covers"
           className={inputClass}
         />
+      </div>
+      <div className="sm:w-64">
+        <label className="mb-1 block text-[10px] uppercase tracking-widest text-neutral-500">Group (optional)</label>
+        <InvictusSelect
+          value={groupChoice}
+          onChange={setGroupChoice}
+          className="bg-invictus-base/60"
+          options={[
+            { value: '', label: 'Ungrouped' },
+            ...existingGroups.map((g) => ({ value: g, label: g })),
+            { value: NEW_GROUP, label: '+ New group…' },
+          ]}
+        />
+        {groupChoice === NEW_GROUP && (
+          <input
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            placeholder="New group name (e.g. H&S)"
+            className={`${inputClass} mt-2`}
+          />
+        )}
       </div>
 
       <div className="space-y-3">
@@ -657,6 +822,83 @@ function TemplateBuilder({
             <Plus className="h-3 w-3" /> {t.label}
           </button>
         ))}
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-neutral-400/20 bg-invictus-base/40 p-4">
+        <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-500">
+          <CalendarClock className="h-3.5 w-3.5" /> Recurring schedule (optional)
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {(Object.keys(RECURRENCE_LABELS) as RecurrenceFrequency[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFrequency(f)}
+              className={`rounded-md border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest transition-colors ${
+                frequency === f
+                  ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 text-neutral-100'
+                  : 'border-neutral-400/25 text-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              {RECURRENCE_LABELS[f]}
+            </button>
+          ))}
+        </div>
+
+        {frequency === 'weekly' && (
+          <div className="w-48">
+            <label className="mb-1 block text-[10px] uppercase tracking-widest text-neutral-500">Day</label>
+            <InvictusSelect
+              value={String(dayOfWeek)}
+              onChange={(v) => setDayOfWeek(Number(v))}
+              className="bg-invictus-surface/60"
+              options={DAY_LABELS.map((label, i) => ({ value: String(i), label }))}
+            />
+          </div>
+        )}
+        {frequency === 'monthly' && (
+          <div className="w-48">
+            <label className="mb-1 block text-[10px] uppercase tracking-widest text-neutral-500">Day of month</label>
+            <InvictusSelect
+              value={String(dayOfMonth)}
+              onChange={(v) => setDayOfMonth(Number(v))}
+              className="bg-invictus-surface/60"
+              // Capped at the 28th so the job never skips a February.
+              options={Array.from({ length: MAX_DAY_OF_MONTH }, (_, i) => ({ value: String(i + 1), label: ordinal(i + 1) }))}
+            />
+          </div>
+        )}
+
+        {frequency !== 'none' && (
+          <div>
+            <label className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-500">
+              <Users className="h-3 w-3" /> Goes to — first person owns it, the rest are offered it
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {roster
+                .filter((u) => !u.blocked)
+                .map((u) => {
+                  const on = assigneeUids.includes(u.uid);
+                  return (
+                    <button
+                      key={u.uid}
+                      type="button"
+                      onClick={() => toggleAssignee(u.uid)}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                        on
+                          ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
+                          : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-400 hover:text-neutral-200'
+                      }`}
+                      title={u.email ?? undefined}
+                    >
+                      {profileName(u)}
+                    </button>
+                  );
+                })}
+              {roster.length === 0 && <p className="text-xs text-neutral-600">No people found.</p>}
+            </div>
+          </div>
+        )}
       </div>
 
       {error && <p className="text-xs text-alert">{error}</p>}

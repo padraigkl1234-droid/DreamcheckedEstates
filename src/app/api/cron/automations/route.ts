@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebaseAdmin';
 import { runAutomation } from '@/lib/automationHandlers/registry';
-import { isDueToday, type Automation } from '@/lib/automations';
+import { runScheduledInspection } from '@/lib/automationHandlers/inspectionSchedule';
+import type { Automation } from '@/lib/automations';
+import { isTemplateDueToday, type InspectionTemplate } from '@/lib/inspections';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Daily cron (see vercel.json — Vercel's Hobby plan only allows daily-or-
-// slower schedules, so this can't run more often) that checks every enabled
-// automation and runs whichever ones are due today. `lastRunKey` (today's
-// date) guards against double-sending if the cron is retried the same day.
+// slower schedules, so this can't run more often). Two independent jobs share
+// this one trigger:
+//   - automations: checks every enabled automation doc and runs whichever are
+//     due today (weekday match).
+//   - inspection schedules: checks every inspection template's own recurring
+//     schedule (see /inspections) and raises a task when one's due.
+// Both guard against a retried cron the same day via `lastRunKey`.
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -25,6 +31,7 @@ export async function GET(req: Request) {
 
   const db = getAdminDb();
   const now = new Date();
+  const dayOfWeek = now.getUTCDay();
   const runKey = now.toISOString().slice(0, 10); // e.g. "2026-07-27"
 
   const snap = await db.collection('automations').where('enabled', '==', true).get();
@@ -32,9 +39,8 @@ export async function GET(req: Request) {
 
   for (const doc of snap.docs) {
     const automation = { id: doc.id, ...doc.data() } as Automation;
-    // isDueToday knows each type's schedule — weekday, day-of-month, or
-    // event-triggered (never due here).
-    if (!isDueToday(automation, now)) continue;
+    if (automation.type === 'showScheduled') continue; // event-triggered, not schedule-driven
+    if (automation.dayOfWeek !== dayOfWeek) continue;
     if (automation.lastRunKey === runKey) continue;
     try {
       const result = await runAutomation(db, automation);
@@ -48,5 +54,30 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, checked: snap.size, results });
+  const templatesSnap = await db.collection('inspectionTemplates').get();
+  const inspectionResults: Record<string, string> = {};
+
+  for (const doc of templatesSnap.docs) {
+    const template = { id: doc.id, ...doc.data() } as InspectionTemplate;
+    if (!isTemplateDueToday(template.schedule, now)) continue;
+    if (template.lastRunKey === runKey) continue;
+    try {
+      const result = await runScheduledInspection(db, template, now);
+      await doc.ref.update({ lastRunKey: runKey, lastRunAt: Date.now(), lastRunDetail: result.detail });
+      inspectionResults[doc.id] = result.detail;
+    } catch (error) {
+      const detail = `error: ${(error as Error).message}`;
+      inspectionResults[doc.id] = detail;
+      await doc.ref.update({ lastRunKey: runKey, lastRunAt: Date.now(), lastRunDetail: detail }).catch(() => {});
+      console.error(`inspection schedule ${doc.id} failed:`, error);
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    checked: snap.size,
+    results,
+    inspectionsChecked: templatesSnap.size,
+    inspectionResults,
+  });
 }

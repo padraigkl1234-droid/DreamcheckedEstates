@@ -13,22 +13,13 @@ import { profileName, type Team, type UserProfile } from '@/lib/teams';
 import {
   AUTOMATION_TYPE_LABELS,
   DAY_LABELS,
-  MAX_DAY_OF_MONTH,
   RECIPIENT_LABELS,
   SCHEDULED_AUTOMATION_TYPES,
   automationDigestEmails,
-  isMonthlyAutomation,
   type Automation,
   type AutomationRecipients,
   type AutomationType,
 } from '@/lib/automations';
-import type { InspectionTemplate } from '@/lib/inspections';
-
-// 1st, 2nd, 3rd… for the day-of-month picker.
-function ordinal(n: number): string {
-  const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
-  return `${n}${suffix}`;
-}
 
 export default function AutomationsPage() {
   const { user } = useAuth();
@@ -40,10 +31,6 @@ export default function AutomationsPage() {
   const [automationMessage, setAutomationMessage] = useState<string | null>(null);
   const [newType, setNewType] = useState<AutomationType>('weeklyReport');
   const [newDay, setNewDay] = useState(5); // Friday
-  const [newDayOfMonth, setNewDayOfMonth] = useState(1);
-  const [newTemplateId, setNewTemplateId] = useState('');
-  const [newAssigneeUids, setNewAssigneeUids] = useState<string[]>([]);
-  const [templates, setTemplates] = useState<InspectionTemplate[]>([]);
   const [newRecipients, setNewRecipients] = useState<AutomationRecipients>('both');
   const [newTeamId, setNewTeamId] = useState(''); // '' = every team
   const [newDigestEmails, setNewDigestEmails] = useState<string[]>([MASTER_ADMIN_EMAIL]);
@@ -92,20 +79,6 @@ export default function AutomationsPage() {
       collection(db, 'teams'),
       (snap) => setTeams(snap.docs.map((d) => ({ ...(d.data() as Omit<Team, 'id'>), id: d.id }))),
       (error) => console.error('Teams subscription failed:', error)
-    );
-    return unsub;
-  }, [isMaster]);
-
-  // Every team's inspection checklists, for the "monthly inspection" picker.
-  useEffect(() => {
-    if (!isMaster) {
-      setTemplates([]);
-      return;
-    }
-    const unsub = onSnapshot(
-      collection(db, 'inspectionTemplates'),
-      (snap) => setTemplates(snap.docs.map((d) => ({ ...(d.data() as Omit<InspectionTemplate, 'id'>), id: d.id }))),
-      (error) => console.error('Inspection templates subscription failed:', error)
     );
     return unsub;
   }, [isMaster]);
@@ -169,12 +142,6 @@ export default function AutomationsPage() {
   const webhookUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/api/estate-request`;
 
   const isScheduledType = SCHEDULED_AUTOMATION_TYPES.includes(newType);
-  const isMonthlyType = isMonthlyAutomation(newType);
-  // Only offer checklists belonging to the team this automation is scoped to.
-  const pickableTemplates = newTeamId ? templates.filter((t) => t.teamId === newTeamId) : templates;
-
-  const toggleNewAssignee = (uid: string) =>
-    setNewAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
 
   const createAutomation = async () => {
     // Fold in whatever's still sitting in the text box (typed but never
@@ -182,37 +149,19 @@ export default function AutomationsPage() {
     const draft = newEmailDraft.trim();
     const emails = draft && !newDigestEmails.includes(draft) ? [...newDigestEmails, draft] : newDigestEmails;
     const team = newTeamId ? teams.find((t) => t.id === newTeamId) : undefined;
-    const template = templates.find((t) => t.id === newTemplateId);
-    if (isMonthlyType && (!template || newAssigneeUids.length === 0)) {
-      setAutomationMessage('Pick an inspection and at least one person for it to go to.');
-      return;
-    }
-    const assignees = users.filter((u) => newAssigneeUids.includes(u.uid));
     await addDoc(collection(db, 'automations'), {
-      name: isMonthlyType && template ? `${template.name} — monthly` : AUTOMATION_TYPE_LABELS[newType],
+      name: AUTOMATION_TYPE_LABELS[newType],
       type: newType,
       enabled: true,
       ...(isScheduledType ? { dayOfWeek: newDay, recipients: newRecipients } : {}),
-      ...(isMonthlyType
-        ? {
-            dayOfMonth: newDayOfMonth,
-            inspectionTemplateId: template!.id,
-            inspectionTemplateName: template!.name,
-            assigneeUids: newAssigneeUids,
-            assigneeNames: assignees.map((u) => profileName(u)),
-          }
-        : {}),
       teamId: newTeamId || null,
       teamName: team?.name ?? null,
       digestEmails: emails.length ? emails : [MASTER_ADMIN_EMAIL],
       createdAt: Date.now(),
     });
-    setAutomationMessage(null);
     setNewDigestEmails([MASTER_ADMIN_EMAIL]);
     setNewEmailDraft('');
     setNewTeamId('');
-    setNewTemplateId('');
-    setNewAssigneeUids([]);
   };
 
   const toggleAutomation = (a: Automation) => updateDoc(doc(db, 'automations', a.id), { enabled: !a.enabled });
@@ -300,17 +249,10 @@ export default function AutomationsPage() {
                   <p className="text-[11px] text-neutral-500">
                     {a.type === 'showScheduled'
                       ? `Fires when a show is scheduled · ${a.teamName || 'All teams'}`
-                      : isMonthlyAutomation(a.type)
-                        ? `Raises a task on the ${ordinal(a.dayOfMonth ?? 1)} of each month · ${a.teamName || 'All teams'} · ${
-                            a.assigneeNames?.join(', ') || 'nobody assigned'
-                          }`
-                        : `Runs ${DAY_LABELS[a.dayOfWeek ?? 5]}s (~17:00 UTC) · ${a.teamName || 'All teams'} · ${RECIPIENT_LABELS[a.recipients ?? 'both']}`}
+                      : `Runs ${DAY_LABELS[a.dayOfWeek ?? 5]}s (~17:00 UTC) · ${a.teamName || 'All teams'} · ${RECIPIENT_LABELS[a.recipients ?? 'both']}`}
                     {a.lastRunAt ? ` · last ${a.type === 'showScheduled' ? 'fired' : 'ran'} ${new Date(a.lastRunAt).toLocaleString()}` : ' · never run yet'}
                   </p>
-                  {a.lastRunDetail && <p className="text-[11px] text-neutral-600">{a.lastRunDetail}</p>}
-                  {/* Monthly inspections raise a task rather than email anyone,
-                      so the recipient list would only mislead. */}
-                  <div className={`mt-1.5 flex-wrap items-center gap-1.5 ${isMonthlyAutomation(a.type) ? 'hidden' : 'flex'}`}>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     {automationDigestEmails(a).map((email) => (
                       <span
                         key={email}
@@ -409,35 +351,6 @@ export default function AutomationsPage() {
                 />
               </div>
             )}
-            {isMonthlyType && (
-              <>
-                <div className="w-40">
-                  <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Day of month</label>
-                  <InvictusSelect
-                    value={String(newDayOfMonth)}
-                    onChange={(v) => setNewDayOfMonth(Number(v))}
-                    className="bg-invictus-base/60"
-                    // Capped at the 28th so the job never skips a February.
-                    options={Array.from({ length: MAX_DAY_OF_MONTH }, (_, i) => ({
-                      value: String(i + 1),
-                      label: ordinal(i + 1),
-                    }))}
-                  />
-                </div>
-                <div className="w-64">
-                  <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Inspection</label>
-                  <InvictusSelect
-                    value={newTemplateId}
-                    onChange={setNewTemplateId}
-                    className="bg-invictus-base/60"
-                    options={[
-                      { value: '', label: pickableTemplates.length ? 'Choose an inspection…' : 'No inspections built yet' },
-                      ...pickableTemplates.map((t) => ({ value: t.id, label: t.name })),
-                    ]}
-                  />
-                </div>
-              </>
-            )}
             <div className="w-48">
               <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Team</label>
               <InvictusSelect
@@ -458,34 +371,6 @@ export default function AutomationsPage() {
                 />
               </div>
             )}
-            {isMonthlyType ? (
-              <div className="min-w-[16rem] flex-1">
-                <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">
-                  Goes to — first person owns it, the rest are offered it
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {users
-                    .filter((u) => !u.blocked && (!newTeamId || u.teamId === newTeamId))
-                    .map((u) => {
-                      const on = newAssigneeUids.includes(u.uid);
-                      return (
-                        <button
-                          key={u.uid}
-                          onClick={() => toggleNewAssignee(u.uid)}
-                          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                            on
-                              ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
-                              : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-400 hover:text-neutral-200'
-                          }`}
-                          title={u.email ?? undefined}
-                        >
-                          {profileName(u)}
-                        </button>
-                      );
-                    })}
-                </div>
-              </div>
-            ) : (
             <div className="min-w-[16rem] flex-1">
               <label className="mb-1 block text-[9px] uppercase tracking-widest text-neutral-600">Digest emails</label>
               <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5">
@@ -522,7 +407,6 @@ export default function AutomationsPage() {
                 </button>
               </div>
             </div>
-            )}
             <button
               onClick={createAutomation}
               className="flex items-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20"

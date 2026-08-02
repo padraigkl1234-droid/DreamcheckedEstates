@@ -2,7 +2,6 @@ import type { Firestore } from 'firebase-admin/firestore';
 import type { Automation } from '@/lib/automations';
 import { runWeeklyReport } from './weeklyReport';
 import { runOverdueReport } from './overdueReport';
-import { runInspectionDue } from './inspectionDue';
 
 // Dispatches a due/manually-triggered SCHEDULED automation to its handler.
 // Both the daily cron and the master's "Run now" button call this one
@@ -14,8 +13,6 @@ export async function runAutomation(db: Firestore, automation: Automation): Prom
       return runWeeklyReport(db, automation);
     case 'overdueReport':
       return runOverdueReport(db, automation);
-    case 'inspectionDue':
-      return runInspectionDue(db, automation);
     default:
       throw new Error(`Unknown scheduled automation type: ${automation.type}`);
   }

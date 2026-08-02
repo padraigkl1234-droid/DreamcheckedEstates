@@ -30,17 +30,68 @@ export interface InspectionQuestion {
   allowNote?: boolean; // offer a free-text note alongside the answer
 }
 
+export type RecurrenceFrequency = 'none' | 'weekly' | 'monthly';
+
+/** A template's own recurring due date — separate from the general
+ * automations engine (src/lib/automations.ts), since it lives on the
+ * checklist itself rather than as a standalone config doc. */
+export interface InspectionSchedule {
+  frequency: RecurrenceFrequency;
+  dayOfWeek?: number | null; // 0 (Sun) – 6 (Sat), evaluated in UTC — weekly only
+  dayOfMonth?: number | null; // 1–28, evaluated in UTC — monthly only
+}
+
 export interface InspectionTemplate {
   id: string;
   name: string;
   description?: string;
+  /** Free-text grouping for organising the list, e.g. "H&S" or "Estates". */
+  group?: string;
   questions?: InspectionQuestion[];
   /** @deprecated the original shape — a flat list of pass/fail lines. Read
    * through templateQuestions(), never directly. */
   items?: string[];
+  schedule?: InspectionSchedule;
+  // Who a due inspection is raised to as a task: the first person owns it,
+  // the rest are offered it to accept or decline (same pattern as sharing a
+  // task elsewhere in the app).
+  assigneeUids?: string[];
+  assigneeNames?: string[];
+  /** Guards the scheduler (see /api/cron/automations) against double-firing
+   * if the cron is retried the same day — today's date, once raised. */
+  lastRunKey?: string | null;
+  lastRunAt?: number | null;
+  lastRunDetail?: string | null;
   teamId: string;
   createdAt: number;
   createdBy?: string;
+}
+
+export const RECURRENCE_LABELS: Record<RecurrenceFrequency, string> = {
+  none: 'Manual only',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+};
+
+export const MAX_DAY_OF_MONTH = 28;
+
+/** True when `schedule` is due to raise a task on `now` (UTC). */
+export function isTemplateDueToday(schedule: InspectionSchedule | undefined, now: Date): boolean {
+  if (!schedule || schedule.frequency === 'none') return false;
+  if (schedule.frequency === 'weekly') return schedule.dayOfWeek === now.getUTCDay();
+  return schedule.dayOfMonth === now.getUTCDate();
+}
+
+/** How a schedule reads in the template list, e.g. "Weekly · Mondays". */
+export function scheduleSummary(schedule: InspectionSchedule | undefined, dayLabels: string[]): string | null {
+  if (!schedule || schedule.frequency === 'none') return null;
+  if (schedule.frequency === 'weekly') return `Weekly · ${dayLabels[schedule.dayOfWeek ?? 1]}s`;
+  return `Monthly · ${ordinal(schedule.dayOfMonth ?? 1)}`;
+}
+
+export function ordinal(n: number): string {
+  const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
+  return `${n}${suffix}`;
 }
 
 export interface InspectionPhoto {
@@ -214,11 +265,13 @@ const passFail = (label: string): Omit<InspectionQuestion, 'id'> => ({ label, ty
 export const STARTER_TEMPLATES: {
   name: string;
   description: string;
+  group: string;
   questions: Omit<InspectionQuestion, 'id'>[];
 }[] = [
   {
     name: 'Fire Door Inspection',
     description: 'Monthly check of every fire door on the estate.',
+    group: 'H&S',
     questions: [
       { label: 'Door reference / location', type: 'text', required: true },
       passFail('Door leaf free of damage, warping or holes'),
@@ -237,6 +290,7 @@ export const STARTER_TEMPLATES: {
   {
     name: 'Monthly Emergency Lighting Check',
     description: 'Function test of emergency lighting and exit signage.',
+    group: 'H&S',
     questions: [
       { label: 'Time test started', type: 'time' },
       passFail('All emergency luminaires illuminate on test'),
@@ -251,6 +305,7 @@ export const STARTER_TEMPLATES: {
   {
     name: 'Estate Walk-Round',
     description: 'General condition sweep of the public areas.',
+    group: 'Estates',
     questions: [
       { label: 'Weather', type: 'choice', options: ['Dry', 'Wet', 'Windy', 'Icy'] },
       passFail('Litter and waste cleared'),

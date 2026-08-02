@@ -8,8 +8,12 @@
 // New scheduled types are added by (1) a variant here, (2) a handler under
 // src/lib/automationHandlers, and (3) a case in automationHandlers/registry.ts
 // — no changes to the cron route or the scheduling UI are needed.
+//
+// Recurring inspections (see src/lib/inspections.ts) are a separate, simpler
+// scheduling concept living on the template itself rather than as a doc here
+// — see isTemplateDueToday and src/lib/automationHandlers/inspectionSchedule.
 
-export type AutomationType = 'weeklyReport' | 'overdueReport' | 'inspectionDue' | 'showScheduled';
+export type AutomationType = 'weeklyReport' | 'overdueReport' | 'showScheduled';
 
 export type AutomationRecipients = 'perUser' | 'digest' | 'both';
 
@@ -24,15 +28,8 @@ export interface Automation {
   name: string;
   type: AutomationType;
   enabled: boolean;
-  dayOfWeek?: number | null; // 0 (Sun) – 6 (Sat), evaluated in UTC — weekly types only
-  dayOfMonth?: number | null; // 1–28, evaluated in UTC — monthly types only
-  recipients?: AutomationRecipients; // weekly types only
-  // inspectionDue only: which checklist to raise, and who the task goes to.
-  // The first person owns it; the rest are offered it to accept or decline.
-  inspectionTemplateId?: string | null;
-  inspectionTemplateName?: string | null;
-  assigneeUids?: string[];
-  assigneeNames?: string[];
+  dayOfWeek?: number | null; // 0 (Sun) – 6 (Sat), evaluated in UTC — scheduled types only
+  recipients?: AutomationRecipients; // scheduled types only
   // null/absent = every team (master-wide). Scoping to one team only counts
   // that team's members (or, for showScheduled, only fires for that team's
   // shows). teamName is denormalized purely for display.
@@ -59,30 +56,12 @@ export function automationDigestEmails(a: Pick<Automation, 'digestEmails' | 'dig
 export const AUTOMATION_TYPE_LABELS: Record<AutomationType, string> = {
   weeklyReport: 'Weekly completed-tasks report',
   overdueReport: 'Overdue & remaining tasks report',
-  inspectionDue: 'Monthly inspection due',
   showScheduled: 'Show scheduled alert',
 };
 
-// Types the master console's "create" form schedules by weekday
-// (day/recipients apply). showScheduled is event-triggered instead, and
-// inspectionDue is monthly, so neither is here.
+// Types the master console's "create" form schedules (day/recipients apply).
+// showScheduled is event-triggered instead, so it's excluded here.
 export const SCHEDULED_AUTOMATION_TYPES: AutomationType[] = ['weeklyReport', 'overdueReport'];
-
-// Types scheduled by day-of-month rather than weekday. Capped at 28 in the UI
-// so a monthly job can't land on a date February hasn't got.
-export const MONTHLY_AUTOMATION_TYPES: AutomationType[] = ['inspectionDue'];
-export const MAX_DAY_OF_MONTH = 28;
-
-export function isMonthlyAutomation(type: AutomationType): boolean {
-  return MONTHLY_AUTOMATION_TYPES.includes(type);
-}
-
-/** True when `automation` is due to run on `now` (UTC). */
-export function isDueToday(automation: Automation, now: Date): boolean {
-  if (automation.type === 'showScheduled') return false; // event-triggered
-  if (isMonthlyAutomation(automation.type)) return now.getUTCDate() === (automation.dayOfMonth ?? 1);
-  return automation.dayOfWeek === now.getUTCDay();
-}
 
 export const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
