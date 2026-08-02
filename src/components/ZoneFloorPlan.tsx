@@ -326,24 +326,6 @@ export function ZoneFloorPlan({
               );
             })}
 
-            {/* Dimension labels */}
-            {(plan.dimensionLabels ?? []).map((d, i) => {
-              const p = project(d.x, d.y, 0);
-              return (
-                <text
-                  key={`dim-${i}`}
-                  x={p.x}
-                  y={p.y}
-                  textAnchor="middle"
-                  fontSize={11}
-                  fill="rgba(59,130,246,0.7)"
-                  transform={d.rot ? `rotate(${d.rot} ${p.x} ${p.y})` : undefined}
-                >
-                  {d.text}
-                </text>
-              );
-            })}
-
             {/* Asset pins */}
             {assets
               .filter((a) => visibleTypes.has(a.type))
@@ -354,6 +336,8 @@ export function ZoneFloorPlan({
                 const status = assetStatus(a);
                 const Icon = ASSET_ICONS[a.type];
                 const isSelected = selectedId === a.id;
+                const r = isSelected ? 20 : 17;
+                const iconSize = isSelected ? 24 : 20;
                 return (
                   <g
                     key={a.id}
@@ -365,10 +349,10 @@ export function ZoneFloorPlan({
                     }}
                     className="cursor-pointer"
                   >
-                    <circle r={isSelected ? 11 : 9} fill={ASSET_TYPE_COLORS[a.type]} stroke={ASSET_STATUS_COLORS[status]} strokeWidth={2.5} />
-                    <circle r={isSelected ? 11 : 9} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth={1} />
-                    <foreignObject x={-6} y={-6} width={12} height={12}>
-                      <Icon className="h-3 w-3 text-invictus-base" style={{ color: '#111114' }} />
+                    <circle r={r} fill={ASSET_TYPE_COLORS[a.type]} stroke={ASSET_STATUS_COLORS[status]} strokeWidth={4} />
+                    <circle r={r} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth={1.5} />
+                    <foreignObject x={-iconSize / 2} y={-iconSize / 2} width={iconSize} height={iconSize}>
+                      <Icon className="h-full w-full" style={{ color: '#111114' }} strokeWidth={2.5} />
                     </foreignObject>
                   </g>
                 );

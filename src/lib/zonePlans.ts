@@ -42,13 +42,6 @@ export interface PlanDecor {
   color: string;
 }
 
-export interface PlanDimensionLabel {
-  x: number;
-  y: number;
-  text: string;
-  rot?: number;
-}
-
 export interface PlanTextLabel {
   x: number;
   y: number;
@@ -70,7 +63,6 @@ export interface ZonePlan {
   rooms: PlanRoom[];
   floorInsets?: PlanFloorInset[];
   decor?: PlanDecor[];
-  dimensionLabels?: PlanDimensionLabel[];
   textLabels?: PlanTextLabel[];
   starterAssets: StarterAsset[];
 }
@@ -148,11 +140,6 @@ export const BALLROOM_PLAN: ZonePlan = {
     { x: 1.7, y: 4.2, size: 0.55, color: '#1f2937' },
     { x: 2.4, y: 4.2, size: 0.55, color: '#ef4444' },
     { x: 3.1, y: 4.2, size: 0.55, color: '#eab308' },
-  ],
-  dimensionLabels: [
-    { x: WIDTH / 2, y: DEPTH + 0.9, text: '17.2 m' },
-    { x: -1.4, y: BOH_DEPTH + HALL_DEPTH / 2, text: '20.25 m', rot: -90 },
-    { x: WIDTH / 2, y: BOH_DEPTH + HALL_DEPTH / 2, text: '3.8 m ceiling' },
   ],
   textLabels: [
     { x: 15.4, y: -0.6, text: 'Load In' },
