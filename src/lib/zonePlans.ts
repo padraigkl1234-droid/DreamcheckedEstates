@@ -206,10 +206,88 @@ export const BOARDROOM_PLAN: ZonePlan = {
   ],
 };
 
+// A long shuttered shopping corridor (Main Entrance down to Boardroom
+// Entrance) that widens into a second, glass-ceilinged concourse further
+// south, on toward the Arcade. Arcade itself isn't modelled yet — just
+// referenced by a door and a label, same as Ballroom's Load In treatment for
+// a doorway leading somewhere out of scope.
+const CC_CORRIDOR_W = 7.7;
+const CC_CORRIDOR_D = 35.3;
+const CC_LOWER_W = 11.8;
+const CC_LOWER_D = 8;
+const CC_WIDTH = CC_LOWER_W;
+const CC_DEPTH = CC_CORRIDOR_D + CC_LOWER_D;
+
+export const CONCOURSE_PLAN: ZonePlan = {
+  zone: 'Concourse',
+  width: CC_WIDTH,
+  depth: CC_DEPTH,
+  rooms: [
+    {
+      id: 'corridor',
+      x0: 0,
+      y0: 0,
+      x1: CC_CORRIDOR_W,
+      y1: CC_CORRIDOR_D,
+      height: 3.6,
+      floorColor: '#f0ece0',
+      // The Main Entrance, roughly centred.
+      northSolid: [
+        [0, 0.19],
+        [0.58, 1],
+      ],
+      // Two Ballroom Entrance doors and one Boardroom Entrance door through
+      // to the zones next door.
+      westSolid: [
+        [0, 0.182],
+        [0.215, 0.408],
+        [0.442, 0.776],
+        [0.81, 1],
+      ],
+    },
+    {
+      id: 'lower',
+      x0: 0,
+      y0: CC_CORRIDOR_D,
+      x1: CC_LOWER_W,
+      y1: CC_DEPTH,
+      height: 3.6,
+      floorColor: '#e8f0f2', // cooler tint for the glass-ceiling section
+      // Fully open into the corridor above — one continuous concourse, not
+      // a separate room behind its own wall.
+      northSolid: [],
+    },
+  ],
+  textLabels: [
+    { x: 4, y: 2, text: 'Concourse' },
+    { x: 3.2, y: -0.6, text: 'Main Entrance' },
+    { x: -3, y: 7, text: 'Ballroom Entrance' },
+    { x: -3, y: 15, text: 'Ballroom Entrance' },
+    { x: -3, y: 28, text: 'Boardroom Entrance' },
+    { x: 6.6, y: 9, text: 'Pinball' },
+    { x: 6.6, y: 16, text: 'Pinball' },
+    { x: 6.6, y: 22, text: 'Pinball' },
+    { x: 6.6, y: 27, text: 'Retail' },
+    { x: 10, y: CC_CORRIDOR_D + 3.5, text: 'ATM' },
+    { x: 10.8, y: CC_DEPTH - 0.6, text: 'Arcade Entrance' },
+  ],
+  starterAssets: [
+    { type: 'fireExit', name: 'Fire Exit — Main Entrance', x: 3.5 / CC_WIDTH, y: 0.3 / CC_DEPTH, mount: 'floor' },
+    { type: 'fireExit', name: 'Fire Exit — Arcade Entrance', x: 10.5 / CC_WIDTH, y: (CC_DEPTH - 0.3) / CC_DEPTH, mount: 'floor' },
+    { type: 'emergencyLight', name: 'Emergency Light — West 1', x: 0.3 / CC_WIDTH, y: 4 / CC_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — West 2', x: 0.3 / CC_WIDTH, y: 10 / CC_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — West 3', x: 0.3 / CC_WIDTH, y: 16 / CC_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — West 4', x: 0.3 / CC_WIDTH, y: 22 / CC_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — West 5', x: 0.3 / CC_WIDTH, y: 28 / CC_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — West 6', x: 0.3 / CC_WIDTH, y: 33 / CC_DEPTH, mount: 'ceiling' },
+  ],
+};
+
 /** Every zone with a registered floor plan, keyed by its SITE_ZONES label. */
 export const ZONE_PLANS: Record<string, ZonePlan> = {
   Ballroom: BALLROOM_PLAN,
   Boardroom: BOARDROOM_PLAN,
+  Concourse: CONCOURSE_PLAN,
 };
 
 export function zonePlanFor(zoneLabel: string): ZonePlan | undefined {

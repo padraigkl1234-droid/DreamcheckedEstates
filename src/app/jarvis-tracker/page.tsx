@@ -11,6 +11,7 @@ import { zonePlanFor } from '@/lib/zonePlans';
 const ZONE_PLAN_ROUTES: Record<string, string> = {
   Ballroom: '/site-map/ballroom',
   Boardroom: '/site-map/boardroom',
+  Concourse: '/site-map/concourse',
 };
 import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot, query, where, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
