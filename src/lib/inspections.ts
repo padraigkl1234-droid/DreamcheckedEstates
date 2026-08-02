@@ -2,20 +2,65 @@
 // then run against the estate as often as needed. Running one files a Report,
 // so inspections inherit everything reports already do — storage, visibility,
 // attachments and PDF export — rather than growing a parallel system.
+//
+// A template is a list of questions, in the spirit of a Microsoft Form: each
+// has a type (pass/fail, multiple choice, text, number, date, time, photo),
+// can be marked required, and can take a note and photos alongside its answer.
 
 export type InspectionOutcome = 'pass' | 'fail' | 'na';
+
+export type InspectionQuestionType =
+  | 'passFail'
+  | 'choice'
+  | 'text'
+  | 'longText'
+  | 'number'
+  | 'date'
+  | 'time'
+  | 'photo';
+
+export interface InspectionQuestion {
+  id: string;
+  label: string;
+  type: InspectionQuestionType;
+  required?: boolean;
+  help?: string; // small print under the question
+  options?: string[]; // choice only
+  allowPhoto?: boolean; // offer a photo alongside the answer
+  allowNote?: boolean; // offer a free-text note alongside the answer
+}
 
 export interface InspectionTemplate {
   id: string;
   name: string;
   description?: string;
-  items: string[]; // what gets checked, in order
+  questions?: InspectionQuestion[];
+  /** @deprecated the original shape — a flat list of pass/fail lines. Read
+   * through templateQuestions(), never directly. */
+  items?: string[];
   teamId: string;
   createdAt: number;
   createdBy?: string;
 }
 
-/** One line of a completed inspection. */
+export interface InspectionPhoto {
+  url: string;
+  path: string; // storage path, for deletion
+  name: string;
+}
+
+/** One answered question of a completed inspection. */
+export interface InspectionAnswer {
+  questionId: string;
+  label: string;
+  type: InspectionQuestionType;
+  outcome?: InspectionOutcome; // passFail only
+  value?: string; // everything else
+  note?: string;
+  photos?: InspectionPhoto[];
+}
+
+/** @deprecated pre-question-types answers. Read through recordAnswers(). */
 export interface InspectionResult {
   item: string;
   result: InspectionOutcome;
@@ -26,55 +71,25 @@ export interface InspectionResult {
 export interface InspectionRecord {
   templateId: string;
   templateName: string;
-  results: InspectionResult[];
+  answers?: InspectionAnswer[];
+  /** @deprecated superseded by answers. */
+  results?: InspectionResult[];
 }
 
-// Ready-made checklists a team can drop in with one click rather than typing
-// out from scratch. They're copied into the team's own templates on use, so
-// editing a copy never touches this list.
-export const STARTER_TEMPLATES: { name: string; description: string; items: string[] }[] = [
-  {
-    name: 'Fire Door Inspection',
-    description: 'Monthly check of every fire door on the estate.',
-    items: [
-      'Door leaf free of damage, warping or holes',
-      'Door closes fully from any open position',
-      'Self-closing device works and is undamaged',
-      'Gaps around the door within 3–4mm',
-      'Intumescent seals intact and unpainted',
-      'Hinges secure with all screws in place',
-      'Latch engages cleanly without sticking',
-      'Signage present and legible on both sides',
-      'Door not wedged, propped or obstructed',
-      'Vision panel glazing sound and unmodified',
-    ],
-  },
-  {
-    name: 'Monthly Emergency Lighting Check',
-    description: 'Function test of emergency lighting and exit signage.',
-    items: [
-      'All emergency luminaires illuminate on test',
-      'Exit signs lit and unobstructed',
-      'No damaged or missing diffusers',
-      'Charging indicators showing healthy',
-      'Escape routes clear along their full length',
-      'Test key / switch points accessible',
-    ],
-  },
-  {
-    name: 'Estate Walk-Round',
-    description: 'General condition sweep of the public areas.',
-    items: [
-      'Litter and waste cleared',
-      'No trip hazards on walkways',
-      'Fencing and barriers secure',
-      'Lighting columns undamaged and working',
-      'Signage clean and correct',
-      'Drains and gullies free-flowing',
-      'Furniture and planters in good order',
-    ],
-  },
+export const QUESTION_TYPES: { value: InspectionQuestionType; label: string; blurb: string }[] = [
+  { value: 'passFail', label: 'Pass / Fail', blurb: 'Pass, fail or not applicable' },
+  { value: 'choice', label: 'Multiple choice', blurb: 'Pick one of your own options' },
+  { value: 'text', label: 'Short answer', blurb: 'A line of text' },
+  { value: 'longText', label: 'Long answer', blurb: 'A paragraph' },
+  { value: 'number', label: 'Number', blurb: 'A reading or a count' },
+  { value: 'date', label: 'Date', blurb: 'A calendar date' },
+  { value: 'time', label: 'Time', blurb: 'A time of day' },
+  { value: 'photo', label: 'Photo', blurb: 'Photos only, no written answer' },
 ];
+
+export const QUESTION_TYPE_LABELS: Record<InspectionQuestionType, string> = Object.fromEntries(
+  QUESTION_TYPES.map((t) => [t.value, t.label])
+) as Record<InspectionQuestionType, string>;
 
 export const INSPECTION_OUTCOMES: { value: InspectionOutcome; label: string; short: string }[] = [
   { value: 'pass', label: 'Pass', short: 'P' },
@@ -88,26 +103,164 @@ export const INSPECTION_OUTCOME_STYLES: Record<InspectionOutcome, string> = {
   na: 'border-neutral-400/30 bg-invictus-base/60 text-neutral-500',
 };
 
-export function countByOutcome(results: InspectionResult[]) {
+export function newQuestionId(): string {
+  return `q-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+export function blankQuestion(type: InspectionQuestionType = 'passFail'): InspectionQuestion {
   return {
-    pass: results.filter((r) => r.result === 'pass').length,
-    fail: results.filter((r) => r.result === 'fail').length,
-    na: results.filter((r) => r.result === 'na').length,
+    id: newQuestionId(),
+    label: '',
+    type,
+    allowPhoto: type === 'passFail',
+    ...(type === 'choice' ? { options: ['Option 1', 'Option 2'] } : {}),
+  };
+}
+
+/** The one place that knows how to read a template's questions, including
+ * templates saved before question types existed. */
+export function templateQuestions(t: Pick<InspectionTemplate, 'questions' | 'items'>): InspectionQuestion[] {
+  if (t.questions?.length) return t.questions;
+  return (t.items ?? []).map((item, i) => ({
+    id: `legacy-${i}`,
+    label: item,
+    type: 'passFail' as const,
+    allowPhoto: true,
+  }));
+}
+
+/** Likewise for a filed inspection's answers. */
+export function recordAnswers(r: Pick<InspectionRecord, 'answers' | 'results'>): InspectionAnswer[] {
+  if (r.answers?.length) return r.answers;
+  return (r.results ?? []).map((res, i) => ({
+    questionId: `legacy-${i}`,
+    label: res.item,
+    type: 'passFail' as const,
+    outcome: res.result,
+    ...(res.note ? { note: res.note } : {}),
+  }));
+}
+
+/** A fresh, unanswered sheet. Pass/fail starts on pass — an inspection is
+ * normally a walk-round where you only stop to record the exceptions. */
+export function blankAnswers(questions: InspectionQuestion[]): InspectionAnswer[] {
+  return questions.map((q) => ({
+    questionId: q.id,
+    label: q.label,
+    type: q.type,
+    ...(q.type === 'passFail' ? { outcome: 'pass' as InspectionOutcome } : { value: '' }),
+  }));
+}
+
+/** True when a required question hasn't been answered. */
+export function isUnanswered(question: InspectionQuestion, answer: InspectionAnswer | undefined): boolean {
+  if (!answer) return true;
+  if (question.type === 'passFail') return !answer.outcome;
+  if (question.type === 'photo') return !answer.photos?.length;
+  return !answer.value?.trim();
+}
+
+export function countByOutcome(answers: InspectionAnswer[]) {
+  const graded = answers.filter((a) => a.type === 'passFail');
+  return {
+    pass: graded.filter((a) => a.outcome === 'pass').length,
+    fail: graded.filter((a) => a.outcome === 'fail').length,
+    na: graded.filter((a) => a.outcome === 'na').length,
+    graded: graded.length,
   };
 }
 
 /** A single failed item fails the inspection — that's the point of it. */
-export function overallOutcome(results: InspectionResult[]): 'pass' | 'fail' {
-  return results.some((r) => r.result === 'fail') ? 'fail' : 'pass';
+export function overallOutcome(answers: InspectionAnswer[]): 'pass' | 'fail' {
+  return answers.some((a) => a.outcome === 'fail') ? 'fail' : 'pass';
 }
 
-/** One-line summary used as the report's description. */
-export function summarise(results: InspectionResult[]): string {
-  const { pass, fail, na } = countByOutcome(results);
-  const parts = [`${pass} passed`, fail ? `${fail} failed` : '', na ? `${na} n/a` : ''].filter(Boolean);
-  const failed = results.filter((r) => r.result === 'fail');
-  const detail = failed.length
-    ? `\n\nFailed:\n${failed.map((r) => `• ${r.item}${r.note ? ` — ${r.note}` : ''}`).join('\n')}`
-    : '';
-  return `${results.length} item${results.length === 1 ? '' : 's'} checked — ${parts.join(', ')}.${detail}`;
+/** How an answer reads on a report or in a PDF. */
+export function answerText(a: InspectionAnswer): string {
+  if (a.type === 'passFail') return a.outcome === 'na' ? 'N/A' : a.outcome === 'fail' ? 'Fail' : 'Pass';
+  if (a.type === 'photo') return `${a.photos?.length ?? 0} photo${(a.photos?.length ?? 0) === 1 ? '' : 's'}`;
+  return a.value?.trim() || '—';
 }
+
+/** The report's description: the pass/fail tally, then the failures, then
+ * whatever else was recorded. */
+export function summarise(answers: InspectionAnswer[]): string {
+  const { pass, fail, na, graded } = countByOutcome(answers);
+  const blocks: string[] = [];
+
+  if (graded) {
+    const parts = [`${pass} passed`, fail ? `${fail} failed` : '', na ? `${na} n/a` : ''].filter(Boolean);
+    blocks.push(`${graded} item${graded === 1 ? '' : 's'} checked — ${parts.join(', ')}.`);
+  }
+
+  const failed = answers.filter((a) => a.outcome === 'fail');
+  if (failed.length) {
+    blocks.push(`Failed:\n${failed.map((a) => `• ${a.label}${a.note ? ` — ${a.note}` : ''}`).join('\n')}`);
+  }
+
+  const answered = answers.filter((a) => a.type !== 'passFail' && (a.value?.trim() || a.photos?.length));
+  if (answered.length) {
+    blocks.push(answered.map((a) => `${a.label}: ${answerText(a)}${a.note ? ` (${a.note})` : ''}`).join('\n'));
+  }
+
+  return blocks.join('\n\n') || 'Nothing recorded.';
+}
+
+// Ready-made checklists a team can drop in with one click rather than typing
+// out from scratch. They're copied into the team's own templates on use, so
+// editing a copy never touches this list.
+const passFail = (label: string): Omit<InspectionQuestion, 'id'> => ({ label, type: 'passFail', allowPhoto: true });
+
+export const STARTER_TEMPLATES: {
+  name: string;
+  description: string;
+  questions: Omit<InspectionQuestion, 'id'>[];
+}[] = [
+  {
+    name: 'Fire Door Inspection',
+    description: 'Monthly check of every fire door on the estate.',
+    questions: [
+      { label: 'Door reference / location', type: 'text', required: true },
+      passFail('Door leaf free of damage, warping or holes'),
+      passFail('Door closes fully from any open position'),
+      passFail('Self-closing device works and is undamaged'),
+      passFail('Gaps around the door within 3–4mm'),
+      passFail('Intumescent seals intact and unpainted'),
+      passFail('Hinges secure with all screws in place'),
+      passFail('Latch engages cleanly without sticking'),
+      passFail('Signage present and legible on both sides'),
+      passFail('Door not wedged, propped or obstructed'),
+      passFail('Vision panel glazing sound and unmodified'),
+      { label: 'Photo of the door as found', type: 'photo' },
+    ],
+  },
+  {
+    name: 'Monthly Emergency Lighting Check',
+    description: 'Function test of emergency lighting and exit signage.',
+    questions: [
+      { label: 'Time test started', type: 'time' },
+      passFail('All emergency luminaires illuminate on test'),
+      passFail('Exit signs lit and unobstructed'),
+      passFail('No damaged or missing diffusers'),
+      passFail('Charging indicators showing healthy'),
+      passFail('Escape routes clear along their full length'),
+      { label: 'Number of failed luminaires', type: 'number' },
+      { label: 'Anything needing follow-up', type: 'longText' },
+    ],
+  },
+  {
+    name: 'Estate Walk-Round',
+    description: 'General condition sweep of the public areas.',
+    questions: [
+      { label: 'Weather', type: 'choice', options: ['Dry', 'Wet', 'Windy', 'Icy'] },
+      passFail('Litter and waste cleared'),
+      passFail('No trip hazards on walkways'),
+      passFail('Fencing and barriers secure'),
+      passFail('Lighting columns undamaged and working'),
+      passFail('Signage clean and correct'),
+      passFail('Drains and gullies free-flowing'),
+      passFail('Furniture and planters in good order'),
+      { label: 'General condition photos', type: 'photo' },
+    ],
+  },
+];
