@@ -310,7 +310,19 @@ export function ZoneFloorPlan({
               .map((r) => {
                 const p = project((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, r.height + 0.4);
                 return (
-                  <text key={`label-${r.id}`} x={p.x} y={p.y} textAnchor="middle" fontSize={13} fontWeight={700} fill="rgba(255,255,255,0.55)">
+                  <text
+                    key={`label-${r.id}`}
+                    x={p.x}
+                    y={p.y}
+                    textAnchor="middle"
+                    fontSize={22}
+                    fontWeight={800}
+                    fill="#ffffff"
+                    stroke="#000000"
+                    strokeWidth={3.5}
+                    paintOrder="stroke"
+                    strokeLinejoin="round"
+                  >
                     {r.label}
                   </text>
                 );
@@ -320,7 +332,18 @@ export function ZoneFloorPlan({
             {(plan.textLabels ?? []).map((t, i) => {
               const p = project(t.x, t.y, 0);
               return (
-                <text key={`text-${i}`} x={p.x} y={p.y} fontSize={11} fontStyle="italic" fill="rgba(255,255,255,0.4)">
+                <text
+                  key={`text-${i}`}
+                  x={p.x}
+                  y={p.y}
+                  fontSize={16}
+                  fontWeight={700}
+                  fill="#ffffff"
+                  stroke="#000000"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                  strokeLinejoin="round"
+                >
                   {t.text}
                 </text>
               );
