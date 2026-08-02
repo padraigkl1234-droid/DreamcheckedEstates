@@ -28,6 +28,7 @@ import {
   Tag,
   CalendarClock,
   Users,
+  Layers,
 } from 'lucide-react';
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
@@ -45,13 +46,16 @@ import {
   STARTER_TEMPLATES,
   blankAnswers,
   blankQuestion,
+  cloneSection,
   countByOutcome,
+  groupBySection,
   isUnanswered,
   newQuestionId,
   ordinal,
   overallOutcome,
   recordAnswers,
   scheduleSummary,
+  sectionNames,
   summarise,
   templateQuestions,
   type InspectionAnswer,
@@ -66,6 +70,7 @@ import {
 import type { Report, ReportAttachment, ReportVisibility } from '@/lib/reports';
 
 const NEW_GROUP = '__new_group__';
+const NEW_SECTION = '__new_section__';
 const UNGROUPED = 'Ungrouped';
 
 const inputClass =
@@ -573,6 +578,10 @@ function TemplateBuilder({
   const [dayOfWeek, setDayOfWeek] = useState(template?.schedule?.dayOfWeek ?? 1); // Monday
   const [dayOfMonth, setDayOfMonth] = useState(template?.schedule?.dayOfMonth ?? 1);
   const [assigneeUids, setAssigneeUids] = useState<string[]>(template?.assigneeUids ?? []);
+  // Which question is mid-"type a new section name" — its select just chose
+  // "+ New section…" and is waiting on the inline text box below it.
+  const [pendingSectionFor, setPendingSectionFor] = useState<string | null>(null);
+  const [pendingSectionName, setPendingSectionName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -582,22 +591,77 @@ function TemplateBuilder({
   const patch = (id: string, changes: Partial<InspectionQuestion>) =>
     setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, ...changes } : q)));
 
-  const move = (index: number, delta: number) =>
+  // Reorders a question only among its own section's siblings — with the
+  // list now rendered grouped by section, "move up" should mean "up within
+  // this area", not jump into whatever area happens to sit above it.
+  const moveWithinSection = (id: string, delta: number) =>
     setQuestions((prev) => {
+      const q = prev.find((x) => x.id === id);
+      if (!q) return prev;
+      const key = q.section?.trim() || null;
+      const siblingIdx = prev.reduce<number[]>((acc, x, idx) => {
+        if ((x.section?.trim() || null) === key) acc.push(idx);
+        return acc;
+      }, []);
+      const pos = siblingIdx.indexOf(prev.findIndex((x) => x.id === id));
+      const targetPos = pos + delta;
+      if (targetPos < 0 || targetPos >= siblingIdx.length) return prev;
       const next = [...prev];
-      const target = index + delta;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
+      const a = siblingIdx[pos];
+      const b = siblingIdx[targetPos];
+      [next[a], next[b]] = [next[b], next[a]];
       return next;
     });
 
-  const duplicate = (index: number) =>
+  const duplicate = (id: string) =>
     setQuestions((prev) => {
+      const index = prev.findIndex((q) => q.id === id);
+      if (index === -1) return prev;
       const copy = { ...prev[index], id: newQuestionId() };
       return [...prev.slice(0, index + 1), copy, ...prev.slice(index + 1)];
     });
 
   const remove = (id: string) => setQuestions((prev) => prev.filter((q) => q.id !== id));
+
+  // New questions land right after their section's last existing question
+  // (or at the very end, for the unsectioned bucket) so they appear where
+  // they're being added, not tacked onto the bottom of an unrelated area.
+  const addQuestionToSection = (section: string | null) =>
+    setQuestions((prev) => {
+      let insertAt = prev.length;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if ((prev[i].section?.trim() || null) === section) {
+          insertAt = i + 1;
+          break;
+        }
+      }
+      const q = blankQuestion();
+      if (section) q.section = section;
+      return [...prev.slice(0, insertAt), q, ...prev.slice(insertAt)];
+    });
+
+  const commitSection = (id: string, value: string) => {
+    if (value === NEW_SECTION) {
+      setPendingSectionFor(id);
+      setPendingSectionName('');
+    } else {
+      patch(id, { section: value || undefined });
+    }
+  };
+  const confirmPendingSection = () => {
+    if (!pendingSectionFor) return;
+    const trimmed = pendingSectionName.trim();
+    if (trimmed) patch(pendingSectionFor, { section: trimmed });
+    setPendingSectionFor(null);
+    setPendingSectionName('');
+  };
+
+  const renameSection = (oldName: string, newName: string) =>
+    setQuestions((prev) => prev.map((q) => ((q.section?.trim() || null) === oldName ? { ...q, section: newName } : q)));
+  const ungroupSection = (name: string) =>
+    setQuestions((prev) => prev.map((q) => ((q.section?.trim() || null) === name ? { ...q, section: undefined } : q)));
+  const duplicateSectionAs = (name: string, newName: string) =>
+    setQuestions((prev) => [...prev, ...cloneSection(prev, name, newName)]);
 
   // Switching type carries what still applies and drops what doesn't (a text
   // question has no options; a photo question needs no separate photo toggle).
@@ -715,100 +779,164 @@ function TemplateBuilder({
         )}
       </div>
 
-      <div className="space-y-3">
-        {questions.map((q, i) => (
-          <div key={q.id} className="rounded-xl border border-neutral-400/20 bg-invictus-base/50 p-4">
-            <div className="flex items-start gap-2">
-              <span className="mt-2.5 font-mono text-[11px] text-neutral-600">{i + 1}.</span>
-              <div className="min-w-0 flex-1 space-y-2">
-                <input
-                  value={q.label}
-                  onChange={(e) => patch(q.id, { label: e.target.value })}
-                  placeholder="Question"
-                  className={`${inputClass} text-[15px]`}
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="w-44">
-                    <InvictusSelect
-                      value={q.type}
-                      onChange={(v) => retype(q.id, v as InspectionQuestionType)}
-                      compact
-                      className="bg-invictus-surface/60"
-                      options={QUESTION_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+      <div className="space-y-4">
+        {groupBySection(questions).map((sec) => (
+          <div key={sec.name ?? '__none__'} className="space-y-3">
+            {sec.name && (
+              <SectionHeader
+                name={sec.name}
+                onRename={(newName) => renameSection(sec.name!, newName)}
+                onDuplicate={(newName) => duplicateSectionAs(sec.name!, newName)}
+                onUngroup={() => ungroupSection(sec.name!)}
+              />
+            )}
+            {sec.items.map((q, posInSection) => (
+              <div key={q.id} className="rounded-xl border border-neutral-400/20 bg-invictus-base/50 p-4">
+                <div className="flex items-start gap-2">
+                  <span className="mt-2.5 font-mono text-[11px] text-neutral-600">{posInSection + 1}.</span>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <input
+                      value={q.label}
+                      onChange={(e) => patch(q.id, { label: e.target.value })}
+                      placeholder="Question"
+                      className={`${inputClass} text-[15px]`}
                     />
-                  </div>
-                  <Toggle on={!!q.required} onClick={() => patch(q.id, { required: !q.required })} icon={Asterisk} label="Required" />
-                  {q.type !== 'photo' && (
-                    <Toggle on={!!q.allowPhoto} onClick={() => patch(q.id, { allowPhoto: !q.allowPhoto })} icon={ImagePlus} label="Photo" />
-                  )}
-                  <Toggle on={!!q.allowNote} onClick={() => patch(q.id, { allowNote: !q.allowNote })} icon={MessageSquare} label="Note" />
-                </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="w-44">
+                        <InvictusSelect
+                          value={q.type}
+                          onChange={(v) => retype(q.id, v as InspectionQuestionType)}
+                          compact
+                          className="bg-invictus-surface/60"
+                          options={QUESTION_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+                        />
+                      </div>
+                      <div className="w-40">
+                        <InvictusSelect
+                          value={q.section ?? ''}
+                          onChange={(v) => commitSection(q.id, v)}
+                          compact
+                          className="bg-invictus-surface/60"
+                          options={[
+                            { value: '', label: 'No section' },
+                            ...sectionNames(questions).map((s) => ({ value: s, label: s })),
+                            { value: NEW_SECTION, label: '+ New section…' },
+                          ]}
+                        />
+                      </div>
+                      <Toggle on={!!q.required} onClick={() => patch(q.id, { required: !q.required })} icon={Asterisk} label="Required" />
+                      {q.type !== 'photo' && (
+                        <Toggle on={!!q.allowPhoto} onClick={() => patch(q.id, { allowPhoto: !q.allowPhoto })} icon={ImagePlus} label="Photo" />
+                      )}
+                      <Toggle on={!!q.allowNote} onClick={() => patch(q.id, { allowNote: !q.allowNote })} icon={MessageSquare} label="Note" />
+                    </div>
 
-                {q.type === 'choice' && (
-                  <div className="space-y-1.5 rounded-lg border border-neutral-400/15 bg-invictus-surface/40 p-2.5">
-                    {(q.options ?? []).map((opt, oi) => (
-                      <div key={oi} className="flex items-center gap-2">
-                        <span className="h-3 w-3 shrink-0 rounded-full border border-neutral-400/40" />
+                    {pendingSectionFor === q.id && (
+                      <div className="flex items-center gap-2">
                         <input
-                          value={opt}
-                          onChange={(e) =>
-                            patch(q.id, { options: (q.options ?? []).map((o, j) => (j === oi ? e.target.value : o)) })
-                          }
-                          className="min-w-0 flex-1 border-b border-neutral-400/20 bg-transparent px-1 py-1 text-sm text-neutral-200 focus:border-invictus-crimson-bright focus:outline-none"
+                          autoFocus
+                          value={pendingSectionName}
+                          onChange={(e) => setPendingSectionName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              confirmPendingSection();
+                            }
+                          }}
+                          placeholder="Section name (e.g. HBTS)"
+                          className={`${inputClass} flex-1`}
                         />
                         <button
                           type="button"
-                          onClick={() => patch(q.id, { options: (q.options ?? []).filter((_, j) => j !== oi) })}
-                          className="text-neutral-600 transition-colors hover:text-alert"
+                          onClick={confirmPendingSection}
+                          className="shrink-0 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-neutral-100"
                         >
-                          <X className="h-3.5 w-3.5" />
+                          Add
                         </button>
                       </div>
-                    ))}
+                    )}
+
+                    {q.type === 'choice' && (
+                      <div className="space-y-1.5 rounded-lg border border-neutral-400/15 bg-invictus-surface/40 p-2.5">
+                        {(q.options ?? []).map((opt, oi) => (
+                          <div key={oi} className="flex items-center gap-2">
+                            <span className="h-3 w-3 shrink-0 rounded-full border border-neutral-400/40" />
+                            <input
+                              value={opt}
+                              onChange={(e) =>
+                                patch(q.id, { options: (q.options ?? []).map((o, j) => (j === oi ? e.target.value : o)) })
+                              }
+                              className="min-w-0 flex-1 border-b border-neutral-400/20 bg-transparent px-1 py-1 text-sm text-neutral-200 focus:border-invictus-crimson-bright focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => patch(q.id, { options: (q.options ?? []).filter((_, j) => j !== oi) })}
+                              className="text-neutral-600 transition-colors hover:text-alert"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => patch(q.id, { options: [...(q.options ?? []), `Option ${(q.options?.length ?? 0) + 1}`] })}
+                          className="flex items-center gap-1 text-[11px] text-neutral-500 transition-colors hover:text-invictus-crimson-bright"
+                        >
+                          <Plus className="h-3 w-3" /> Add option
+                        </button>
+                      </div>
+                    )}
+
+                    <input
+                      value={q.help ?? ''}
+                      onChange={(e) => patch(q.id, { help: e.target.value })}
+                      placeholder="Guidance for whoever runs it (optional)"
+                      className="w-full border-b border-neutral-400/15 bg-transparent px-1 py-1 text-[11px] text-neutral-400 placeholder:text-neutral-700 focus:border-invictus-crimson-bright/50 focus:outline-none"
+                    />
+                  </div>
+                  {/* 2×2 so the button column never stands taller than the
+                      question it belongs to. */}
+                  <div className="grid shrink-0 grid-cols-2 gap-1">
+                    <button type="button" onClick={() => moveWithinSection(q.id, -1)} disabled={posInSection === 0} title="Move up" className={iconBtn}>
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       type="button"
-                      onClick={() => patch(q.id, { options: [...(q.options ?? []), `Option ${(q.options?.length ?? 0) + 1}`] })}
-                      className="flex items-center gap-1 text-[11px] text-neutral-500 transition-colors hover:text-invictus-crimson-bright"
+                      onClick={() => moveWithinSection(q.id, 1)}
+                      disabled={posInSection === sec.items.length - 1}
+                      title="Move down"
+                      className={iconBtn}
                     >
-                      <Plus className="h-3 w-3" /> Add option
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                    <button type="button" onClick={() => duplicate(q.id)} title="Duplicate" className={iconBtn}>
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => remove(q.id)}
+                      title="Delete question"
+                      className={`${iconBtn} hover:border-alert/50 hover:text-alert`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                )}
-
-                <input
-                  value={q.help ?? ''}
-                  onChange={(e) => patch(q.id, { help: e.target.value })}
-                  placeholder="Guidance for whoever runs it (optional)"
-                  className="w-full border-b border-neutral-400/15 bg-transparent px-1 py-1 text-[11px] text-neutral-400 placeholder:text-neutral-700 focus:border-invictus-crimson-bright/50 focus:outline-none"
-                />
+                </div>
               </div>
-              {/* 2×2 so the button column never stands taller than the
-                  question it belongs to. */}
-              <div className="grid shrink-0 grid-cols-2 gap-1">
-                <button type="button" onClick={() => move(i, -1)} disabled={i === 0} title="Move up" className={iconBtn}>
-                  <ChevronUp className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => move(i, 1)} disabled={i === questions.length - 1} title="Move down" className={iconBtn}>
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => duplicate(i)} title="Duplicate" className={iconBtn}>
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => remove(q.id)}
-                  title="Delete question"
-                  className={`${iconBtn} hover:border-alert/50 hover:text-alert`}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addQuestionToSection(sec.name)}
+              className="flex items-center gap-1 text-[11px] text-neutral-500 transition-colors hover:text-invictus-crimson-bright"
+            >
+              <Plus className="h-3 w-3" /> Add question {sec.name ? `to ${sec.name}` : ''}
+            </button>
           </div>
         ))}
       </div>
 
-      {/* Add a question of any type, straight from the type list. */}
+      {/* Add a question of any type, straight from the type list — always
+          unsectioned; tag it (or drag it into a section) afterwards. */}
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[10px] uppercase tracking-widest text-neutral-600">Add</span>
         {QUESTION_TYPES.map((t) => (
@@ -953,6 +1081,116 @@ function Toggle({
   );
 }
 
+// The header over a section's questions in the builder: rename in place,
+// duplicate the whole section as a new area ("HBTS" → "Ballroom" without
+// retyping), or ungroup it (its questions just lose the tag, nothing deleted).
+function SectionHeader({
+  name,
+  onRename,
+  onDuplicate,
+  onUngroup,
+}: {
+  name: string;
+  onRename: (newName: string) => void;
+  onDuplicate: (newName: string) => void;
+  onUngroup: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  const [duplicating, setDuplicating] = useState(false);
+  const [dupName, setDupName] = useState(`${name} copy`);
+
+  const commitRename = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== name) onRename(trimmed);
+    else setDraft(name);
+  };
+  const confirmDuplicate = () => {
+    if (!dupName.trim()) return;
+    onDuplicate(dupName.trim());
+    setDuplicating(false);
+  };
+
+  return (
+    <div className="rounded-lg border border-neutral-400/25 bg-invictus-surface/50 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Layers className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
+        {editing ? (
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commitRename();
+              }
+            }}
+            className="min-w-0 flex-1 border-b border-invictus-crimson-bright/50 bg-transparent px-1 py-0.5 text-sm font-semibold text-neutral-100 focus:outline-none"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(name);
+              setEditing(true);
+            }}
+            title="Rename this section"
+            className="text-sm font-semibold text-neutral-100 transition-colors hover:text-invictus-crimson-bright"
+          >
+            {name}
+          </button>
+        )}
+        <span className="h-px flex-1 bg-neutral-400/15" />
+        <button
+          type="button"
+          onClick={() => {
+            setDupName(`${name} copy`);
+            setDuplicating((d) => !d);
+          }}
+          className="flex items-center gap-1 rounded-md border border-neutral-400/25 bg-invictus-base/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+        >
+          <Copy className="h-3 w-3" /> Duplicate as new area
+        </button>
+        <button
+          type="button"
+          onClick={onUngroup}
+          title="Remove this section (keeps its questions, unsectioned)"
+          className="rounded-md border border-neutral-400/20 bg-invictus-base/60 p-1.5 text-neutral-500 transition-colors hover:border-alert/50 hover:text-alert"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+      {duplicating && (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            autoFocus
+            value={dupName}
+            onChange={(e) => setDupName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmDuplicate();
+              }
+            }}
+            placeholder="New area name (e.g. Ballroom)"
+            className="min-w-0 flex-1 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={confirmDuplicate}
+            className="shrink-0 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-100"
+          >
+            Duplicate
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // The run sheet: answer the questions, then file it as a report.
 // ---------------------------------------------------------------------------
@@ -971,6 +1209,12 @@ function RunInspection({
   teamId: string;
 }) {
   const questions = useMemo(() => templateQuestions(template), [template]);
+  // Grouped by section for display, but each item keeps its original index
+  // (__i) so answers[] and setAt() stay keyed to the flat questions array.
+  const sections = useMemo(
+    () => groupBySection(questions.map((q, i) => ({ ...q, __i: i }))),
+    [questions]
+  );
   // The report id is fixed up front so photos can be uploaded into its folder
   // as they're taken, before the report itself is written.
   const [reportId] = useState(() => genId('r'));
@@ -1028,6 +1272,7 @@ function RunInspection({
         questionId: a.questionId,
         label: a.label,
         type: a.type,
+        ...(a.section ? { section: a.section } : {}),
         ...(a.outcome ? { outcome: a.outcome } : {}),
         ...(a.value?.trim() ? { value: a.value.trim() } : {}),
         ...(a.note?.trim() ? { note: a.note.trim() } : {}),
@@ -1108,100 +1353,110 @@ function RunInspection({
               </div>
             </div>
 
-            <div className="mt-4 space-y-2">
-              {questions.map((q, i) => {
-                const a = answers[i];
-                // A note is always offered on a failure, whether or not the
-                // question asked for one — that's when it matters most.
-                const showNote = q.allowNote || a?.outcome === 'fail';
-                return (
-                  <div key={q.id} className="rounded-md border border-neutral-400/20 bg-invictus-surface/50 p-3">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-neutral-200">
-                          <span className="mr-1.5 font-mono text-[11px] text-neutral-600">{i + 1}.</span>
-                          {q.label}
-                          {q.required && <span className="ml-1 text-alert">*</span>}
-                        </p>
-                        {q.help && <p className="mt-0.5 pl-5 text-[11px] text-neutral-600">{q.help}</p>}
-                      </div>
-                      {q.type === 'passFail' && (
-                        <div className="flex shrink-0 gap-1">
-                          {INSPECTION_OUTCOMES.map((o) => (
-                            <button
-                              key={o.value}
-                              onClick={() => setAt(i, { outcome: o.value as InspectionOutcome })}
-                              className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest transition-all ${
-                                a?.outcome === o.value
-                                  ? INSPECTION_OUTCOME_STYLES[o.value]
-                                  : 'border-neutral-400/25 text-neutral-600 hover:text-neutral-300'
-                              }`}
-                            >
-                              {o.label}
-                            </button>
-                          ))}
+            <div className="mt-4 space-y-4">
+              {sections.map((sec) => (
+                <div key={sec.name ?? '__none__'} className="space-y-2">
+                  {sec.name && (
+                    <p className="flex items-center gap-1.5 pt-1 text-[11px] font-semibold uppercase tracking-widest text-invictus-crimson-bright/80">
+                      <Layers className="h-3 w-3" /> {sec.name}
+                    </p>
+                  )}
+                  {sec.items.map((q, posInSection) => {
+                    const i = q.__i;
+                    const a = answers[i];
+                    // A note is always offered on a failure, whether or not the
+                    // question asked for one — that's when it matters most.
+                    const showNote = q.allowNote || a?.outcome === 'fail';
+                    return (
+                      <div key={q.id} className="rounded-md border border-neutral-400/20 bg-invictus-surface/50 p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-neutral-200">
+                              <span className="mr-1.5 font-mono text-[11px] text-neutral-600">{posInSection + 1}.</span>
+                              {q.label}
+                              {q.required && <span className="ml-1 text-alert">*</span>}
+                            </p>
+                            {q.help && <p className="mt-0.5 pl-5 text-[11px] text-neutral-600">{q.help}</p>}
+                          </div>
+                          {q.type === 'passFail' && (
+                            <div className="flex shrink-0 gap-1">
+                              {INSPECTION_OUTCOMES.map((o) => (
+                                <button
+                                  key={o.value}
+                                  onClick={() => setAt(i, { outcome: o.value as InspectionOutcome })}
+                                  className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest transition-all ${
+                                    a?.outcome === o.value
+                                      ? INSPECTION_OUTCOME_STYLES[o.value]
+                                      : 'border-neutral-400/25 text-neutral-600 hover:text-neutral-300'
+                                  }`}
+                                >
+                                  {o.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    {/* The answer control for everything that isn't pass/fail. */}
-                    {q.type === 'choice' && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {(q.options ?? []).map((opt) => (
-                          <button
-                            key={opt}
-                            onClick={() => setAt(i, { value: a?.value === opt ? '' : opt })}
-                            className={`rounded-md border px-3 py-1.5 text-[11px] transition-colors ${
-                              a?.value === opt
-                                ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 text-neutral-100'
-                                : 'border-neutral-400/25 text-neutral-400 hover:text-neutral-200'
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        ))}
+                        {/* The answer control for everything that isn't pass/fail. */}
+                        {q.type === 'choice' && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {(q.options ?? []).map((opt) => (
+                              <button
+                                key={opt}
+                                onClick={() => setAt(i, { value: a?.value === opt ? '' : opt })}
+                                className={`rounded-md border px-3 py-1.5 text-[11px] transition-colors ${
+                                  a?.value === opt
+                                    ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 text-neutral-100'
+                                    : 'border-neutral-400/25 text-neutral-400 hover:text-neutral-200'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {q.type === 'text' && (
+                          <input value={a?.value ?? ''} onChange={(e) => setAt(i, { value: e.target.value })} className={`${inputClass} mt-2`} />
+                        )}
+                        {q.type === 'longText' && (
+                          <textarea
+                            value={a?.value ?? ''}
+                            onChange={(e) => setAt(i, { value: e.target.value })}
+                            rows={3}
+                            className={`${inputClass} mt-2 resize-y`}
+                          />
+                        )}
+                        {(q.type === 'number' || q.type === 'date' || q.type === 'time') && (
+                          <input
+                            type={q.type === 'number' ? 'number' : q.type}
+                            value={a?.value ?? ''}
+                            onChange={(e) => setAt(i, { value: e.target.value })}
+                            className={`${inputClass} mt-2 sm:w-56`}
+                          />
+                        )}
+
+                        {(q.type === 'photo' || q.allowPhoto) && (
+                          <PhotoPicker
+                            photos={a?.photos ?? []}
+                            busy={uploading === q.id}
+                            onAdd={(files) => addPhotos(i, files)}
+                            onRemove={(path) => setAt(i, { photos: (a?.photos ?? []).filter((p) => p.path !== path) })}
+                          />
+                        )}
+
+                        {showNote && (
+                          <input
+                            value={a?.note ?? ''}
+                            onChange={(e) => setAt(i, { note: e.target.value })}
+                            placeholder={a?.outcome === 'fail' ? "What's wrong with it?" : 'Note'}
+                            className={`${inputClass} mt-2`}
+                          />
+                        )}
                       </div>
-                    )}
-                    {q.type === 'text' && (
-                      <input value={a?.value ?? ''} onChange={(e) => setAt(i, { value: e.target.value })} className={`${inputClass} mt-2`} />
-                    )}
-                    {q.type === 'longText' && (
-                      <textarea
-                        value={a?.value ?? ''}
-                        onChange={(e) => setAt(i, { value: e.target.value })}
-                        rows={3}
-                        className={`${inputClass} mt-2 resize-y`}
-                      />
-                    )}
-                    {(q.type === 'number' || q.type === 'date' || q.type === 'time') && (
-                      <input
-                        type={q.type === 'number' ? 'number' : q.type}
-                        value={a?.value ?? ''}
-                        onChange={(e) => setAt(i, { value: e.target.value })}
-                        className={`${inputClass} mt-2 sm:w-56`}
-                      />
-                    )}
-
-                    {(q.type === 'photo' || q.allowPhoto) && (
-                      <PhotoPicker
-                        photos={a?.photos ?? []}
-                        busy={uploading === q.id}
-                        onAdd={(files) => addPhotos(i, files)}
-                        onRemove={(path) => setAt(i, { photos: (a?.photos ?? []).filter((p) => p.path !== path) })}
-                      />
-                    )}
-
-                    {showNote && (
-                      <input
-                        value={a?.note ?? ''}
-                        onChange={(e) => setAt(i, { note: e.target.value })}
-                        placeholder={a?.outcome === 'fail' ? "What's wrong with it?" : 'Note'}
-                        className={`${inputClass} mt-2`}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              ))}
             </div>
 
             <div className="mt-4">

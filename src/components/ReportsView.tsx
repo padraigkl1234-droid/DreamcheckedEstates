@@ -33,7 +33,7 @@ import {
   Users,
   ClipboardCheck,
 } from 'lucide-react';
-import { INSPECTION_OUTCOME_STYLES, answerText, recordAnswers } from '@/lib/inspections';
+import { INSPECTION_OUTCOME_STYLES, answerText, groupBySection, recordAnswers, type InspectionAnswer } from '@/lib/inspections';
 import { drawDreamlandWordmark, drawInvictusCorner, drawInvictusFooter } from '@/lib/brandMark';
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
@@ -338,7 +338,8 @@ export function ReportsView({
     y += lines.length * 14;
 
     // An inspection carries every answered question, so print them as a table
-    // — that list is the whole point of the document.
+    // — that list is the whole point of the document. Questions grouped into
+    // an area (e.g. "HBTS", "Ballroom") get a shaded header row of their own.
     const answers = r.inspection ? recordAnswers(r.inspection) : [];
     if (answers.length) {
       const autoTable = (await import('jspdf-autotable')).default;
@@ -346,17 +347,35 @@ export function ReportsView({
       pdf.setTextColor(30, 30, 30);
       pdf.setFontSize(11);
       pdf.text(`Checklist — ${r.inspection!.templateName}`, 40, y);
+
+      const body: (string | { content: string; colSpan: number; styles: Record<string, unknown> })[][] = [];
+      // Parallel to `body` — the answer each row represents, or null for a
+      // section-header row — so didParseCell can still colour failures red.
+      const rowAnswers: (InspectionAnswer | null)[] = [];
+      let counter = 0;
+      for (const sec of groupBySection(answers)) {
+        if (sec.name) {
+          body.push([{ content: sec.name, colSpan: 4, styles: { fillColor: [230, 230, 230], textColor: [70, 70, 70], fontStyle: 'bold' } }]);
+          rowAnswers.push(null);
+        }
+        for (const a of sec.items) {
+          counter += 1;
+          body.push([String(counter), a.label, answerText(a), a.note ?? '']);
+          rowAnswers.push(a);
+        }
+      }
+
       autoTable(pdf, {
         startY: y + 10,
         head: [['#', 'Question', 'Answer', 'Note']],
-        body: answers.map((a, i) => [String(i + 1), a.label, answerText(a), a.note ?? '']),
+        body,
         headStyles: { fillColor: crimson, textColor: 255, fontSize: 8.5 },
         bodyStyles: { fontSize: 8.5, textColor: [40, 40, 40] },
         alternateRowStyles: { fillColor: [245, 245, 245] },
         columnStyles: { 0: { cellWidth: 22 }, 2: { cellWidth: 62 } },
         // Failures are what a reader is scanning for — colour them red.
         didParseCell: (data) => {
-          if (data.section === 'body' && answers[data.row.index]?.outcome === 'fail') {
+          if (data.section === 'body' && rowAnswers[data.row.index]?.outcome === 'fail') {
             data.cell.styles.textColor = [176, 32, 40];
             if (data.column.index === 2) data.cell.styles.fontStyle = 'bold';
           }
@@ -621,35 +640,46 @@ export function ReportsView({
                 <p className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-500">
                   <ClipboardCheck className="h-3.5 w-3.5" /> {selected.inspection.templateName}
                 </p>
-                <ul className="space-y-1.5">
-                  {recordAnswers(selected.inspection).map((a, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[13px]">
-                      <span
-                        className={`mt-0.5 shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest ${
-                          a.outcome
-                            ? INSPECTION_OUTCOME_STYLES[a.outcome]
-                            : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-400'
-                        }`}
-                      >
-                        {answerText(a)}
-                      </span>
-                      <span className="min-w-0">
-                        <span className={a.outcome === 'fail' ? 'text-alert' : 'text-neutral-300'}>{a.label}</span>
-                        {a.note && <span className="block text-[11px] text-neutral-500">{a.note}</span>}
-                        {!!a.photos?.length && (
-                          <span className="mt-1 flex flex-wrap gap-1">
-                            {a.photos.map((p) => (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <a key={p.path} href={p.url} target="_blank" rel="noreferrer">
-                                <img src={p.url} alt={p.name} className="h-10 w-10 rounded border border-neutral-400/25 object-cover" />
-                              </a>
-                            ))}
-                          </span>
-                        )}
-                      </span>
-                    </li>
+                <div className="space-y-3">
+                  {groupBySection(recordAnswers(selected.inspection)).map((sec) => (
+                    <div key={sec.name ?? '__none__'}>
+                      {sec.name && (
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright/80">
+                          {sec.name}
+                        </p>
+                      )}
+                      <ul className="space-y-1.5">
+                        {sec.items.map((a, i) => (
+                          <li key={i} className="flex items-start gap-2 text-[13px]">
+                            <span
+                              className={`mt-0.5 shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest ${
+                                a.outcome
+                                  ? INSPECTION_OUTCOME_STYLES[a.outcome]
+                                  : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-400'
+                              }`}
+                            >
+                              {answerText(a)}
+                            </span>
+                            <span className="min-w-0">
+                              <span className={a.outcome === 'fail' ? 'text-alert' : 'text-neutral-300'}>{a.label}</span>
+                              {a.note && <span className="block text-[11px] text-neutral-500">{a.note}</span>}
+                              {!!a.photos?.length && (
+                                <span className="mt-1 flex flex-wrap gap-1">
+                                  {a.photos.map((p) => (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <a key={p.path} href={p.url} target="_blank" rel="noreferrer">
+                                      <img src={p.url} alt={p.name} className="h-10 w-10 rounded border border-neutral-400/25 object-cover" />
+                                    </a>
+                                  ))}
+                                </span>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 

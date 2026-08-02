@@ -28,6 +28,10 @@ export interface InspectionQuestion {
   options?: string[]; // choice only
   allowPhoto?: boolean; // offer a photo alongside the answer
   allowNote?: boolean; // offer a free-text note alongside the answer
+  // Which area/section of the sheet this belongs to, e.g. "HBTS" or
+  // "Ballroom" — questions sharing a section are grouped and can be cloned
+  // wholesale into a new section (see cloneSection) rather than retyped.
+  section?: string;
 }
 
 export type RecurrenceFrequency = 'none' | 'weekly' | 'monthly';
@@ -105,6 +109,7 @@ export interface InspectionAnswer {
   questionId: string;
   label: string;
   type: InspectionQuestionType;
+  section?: string; // denormalised from the question, so old reports keep it
   outcome?: InspectionOutcome; // passFail only
   value?: string; // everything else
   note?: string;
@@ -158,6 +163,45 @@ export function newQuestionId(): string {
   return `q-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+export interface SectionGroup<T> {
+  name: string | null; // null = no section
+  items: T[];
+}
+
+/** Buckets questions (or answers) by their `section`, in order of first
+ * appearance — a real paper checklist reads as a sequence of areas, not an
+ * alphabetised list, so this preserves whatever order they were authored in
+ * rather than sorting. Unsectioned items form their own (unlabelled) bucket. */
+export function groupBySection<T extends { section?: string }>(items: T[]): SectionGroup<T>[] {
+  const order: (string | null)[] = [];
+  const map = new Map<string | null, T[]>();
+  for (const item of items) {
+    const key = item.section?.trim() || null;
+    if (!map.has(key)) {
+      map.set(key, []);
+      order.push(key);
+    }
+    map.get(key)!.push(item);
+  }
+  return order.map((name) => ({ name, items: map.get(name)! }));
+}
+
+/** Every distinct, non-empty section name already used in `questions`, in
+ * order of first appearance — feeds the "pick an existing section" list. */
+export function sectionNames(questions: InspectionQuestion[]): string[] {
+  return groupBySection(questions)
+    .map((g) => g.name)
+    .filter((n): n is string => n !== null);
+}
+
+/** Clones every question in `section`, giving each a fresh id and the new
+ * section name — "repeat these questions for another area" without retyping. */
+export function cloneSection(questions: InspectionQuestion[], section: string, newSection: string): InspectionQuestion[] {
+  return questions
+    .filter((q) => (q.section?.trim() || null) === section)
+    .map((q) => ({ ...q, id: newQuestionId(), section: newSection }));
+}
+
 export function blankQuestion(type: InspectionQuestionType = 'passFail'): InspectionQuestion {
   return {
     id: newQuestionId(),
@@ -199,6 +243,7 @@ export function blankAnswers(questions: InspectionQuestion[]): InspectionAnswer[
     questionId: q.id,
     label: q.label,
     type: q.type,
+    ...(q.section ? { section: q.section } : {}),
     ...(q.type === 'passFail' ? { outcome: 'pass' as InspectionOutcome } : { value: '' }),
   }));
 }
@@ -246,7 +291,9 @@ export function summarise(answers: InspectionAnswer[]): string {
 
   const failed = answers.filter((a) => a.outcome === 'fail');
   if (failed.length) {
-    blocks.push(`Failed:\n${failed.map((a) => `• ${a.label}${a.note ? ` — ${a.note}` : ''}`).join('\n')}`);
+    blocks.push(
+      `Failed:\n${failed.map((a) => `• ${a.section ? `[${a.section}] ` : ''}${a.label}${a.note ? ` — ${a.note}` : ''}`).join('\n')}`
+    );
   }
 
   const answered = answers.filter((a) => a.type !== 'passFail' && (a.value?.trim() || a.photos?.length));
