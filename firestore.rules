@@ -23,19 +23,52 @@ service cloud.firestore {
     function isCommanderOf(teamId) {
       return request.auth != null && myRank() == 'commander' && myTeam() == teamId;
     }
+    // Signed in AND has actually joined a team — as opposed to mid-onboarding,
+    // sitting on the "enter a referral code" screen. Joining itself never
+    // needs to read team-scoped data (see AppGate, which only calls the join
+    // API), so this is a safe bar for "may see shared team data".
+    function amTeamMember() {
+      return request.auth != null && myTeam() != '';
+    }
+    // True when `teamId` is this caller's own (non-empty) team — the shape
+    // every team-scoped collection's documents carry.
+    function inMyTeam(teamId) {
+      return amTeamMember() && teamId == myTeam();
+    }
 
     // ---- Collections -----------------------------------------------------
 
-    // Shared team show board — any signed-in user can read/update shows.
+    // Shared team show board.
     match /shows/{showId} {
-      allow read, write: if request.auth != null;
+      allow read, update, delete: if isMasterAdmin() || inMyTeam(resource.data.teamId);
+      allow create: if isMasterAdmin() || inMyTeam(request.resource.data.teamId);
     }
 
-    // User profiles. Anyone signed in can read the roster; you write only your
-    // own doc. Rank is written server-side (Admin SDK), which bypasses rules.
+    // User profiles. Reading your OWN doc is always allowed (so a brand-new,
+    // not-yet-joined user can load their profile on the join screen); reading
+    // the WHOLE roster (the "assign to" pickers, team page, automations)
+    // needs an actual team membership, so a stranger who merely signed in
+    // with a Google account can't browse the staff list and every email
+    // address on it. Rank, team membership and blocked status are
+    // infrastructure set only by the Admin SDK (api/teams, api/admin/users),
+    // which bypasses these rules entirely — a client can never grant itself
+    // any of those fields, and `email` must match the signed-in Google
+    // account so nobody can claim a teammate's address (e.g. to hijack Estate
+    // Request "Assigned To" routing, which matches by email).
     match /users/{uid} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == uid;
+      allow get: if request.auth != null && (request.auth.uid == uid || isMasterAdmin() || amTeamMember());
+      allow list: if isMasterAdmin() || amTeamMember();
+      allow create: if request.auth != null && request.auth.uid == uid &&
+        !('rank' in request.resource.data) &&
+        !('teamId' in request.resource.data) &&
+        !('blocked' in request.resource.data) &&
+        request.resource.data.get('email', request.auth.token.email) == request.auth.token.email;
+      allow update: if request.auth != null && request.auth.uid == uid &&
+        request.resource.data.get('rank', null) == resource.data.get('rank', null) &&
+        request.resource.data.get('teamId', null) == resource.data.get('teamId', null) &&
+        request.resource.data.get('blocked', false) == resource.data.get('blocked', false) &&
+        request.resource.data.get('email', request.auth.token.email) == request.auth.token.email;
+      allow delete: if false;
     }
 
     // Shared tasks. Private to whoever's on them: visible (and editable/
@@ -85,25 +118,34 @@ service cloud.firestore {
 
     // Team-scoped shared forms.
     match /checklistForms/{id} {
-      allow read, write: if request.auth != null;
+      allow read, update, delete: if isMasterAdmin() || inMyTeam(resource.data.teamId);
+      allow create: if isMasterAdmin() || inMyTeam(request.resource.data.teamId);
     }
     match /auditForms/{id} {
-      allow read, write: if request.auth != null;
+      allow read, update, delete: if isMasterAdmin() || inMyTeam(resource.data.teamId);
+      allow create: if isMasterAdmin() || inMyTeam(request.resource.data.teamId);
     }
     // Inspection checklists (see /inspections). Running one files a report, so
-    // the results themselves are governed by the /reports rules above.
+    // the results themselves are governed by the /reports rules above. Master
+    // gets an unscoped bypass — the automations console picks a checklist
+    // from every team's list, not just its own.
     match /inspectionTemplates/{id} {
-      allow read, write: if request.auth != null;
+      allow read, update, delete: if isMasterAdmin() || inMyTeam(resource.data.teamId);
+      allow create: if isMasterAdmin() || inMyTeam(request.resource.data.teamId);
     }
 
-    // Team docs are read by members; writes go through the Admin SDK.
+    // Team docs. Referral codes live here, and a code is the only thing
+    // gating who can join a team, so — like the roster — only your own team
+    // (or master) can be read, not every team's document.
     match /teams/{teamId} {
-      allow read: if request.auth != null;
+      allow read: if isMasterAdmin() || teamId == myTeam();
     }
 
-    // Estates assignments module.
+    // Estates assignments module. Not yet team-scoped (its documents carry no
+    // teamId), so this is the coarser bar used elsewhere pre-team-scoping:
+    // signed in AND actually on a team, not just any Google account.
     match /assignments/{assignmentId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isMasterAdmin() || amTeamMember();
     }
 
     // Scheduled automations (e.g. the weekly email report). Master-only —
