@@ -393,6 +393,7 @@ export function ZoneFloorPlan({
           </div>
         ) : (
           <AssetPanel
+            key={selected.id}
             asset={selected}
             canEdit={canEdit}
             busy={busy}
