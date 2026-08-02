@@ -1,3 +1,5 @@
+import { DREAMLAND_YELLOW_HEX } from '@/lib/brandMark';
+
 // Invictus-branded HTML email bodies, shared by every automation handler.
 // Table-based layout throughout since that's what renders reliably across
 // Gmail/Outlook/etc., unlike flexbox/grid.
@@ -15,13 +17,17 @@ export function escapeHtml(s: string): string {
 }
 
 function bannerAndFooter(bodyHtml: string): string {
+  // The Dreamland wordmark, set in type rather than as an image: mail clients
+  // routinely block remote images, and an inlined one would bloat every send.
+  // The banner is dark, so the logo keeps its own white and yellow with no
+  // pink field behind it.
   return `
 <div style="background:#eeeeee;padding:24px 12px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e2e2;">
     <tr>
-      <td style="background:#111114;padding:20px 28px;">
-        <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#dc2626;margin-right:8px;vertical-align:middle;"></span>
-        <span style="font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#ffffff;vertical-align:middle;">Invictus</span>
+      <td align="center" style="background:#111114;padding:22px 28px 18px;">
+        <div style="font-size:22px;font-weight:800;letter-spacing:.26em;text-transform:uppercase;color:#ffffff;line-height:1;">Dreamland</div>
+        <div style="margin-top:6px;font-size:9px;font-weight:700;letter-spacing:.52em;text-transform:uppercase;color:${DREAMLAND_YELLOW_HEX};line-height:1;">Margate</div>
       </td>
     </tr>
     ${bodyHtml}

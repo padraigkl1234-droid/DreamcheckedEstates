@@ -32,6 +32,7 @@ import {
   Lock,
   Users,
 } from 'lucide-react';
+import { drawDreamlandWordmark } from '@/lib/brandMark';
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
@@ -294,11 +295,11 @@ export function ReportsView({
     const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
     const crimson: [number, number, number] = [37, 99, 235];
-    let y = 48;
+    let y = drawDreamlandWordmark(pdf, 40, 50) + 30;
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(16);
+    pdf.setFontSize(14);
     pdf.setTextColor(...crimson);
-    pdf.text('INVICTUS — Report', 40, y);
+    pdf.text('Report', 40, y);
     y += 24;
     pdf.setFontSize(13);
     pdf.setTextColor(30, 30, 30);

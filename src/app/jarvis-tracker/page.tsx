@@ -14,6 +14,7 @@ import { useProfile } from '@/components/ProfileProvider';
 import { useT } from '@/components/LanguageProvider';
 import { usePreferences } from '@/components/PreferencesProvider';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
+import { drawDreamlandWordmark } from '@/lib/brandMark';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { ReportsView, type ReportDraft } from '@/components/ReportsView';
 import { Pinwheel } from '@/components/icons/Pinwheel';
@@ -4570,18 +4571,20 @@ async function exportReportsToPdf(entries: ReportEntry[]) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const crimson: [number, number, number] = [37, 99, 235];
 
+  const markBottom = drawDreamlandWordmark(doc, 40, 50);
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setTextColor(...crimson);
-  doc.text('I.N.V.I.C.T.U.S. — Completion Reports', 40, 44);
+  doc.text('Completion Reports', 40, markBottom + 30);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
-  doc.text(`Generated ${new Date().toLocaleString('en-GB')} · ${entries.length} entries`, 40, 60);
+  doc.text(`Generated ${new Date().toLocaleString('en-GB')} · ${entries.length} entries`, 40, markBottom + 45);
 
   autoTable(doc, {
-    startY: 76,
+    startY: markBottom + 62,
     head: [['Type', 'Name', 'Completed', 'Priority / Status', 'Details']],
     body: entries.map((entry) => [
       entry.kind === 'task' ? 'Task' : 'Compliance',
