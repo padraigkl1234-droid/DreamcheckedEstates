@@ -333,12 +333,121 @@ export const ARCADE_PLAN: ZonePlan = {
   ],
 };
 
+// A tall (7.3m) function hall with a bar annex to the east. The stage, FOH
+// control booth, accessible platform, crowd barrier and pillar are all floor-
+// level features within the one main volume rather than separate rooms —
+// only the Bar gets its own walled room, since it's the one genuinely
+// separate space on the reference plan.
+const HS_HALL_W = 19.3;
+const HS_HALL_D = 20.2 + 2 + 7.2 + 2; // upper floor + barrier gap + stage + LED screen strip
+const HS_BAR_W = 5;
+const HS_BAR_D = 10;
+const HS_WIDTH = HS_HALL_W + HS_BAR_W;
+const HS_DEPTH = HS_HALL_D;
+
+export const HALL_BY_THE_SEA_PLAN: ZonePlan = {
+  zone: 'Hall by the Sea',
+  width: HS_WIDTH,
+  depth: HS_DEPTH,
+  rooms: [
+    {
+      id: 'hall',
+      label: 'Hall by the Sea',
+      x0: 0,
+      y0: 0,
+      x1: HS_HALL_W,
+      y1: HS_HALL_D,
+      height: 7.3,
+      floorColor: '#f0ece0',
+      // A Fire Exit right by the top-of-stairs corner.
+      northSolid: [
+        [0, 0.05],
+        [0.15, 1],
+      ],
+      // Four more Fire Exits down the west wall, the last one guarded by a
+      // crowd barrier.
+      westSolid: [
+        [0, 0.081],
+        [0.11, 0.303],
+        [0.334, 0.525],
+        [0.557, 0.748],
+        [0.78, 1],
+      ],
+    },
+    {
+      id: 'bar',
+      label: 'Bar',
+      x0: HS_HALL_W,
+      y0: 0,
+      x1: HS_WIDTH,
+      y1: HS_BAR_D,
+      height: 7.3,
+      floorColor: '#ddd0b8',
+      // Doorway through from the main hall.
+      westSolid: [
+        [0, 0.3],
+        [0.6, 1],
+      ],
+      // A Fire Exit of its own.
+      northSolid: [
+        [0, 0.2],
+        [0.5, 1],
+      ],
+    },
+  ],
+  floorInsets: [
+    { x0: 0.5, y0: 1, x1: 4, y1: 3.5, color: '#e0d8c8' }, // FOH Control
+    { x0: 5, y0: 1, x1: 9, y1: 4, color: '#ddd8d0' }, // Accessible Platform
+    { x0: 2.5, y0: HS_DEPTH - 8.8, x1: 16.9, y1: HS_DEPTH - 1.6, color: '#c8beac' }, // Stage, 14.4 x 7.2
+    { x0: 4, y0: HS_DEPTH - 1.6, x1: 15.4, y1: HS_DEPTH - 0.8, color: '#333333' }, // LED screen
+  ],
+  decor: [
+    // Flight cases / equipment bins, FOH Control and near HBTS Load In.
+    { x: 4.3, y: 1.2, size: 0.4, color: '#3b82f6' },
+    { x: 4.9, y: 1.2, size: 0.4, color: '#ef4444' },
+    { x: 5.5, y: 1.2, size: 0.4, color: '#1f2937' },
+    { x: 6.1, y: 1.2, size: 0.4, color: '#eab308' },
+    { x: 0.7, y: HS_DEPTH - 5.5, size: 0.4, color: '#3b82f6' },
+    { x: 1.3, y: HS_DEPTH - 5.5, size: 0.4, color: '#ef4444' },
+    { x: 1.9, y: HS_DEPTH - 5.5, size: 0.4, color: '#1f2937' },
+    { x: 2.5, y: HS_DEPTH - 5.5, size: 0.4, color: '#eab308' },
+    { x: 12, y: 18, size: 0.6, color: '#4b5563' }, // the Pillar
+    // Crowd barrier — a fence line ahead of the stage.
+    ...[2, 4, 6, 8, 10, 12, 14, 16].map((x) => ({ x, y: HS_DEPTH - 9.2, size: 0.25, color: '#22c55e' })),
+  ],
+  textLabels: [
+    { x: 1, y: -0.8, text: 'Top of Stairs' },
+    { x: 0.5, y: 4.3, text: 'FOH Control' },
+    { x: 5, y: 4.8, text: 'Accessible Platform' },
+    { x: 12.5, y: 18.9, text: 'Pillar' },
+    { x: 1, y: HS_DEPTH - 9.6, text: 'Crowd Barrier' },
+    { x: 4, y: HS_DEPTH - 2, text: 'Stage 14.4 x 7.2' },
+    { x: 5, y: HS_DEPTH - 0.5, text: 'LED Screen' },
+    { x: 5, y: HS_DEPTH + 0.6, text: 'HBTS Load In' },
+  ],
+  starterAssets: [
+    { type: 'fireExit', name: 'Fire Exit — Top of Stairs', x: 0.3 / HS_WIDTH, y: 3 / HS_DEPTH, mount: 'floor' },
+    { type: 'fireExit', name: 'Fire Exit — West (upper)', x: 0.3 / HS_WIDTH, y: 10 / HS_DEPTH, mount: 'floor' },
+    { type: 'fireExit', name: 'Fire Exit — West (lower)', x: 0.3 / HS_WIDTH, y: 17 / HS_DEPTH, mount: 'floor' },
+    { type: 'fireExit', name: 'Fire Exit — with crowd barrier', x: 0.3 / HS_WIDTH, y: 24 / HS_DEPTH, mount: 'floor' },
+    { type: 'fireExit', name: 'Fire Exit — Bar', x: (HS_HALL_W + 1.2) / HS_WIDTH, y: 0.3 / HS_DEPTH, mount: 'floor' },
+    { type: 'fireExit', name: 'Fire Exit — HBTS Load In', x: 8 / HS_WIDTH, y: (HS_DEPTH - 0.3) / HS_DEPTH, mount: 'floor' },
+    { type: 'emergencyLight', name: 'Emergency Light — North 1', x: 5 / HS_WIDTH, y: 0.3 / HS_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — North 2', x: 15 / HS_WIDTH, y: 0.3 / HS_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — West', x: 0.3 / HS_WIDTH, y: 13 / HS_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — East', x: 19 / HS_WIDTH, y: 15 / HS_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — Stage', x: 9 / HS_WIDTH, y: (HS_DEPTH - 5.5) / HS_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — South', x: 12 / HS_WIDTH, y: (HS_DEPTH - 0.5) / HS_DEPTH, mount: 'ceiling' },
+  ],
+};
+
 /** Every zone with a registered floor plan, keyed by its SITE_ZONES label. */
 export const ZONE_PLANS: Record<string, ZonePlan> = {
   Ballroom: BALLROOM_PLAN,
   Boardroom: BOARDROOM_PLAN,
   Concourse: CONCOURSE_PLAN,
   Arcade: ARCADE_PLAN,
+  'Hall by the Sea': HALL_BY_THE_SEA_PLAN,
 };
 
 export function zonePlanFor(zoneLabel: string): ZonePlan | undefined {

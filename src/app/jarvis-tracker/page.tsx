@@ -13,6 +13,7 @@ const ZONE_PLAN_ROUTES: Record<string, string> = {
   Boardroom: '/site-map/boardroom',
   Concourse: '/site-map/concourse',
   Arcade: '/site-map/arcade',
+  'Hall by the Sea': '/site-map/hall-by-the-sea',
 };
 import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot, query, where, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
