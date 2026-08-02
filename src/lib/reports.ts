@@ -4,6 +4,7 @@
 // "team" reports are visible to the whole team.
 
 import { isCommander, type UserProfile } from '@/lib/teams';
+import type { InspectionRecord } from '@/lib/inspections';
 
 export type ReportOutcome = 'pass' | 'fail' | 'followup';
 export type ReportVisibility = 'command' | 'team';
@@ -32,6 +33,9 @@ export interface Report {
   createdByName: string;
   createdAt: number;
   attachments?: ReportAttachment[];
+  /** Present when the report was filed by running an inspection checklist
+   * (see /inspections) rather than written by hand. */
+  inspection?: InspectionRecord;
 }
 
 export const REPORT_CATEGORIES = [

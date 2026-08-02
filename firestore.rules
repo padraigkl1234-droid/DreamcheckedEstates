@@ -90,6 +90,11 @@ service cloud.firestore {
     match /auditForms/{id} {
       allow read, write: if request.auth != null;
     }
+    // Inspection checklists (see /inspections). Running one files a report, so
+    // the results themselves are governed by the /reports rules above.
+    match /inspectionTemplates/{id} {
+      allow read, write: if request.auth != null;
+    }
 
     // Team docs are read by members; writes go through the Admin SDK.
     match /teams/{teamId} {

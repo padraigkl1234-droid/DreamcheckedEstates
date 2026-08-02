@@ -22,6 +22,7 @@ import {
   ClipboardList,
   ListChecks,
   Map as MapIcon,
+  SearchCheck,
   ShieldCheck,
   Archive,
   FileText,
@@ -48,6 +49,7 @@ export type PageKey =
   | 'shows'
   | 'estateRequests'
   | 'checklists'
+  | 'inspections'
   | 'audits'
   | 'tasks'
   | 'sitemap'
@@ -72,6 +74,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'shows', label: 'Show Board', icon: Clapperboard, feature: 'showBoard' },
   { key: 'estateRequests', label: 'Estate Requests', icon: Wrench, feature: 'estateRequests', route: '/estate-requests' },
   { key: 'checklists', label: 'Checklists', icon: ClipboardCheck, feature: 'checklists', route: '/checklists' },
+  { key: 'inspections', label: 'Inspections', icon: SearchCheck, feature: 'inspections', route: '/inspections' },
   { key: 'audits', label: 'Audits', icon: ClipboardList, feature: 'audits', route: '/audits' },
   { key: 'tasks', label: 'Task Manager', icon: ListChecks, feature: 'taskManager' },
   { key: 'sitemap', label: 'Site Map', icon: MapIcon, feature: 'siteMap' },
@@ -89,6 +92,7 @@ export const NAV_LABEL_KEYS: Record<PageKey, string> = {
   shows: 'nav.showBoard',
   estateRequests: 'nav.estateRequests',
   checklists: 'nav.checklists',
+  inspections: 'nav.inspections',
   audits: 'nav.audits',
   tasks: 'nav.taskManager',
   sitemap: 'nav.siteMap',

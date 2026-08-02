@@ -31,7 +31,9 @@ import {
   LinkIcon,
   Lock,
   Users,
+  ClipboardCheck,
 } from 'lucide-react';
+import { INSPECTION_OUTCOME_STYLES } from '@/lib/inspections';
 import { drawDreamlandWordmark, drawInvictusCorner, drawInvictusFooter } from '@/lib/brandMark';
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
@@ -333,8 +335,45 @@ export function ReportsView({
     pdf.setTextColor(60, 60, 60);
     const lines = pdf.splitTextToSize(r.description || '—', 515);
     pdf.text(lines, 40, y);
+    y += lines.length * 14;
+
+    // An inspection carries its checked items, so print them as a table —
+    // that list is the whole point of the document.
+    if (r.inspection?.results?.length) {
+      const autoTable = (await import('jspdf-autotable')).default;
+      y += 14;
+      pdf.setTextColor(30, 30, 30);
+      pdf.setFontSize(11);
+      pdf.text(`Checklist — ${r.inspection.templateName}`, 40, y);
+      autoTable(pdf, {
+        startY: y + 10,
+        head: [['#', 'Item', 'Result', 'Note']],
+        body: r.inspection.results.map((item, i) => [
+          String(i + 1),
+          item.item,
+          item.result === 'na' ? 'N/A' : item.result === 'pass' ? 'Pass' : 'Fail',
+          item.note ?? '',
+        ]),
+        headStyles: { fillColor: crimson, textColor: 255, fontSize: 8.5 },
+        bodyStyles: { fontSize: 8.5, textColor: [40, 40, 40] },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        columnStyles: { 0: { cellWidth: 22 }, 2: { cellWidth: 46 } },
+        // Failures are what a reader is scanning for — colour them red.
+        didParseCell: (data) => {
+          if (data.section === 'body' && r.inspection!.results[data.row.index].result === 'fail') {
+            data.cell.styles.textColor = [176, 32, 40];
+            if (data.column.index === 2) data.cell.styles.fontStyle = 'bold';
+          }
+        },
+        margin: { left: 40, right: 40, bottom: 56 },
+        didDrawPage: () => drawInvictusFooter(pdf, 40, pageW - 40, pageH - 30),
+      });
+      y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+    }
+
     if (r.attachments?.length) {
-      y += lines.length * 14 + 12;
+      y += 24;
+      pdf.setFontSize(10);
       pdf.setTextColor(90, 90, 90);
       pdf.text(`${r.attachments.length} attachment(s) — view in app.`, 40, y);
     }
@@ -540,6 +579,7 @@ export function ReportsView({
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2 text-neutral-500">
+                {r.inspection && <ClipboardCheck className="h-3.5 w-3.5" aria-label="Filed from an inspection" />}
                 {r.taskId && <LinkIcon className="h-3.5 w-3.5" />}
                 {r.visibility === 'command' ? <Lock className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
                 {(r.attachments?.length ?? 0) > 0 && (
@@ -578,6 +618,32 @@ export function ReportsView({
             <p className="mt-3 whitespace-pre-wrap rounded-md border border-neutral-400/20 bg-invictus-base/60 p-3 text-sm text-neutral-200">
               {selected.description || 'No description.'}
             </p>
+
+            {/* Inspection reports carry the checklist they were filed from. */}
+            {selected.inspection && (
+              <div className="mt-3 rounded-md border border-neutral-400/20 bg-invictus-base/60 p-3">
+                <p className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-500">
+                  <ClipboardCheck className="h-3.5 w-3.5" /> {selected.inspection.templateName}
+                </p>
+                <ul className="space-y-1">
+                  {selected.inspection.results.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-[13px]">
+                      <span
+                        className={`mt-0.5 shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest ${
+                          INSPECTION_OUTCOME_STYLES[item.result]
+                        }`}
+                      >
+                        {item.result === 'na' ? 'N/A' : item.result}
+                      </span>
+                      <span className="min-w-0">
+                        <span className={item.result === 'fail' ? 'text-alert' : 'text-neutral-300'}>{item.item}</span>
+                        {item.note && <span className="block text-[11px] text-neutral-500">{item.note}</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {(selected.attachments?.length ?? 0) > 0 && (
               <div className="mt-3 grid grid-cols-3 gap-2">

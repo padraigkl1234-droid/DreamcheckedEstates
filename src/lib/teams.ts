@@ -13,6 +13,7 @@ export type TeamFeatures = Record<string, boolean | undefined>;
 export const TOGGLEABLE_PAGES: { key: string; label: string }[] = [
   { key: 'estateRequests', label: 'Estate Requests' },
   { key: 'checklists', label: 'Checklists' },
+  { key: 'inspections', label: 'Inspections' },
   { key: 'audits', label: 'Audits' },
   { key: 'calendar', label: 'Calendar' },
   { key: 'showBoard', label: 'Show Board' },

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebaseAdmin';
 import { runAutomation } from '@/lib/automationHandlers/registry';
-import type { Automation } from '@/lib/automations';
+import { isDueToday, type Automation } from '@/lib/automations';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,7 +25,6 @@ export async function GET(req: Request) {
 
   const db = getAdminDb();
   const now = new Date();
-  const dayOfWeek = now.getUTCDay();
   const runKey = now.toISOString().slice(0, 10); // e.g. "2026-07-27"
 
   const snap = await db.collection('automations').where('enabled', '==', true).get();
@@ -33,8 +32,9 @@ export async function GET(req: Request) {
 
   for (const doc of snap.docs) {
     const automation = { id: doc.id, ...doc.data() } as Automation;
-    if (automation.type === 'showScheduled') continue; // event-triggered, not schedule-driven
-    if (automation.dayOfWeek !== dayOfWeek) continue;
+    // isDueToday knows each type's schedule — weekday, day-of-month, or
+    // event-triggered (never due here).
+    if (!isDueToday(automation, now)) continue;
     if (automation.lastRunKey === runKey) continue;
     try {
       const result = await runAutomation(db, automation);
