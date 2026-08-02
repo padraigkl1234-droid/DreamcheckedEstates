@@ -1,7 +1,7 @@
 // Hand-authored zone floor plans for the site map's drill-down view (see
 // components/ZoneFloorPlan.tsx). Each plan is bespoke — traced from the
 // building's own architect's drawing — so this is a small, growable registry
-// rather than anything generated. Only the Ballroom exists so far.
+// rather than anything generated.
 //
 // Coordinates are in real-world metres, x eastward from the plan's west edge,
 // y southward from its north edge. Rooms render "dollhouse" style (see
@@ -161,9 +161,55 @@ export const BALLROOM_PLAN: ZonePlan = {
   ],
 };
 
+// A single room split by a folding partition into the main Boardroom and a
+// narrower strip leading to its entrance.
+const BR_MAIN_W = 13.8;
+const BR_STRIP_W = 3;
+const BR_WIDTH = BR_MAIN_W + BR_STRIP_W;
+const BR_DEPTH = 6.2;
+
+export const BOARDROOM_PLAN: ZonePlan = {
+  zone: 'Boardroom',
+  width: BR_WIDTH,
+  depth: BR_DEPTH,
+  rooms: [
+    { id: 'main', label: 'Boardroom', x0: 0, y0: 0, x1: BR_MAIN_W, y1: BR_DEPTH, height: 3, floorColor: '#f5f1e6' },
+    {
+      id: 'entrance',
+      x0: BR_MAIN_W,
+      y0: 0,
+      x1: BR_WIDTH,
+      y1: BR_DEPTH,
+      height: 3,
+      floorColor: '#e8ddc0',
+      // Its west wall IS the folding partition — solid throughout, since a
+      // folding partition is normally closed.
+    },
+  ],
+  floorInsets: [
+    { x0: 0.6, y0: 0.4, x1: 5, y1: 2.3, color: '#e8ddc0', label: 'Wooden Floor' },
+    { x0: 0.6, y0: 4.2, x1: 5, y1: 5.9, color: '#e8ddc0', label: 'Wooden Floor' },
+  ],
+  decor: [
+    // The small fitted unit visible on the reference plan's west wall.
+    { x: 0.5, y: 0.9, size: 0.6, color: '#94a3b8' },
+  ],
+  textLabels: [
+    { x: BR_MAIN_W - 0.3, y: 2.6, text: 'Folding Partition' },
+    { x: BR_MAIN_W + 0.4, y: BR_DEPTH - 0.6, text: 'Boardroom Entrance' },
+  ],
+  starterAssets: [
+    { type: 'emergencyLight', name: 'Emergency Light — North 1', x: 2.5 / BR_WIDTH, y: 0.3 / BR_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — North 2', x: (BR_MAIN_W + 1.2) / BR_WIDTH, y: 0.3 / BR_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — South', x: 9 / BR_WIDTH, y: (BR_DEPTH - 0.3) / BR_DEPTH, mount: 'ceiling' },
+    { type: 'fireExit', name: 'Fire Exit — South-west', x: 1.5 / BR_WIDTH, y: (BR_DEPTH - 0.3) / BR_DEPTH, mount: 'floor' },
+  ],
+};
+
 /** Every zone with a registered floor plan, keyed by its SITE_ZONES label. */
 export const ZONE_PLANS: Record<string, ZonePlan> = {
   Ballroom: BALLROOM_PLAN,
+  Boardroom: BOARDROOM_PLAN,
 };
 
 export function zonePlanFor(zoneLabel: string): ZonePlan | undefined {

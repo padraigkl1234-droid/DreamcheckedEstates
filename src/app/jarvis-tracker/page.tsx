@@ -10,6 +10,7 @@ import { zonePlanFor } from '@/lib/zonePlans';
 // alongside the plan itself when a new zone gets one.
 const ZONE_PLAN_ROUTES: Record<string, string> = {
   Ballroom: '/site-map/ballroom',
+  Boardroom: '/site-map/boardroom',
 };
 import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot, query, where, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
