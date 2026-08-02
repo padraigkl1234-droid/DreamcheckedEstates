@@ -283,11 +283,62 @@ export const CONCOURSE_PLAN: ZonePlan = {
   ],
 };
 
+// A long, shallow hall — same corridor-like proportions as the Concourse —
+// with a row of structural columns down the middle and two carpeted patches
+// toward the south wall. The reference plan's right-hand alcove (a small
+// pink-shaded jog with a single unlabelled marker) isn't modelled as its own
+// room — like the Concourse's matching feature, its purpose isn't clear
+// enough from the drawing alone to build with any confidence.
+const AR_WIDTH = 33.8;
+const AR_DEPTH = 7.5;
+
+export const ARCADE_PLAN: ZonePlan = {
+  zone: 'Arcade',
+  width: AR_WIDTH,
+  depth: AR_DEPTH,
+  rooms: [
+    {
+      id: 'hall',
+      label: 'Arcade',
+      x0: 0,
+      y0: 0,
+      x1: AR_WIDTH,
+      y1: AR_DEPTH,
+      height: 3,
+      floorColor: '#f0ece0',
+      // Two Fire Exit doors along the north (front) wall.
+      northSolid: [
+        [0, 0.045],
+        [0.075, 0.902],
+        [0.932, 1],
+      ],
+    },
+  ],
+  floorInsets: [
+    { x0: 8, y0: 4, x1: 14, y1: 7.2, color: '#d8cdb0', label: 'Carpeted' },
+    { x0: 20, y0: 4, x1: 26, y1: 7.2, color: '#d8cdb0', label: 'Carpeted' },
+  ],
+  decor: [
+    // The row of structural columns down the middle of the hall.
+    ...[3, 7, 11, 15, 19, 23, 27, 31].map((x) => ({ x, y: 3.7, size: 0.4, color: '#1f2937' })),
+  ],
+  starterAssets: [
+    { type: 'fireExit', name: 'Fire Exit — West', x: 2 / AR_WIDTH, y: 0.3 / AR_DEPTH, mount: 'floor' },
+    { type: 'fireExit', name: 'Fire Exit — East', x: 31 / AR_WIDTH, y: 0.3 / AR_DEPTH, mount: 'floor' },
+    { type: 'emergencyLight', name: 'Emergency Light — South 1', x: 4 / AR_WIDTH, y: (AR_DEPTH - 0.3) / AR_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — South 2', x: 9 / AR_WIDTH, y: (AR_DEPTH - 0.3) / AR_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — South 3', x: 16 / AR_WIDTH, y: (AR_DEPTH - 0.3) / AR_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — South 4', x: 21 / AR_WIDTH, y: (AR_DEPTH - 0.3) / AR_DEPTH, mount: 'ceiling' },
+    { type: 'emergencyLight', name: 'Emergency Light — South 5', x: 28 / AR_WIDTH, y: (AR_DEPTH - 0.3) / AR_DEPTH, mount: 'ceiling' },
+  ],
+};
+
 /** Every zone with a registered floor plan, keyed by its SITE_ZONES label. */
 export const ZONE_PLANS: Record<string, ZonePlan> = {
   Ballroom: BALLROOM_PLAN,
   Boardroom: BOARDROOM_PLAN,
   Concourse: CONCOURSE_PLAN,
+  Arcade: ARCADE_PLAN,
 };
 
 export function zonePlanFor(zoneLabel: string): ZonePlan | undefined {
