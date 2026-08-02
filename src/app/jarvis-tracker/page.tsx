@@ -14,7 +14,7 @@ import { useProfile } from '@/components/ProfileProvider';
 import { useT } from '@/components/LanguageProvider';
 import { usePreferences } from '@/components/PreferencesProvider';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
-import { drawDreamlandWordmark } from '@/lib/brandMark';
+import { drawDreamlandWordmark, drawInvictusCorner, drawInvictusFooter } from '@/lib/brandMark';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { ReportsView, type ReportDraft } from '@/components/ReportsView';
 import { Pinwheel } from '@/components/icons/Pinwheel';
@@ -4570,7 +4570,11 @@ async function exportReportsToPdf(entries: ReportEntry[]) {
 
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const crimson: [number, number, number] = [37, 99, 235];
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const generatedAt = new Date();
 
+  drawInvictusCorner(doc, pageW - 40, 46);
   const markBottom = drawDreamlandWordmark(doc, 40, 50);
 
   doc.setFont('helvetica', 'bold');
@@ -4600,7 +4604,9 @@ async function exportReportsToPdf(entries: ReportEntry[]) {
     headStyles: { fillColor: crimson, textColor: 255, fontSize: 8.5 },
     bodyStyles: { fontSize: 8.5, textColor: [40, 40, 40] },
     alternateRowStyles: { fillColor: [245, 245, 245] },
-    margin: { left: 40, right: 40 },
+    margin: { left: 40, right: 40, bottom: 56 },
+    // This table can run to several pages, so stamp the footer on each.
+    didDrawPage: () => drawInvictusFooter(doc, 40, pageW - 40, pageH - 30, generatedAt),
   });
 
   doc.save(`invictus-completion-reports-${toDateInputValue(new Date())}.pdf`);

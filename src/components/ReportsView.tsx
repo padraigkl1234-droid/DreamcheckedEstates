@@ -32,7 +32,7 @@ import {
   Lock,
   Users,
 } from 'lucide-react';
-import { drawDreamlandWordmark } from '@/lib/brandMark';
+import { drawDreamlandWordmark, drawInvictusCorner, drawInvictusFooter } from '@/lib/brandMark';
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
@@ -295,6 +295,9 @@ export function ReportsView({
     const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
     const crimson: [number, number, number] = [37, 99, 235];
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    drawInvictusCorner(pdf, pageW - 40, 46);
     let y = drawDreamlandWordmark(pdf, 40, 50) + 30;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
@@ -335,6 +338,7 @@ export function ReportsView({
       pdf.setTextColor(90, 90, 90);
       pdf.text(`${r.attachments.length} attachment(s) — view in app.`, 40, y);
     }
+    drawInvictusFooter(pdf, 40, pageW - 40, pageH - 30);
     pdf.save(`invictus-report-${r.date}-${r.title.replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}.pdf`);
   };
 
