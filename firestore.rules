@@ -134,6 +134,13 @@ service cloud.firestore {
       allow create: if isMasterAdmin() || inMyTeam(request.resource.data.teamId);
     }
 
+    // Site assets — safety-equipment pins on a zone's floor plan (see
+    // /site-map/ballroom).
+    match /assets/{id} {
+      allow read, update, delete: if isMasterAdmin() || inMyTeam(resource.data.teamId);
+      allow create: if isMasterAdmin() || inMyTeam(request.resource.data.teamId);
+    }
+
     // Team docs. Referral codes live here, and a code is the only thing
     // gating who can join a team, so — like the roster — only your own team
     // (or master) can be read, not every team's document.

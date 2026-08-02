@@ -1,7 +1,16 @@
 'use client';
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { zonePlanFor } from '@/lib/zonePlans';
+
+// Zones with a registered 2.5D floor plan (see lib/zonePlans.ts) get a
+// drill-down link from their grid square's side panel. Add an entry here
+// alongside the plan itself when a new zone gets one.
+const ZONE_PLAN_ROUTES: Record<string, string> = {
+  Ballroom: '/site-map/ballroom',
+};
 import { doc, getDoc, setDoc, deleteDoc, updateDoc, collection, onSnapshot, query, where, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage, type User } from '@/lib/firebase';
@@ -2803,6 +2812,18 @@ function SiteMapPage({
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
+
+              {/* Zones with their own floor plan (see lib/zonePlans.ts) get a
+                  drill-down into a pinned, isometric view of the building. */}
+              {selectedCell.landmark && zonePlanFor(selectedCell.landmark) && (
+                <Link
+                  href={ZONE_PLAN_ROUTES[selectedCell.landmark]}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-invictus-crimson-bright/30 bg-invictus-crimson-bright/5 px-3 py-2.5 text-sm text-neutral-100 transition-colors hover:bg-invictus-crimson-bright/10"
+                >
+                  <span>Open {selectedCell.landmark} floor plan</span>
+                  <span className="text-invictus-crimson-bright">→</span>
+                </Link>
+              )}
 
               {selectedAreaCost > 0 && (
                 <div className="rounded-lg border border-invictus-crimson-bright/30 bg-invictus-crimson-bright/5 px-3 py-2.5">
