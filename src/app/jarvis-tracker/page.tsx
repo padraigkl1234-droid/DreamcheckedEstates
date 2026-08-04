@@ -3182,6 +3182,9 @@ function ShowsBoard({
 // Task Manager
 // ---------------------------------------------------------------------------
 
+// Sentinel for the quick-add group picker's "+ New group…" option.
+const NEW_GROUP_OPTION = '__new_group__';
+
 function TaskManager({
   tasks,
   archivedTasks,
@@ -3270,6 +3273,9 @@ function TaskManager({
   const [priority, setPriority] = useState<Priority>('Medium');
   const [quickNotes, setQuickNotes] = useState('');
   const [quickCategory, setQuickCategory] = useState('');
+  // True while the group picker's "+ New group…" option is selected, so the
+  // free-text box for typing its name is showing.
+  const [quickGroupCustom, setQuickGroupCustom] = useState(false);
   const [quickAssigneeUids, setQuickAssigneeUids] = useState<string[]>([]);
   const [quickArea, setQuickArea] = useState('');
   const [showQuickNotes, setShowQuickNotes] = useState(false);
@@ -3482,6 +3488,7 @@ function TaskManager({
     setPriority('Medium');
     setQuickNotes('');
     setQuickCategory('');
+    setQuickGroupCustom(false);
     setQuickAssigneeUids([]);
     setQuickArea('');
     setShowQuickNotes(false);
@@ -4242,20 +4249,37 @@ function TaskManager({
         {showQuickGroup && (
           <div className="w-full border-t border-neutral-400/15 pt-3">
             <p className="mb-1.5 text-[10px] uppercase tracking-widest text-neutral-600">
-              Group (optional — e.g. CAPEX. Pick an existing one or type a new name)
+              Group (optional — e.g. CAPEX. Pick an existing one or create a new one)
             </p>
-            <input
-              value={quickCategory}
-              onChange={(e) => setQuickCategory(e.target.value)}
-              list="task-group-suggestions"
-              placeholder="e.g. CAPEX"
-              className="w-full max-w-xs min-w-0 rounded-md border border-neutral-400/20 bg-invictus-raised px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
-            />
-            <datalist id="task-group-suggestions">
-              {categories.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
+            <div className="max-w-xs space-y-2">
+              <InvictusSelect
+                value={quickGroupCustom ? NEW_GROUP_OPTION : quickCategory}
+                onChange={(v) => {
+                  if (v === NEW_GROUP_OPTION) {
+                    setQuickGroupCustom(true);
+                    setQuickCategory('');
+                  } else {
+                    setQuickGroupCustom(false);
+                    setQuickCategory(v);
+                  }
+                }}
+                className="bg-invictus-raised"
+                options={[
+                  { value: '', label: 'No group' },
+                  ...categories.map((c) => ({ value: c, label: c })),
+                  { value: NEW_GROUP_OPTION, label: '+ New group…' },
+                ]}
+              />
+              {quickGroupCustom && (
+                <input
+                  autoFocus
+                  value={quickCategory}
+                  onChange={(e) => setQuickCategory(e.target.value)}
+                  placeholder="New group name (e.g. CAPEX)"
+                  className="w-full min-w-0 rounded-md border border-neutral-400/20 bg-invictus-raised px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
+                />
+              )}
+            </div>
           </div>
         )}
         {showQuickArea && (
