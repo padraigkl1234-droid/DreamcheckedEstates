@@ -57,12 +57,36 @@ export async function POST(req: Request) {
   // otherwise silently match nothing. Resolve both against the known
   // checklist library case/whitespace-insensitively before querying, and
   // write the update under the exact canonical name the app expects — the
-  // app looks up completion by that exact string, so writing anything else
-  // would update Firestore but never show as done in the UI.
+  // app looks up completion by that exact string.
+  //
+  // Neither one is allowed to fall back to the raw, unmatched value: a flow
+  // with a wrong name used to still get a 200 and quietly write that wrong
+  // string as a brand-new field nobody's looking at, so the box on screen
+  // never ticked and nothing in Power Automate's run history said why. Now a
+  // genuine typo is a loud 400 in the run history instead — "no show
+  // scheduled today" (a real, expected case) stays a 200.
   const section = CHECKLIST_SECTIONS.find((s) => normalize(s.name) === normalize(showType));
-  const canonicalShowType = section?.name ?? showType;
-  const canonicalChecklistName =
-    section?.forms.find((f) => normalize(f.name) === normalize(checklistName))?.name ?? checklistName;
+  if (!section) {
+    return NextResponse.json(
+      {
+        error: `Unknown showType "${showType}" — must be one of: ${CHECKLIST_SECTIONS.map((s) => s.name).join(', ')}`,
+      },
+      { status: 400 }
+    );
+  }
+  const form = section.forms.find((f) => normalize(f.name) === normalize(checklistName));
+  if (!form) {
+    return NextResponse.json(
+      {
+        error: `Unknown checklistName "${checklistName}" for ${section.name} — must be one of: ${section.forms
+          .map((f) => f.name)
+          .join(', ')}`,
+      },
+      { status: 400 }
+    );
+  }
+  const canonicalShowType = section.name;
+  const canonicalChecklistName = form.name;
 
   try {
     const db = getAdminDb();
