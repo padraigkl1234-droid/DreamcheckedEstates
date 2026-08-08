@@ -23,6 +23,7 @@ import { useSound } from '@/components/SoundProvider';
 import { BRAND_NAME, BRAND_NAME_DOTTED } from '@/lib/brand';
 import { CHECKLIST_SECTIONS, type ChecklistSection } from '@/lib/checklists';
 import { DREAMLAND_TEAM_ID, featureEnabled, type TeamFeatures } from '@/lib/teams';
+import { showReadiness, todayStr as showsTodayStr, type Show } from '@/lib/shows';
 import { useProfile } from '@/components/ProfileProvider';
 import { useT } from '@/components/LanguageProvider';
 import { usePreferences } from '@/components/PreferencesProvider';
@@ -88,6 +89,7 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Radio,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -107,16 +109,8 @@ import {
 
 type Priority = 'High' | 'Medium' | 'Low';
 type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
-// A scheduled show. `type` matches a CHECKLIST_SECTIONS name and `completed`
-// maps each checklist's name to whether its light is green. Structured this way
-// so a future Power Automate feed can flip lights by writing to `completed`.
-interface Show {
-  id: string;
-  date: string;
-  type: string;
-  title?: string;
-  completed: Record<string, boolean>;
-}
+// `Show` (used by the Show Board below) now lives in @/lib/shows so the
+// standalone Event Mode page can share the exact same shape.
 
 interface Task {
   id: string;
@@ -1108,6 +1102,61 @@ function TaskCompletionPanel({
 }
 
 // ---------------------------------------------------------------------------
+// Event Mode banner — self-contained (own auth/team/shows subscription) so
+// it can drop into the Dashboard without threading new props through it.
+// Renders nothing unless a show is on the shared Show Board for today.
+// ---------------------------------------------------------------------------
+
+function EventModeBanner() {
+  const { user } = useAuth();
+  const { profile } = useProfile();
+  const teamId = profile?.teamId ?? null;
+  const [todaysShows, setTodaysShows] = useState<Show[]>([]);
+
+  useEffect(() => {
+    if (!user || !teamId) {
+      setTodaysShows([]);
+      return;
+    }
+    const today = showsTodayStr();
+    const unsub = onSnapshot(
+      query(collection(db, 'shows'), where('teamId', '==', teamId), where('date', '==', today)),
+      (snap) => setTodaysShows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Show, 'id'>) }))),
+      (error) => console.error('Event Mode banner subscription failed:', error)
+    );
+    return unsub;
+  }, [user, teamId]);
+
+  if (todaysShows.length === 0) return null;
+
+  const allReady = todaysShows.every((s) => showReadiness(s, CHECKLIST_SECTIONS).ready);
+
+  return (
+    <Link
+      href="/event-mode"
+      className="flex items-center justify-between gap-3 rounded-xl border border-blue-400/40 bg-gradient-to-r from-blue-950/60 to-blue-900/20 px-5 py-3.5 text-neutral-100 shadow-glow-subtle transition-all hover:border-blue-400/70 hover:shadow-[0_0_20px_rgba(59,130,246,0.25)]"
+    >
+      <div className="flex items-center gap-3">
+        <Radio className="h-5 w-5 shrink-0 animate-pulse text-blue-400" />
+        <div>
+          <p className="text-sm font-semibold">
+            Event Live — {todaysShows.length} show{todaysShows.length > 1 ? 's' : ''} on the board today
+          </p>
+          <p className="text-xs text-blue-300/80">Open Event Mode for readiness lights, procedures and live trains.</p>
+        </div>
+      </div>
+      <span
+        className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
+          allReady ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300' : 'border-alert/40 bg-alert/10 text-alert'
+        }`}
+      >
+        {allReady ? 'Show Ready' : 'Outstanding'}
+      </span>
+    </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
 
@@ -1170,6 +1219,8 @@ function Dashboard({
 
   return (
     <div className="space-y-6">
+      <EventModeBanner />
+
       <Reveal index={0} animate={animateCardsIn}>
         <InvictusGreeting compliances={compliances} />
       </Reveal>

@@ -29,6 +29,7 @@ import {
   UserCog,
   ChevronDown,
   Cloud,
+  Radio,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -47,6 +48,7 @@ export type PageKey =
   | 'dashboard'
   | 'calendar'
   | 'shows'
+  | 'eventMode'
   | 'estateRequests'
   | 'checklists'
   | 'inspections'
@@ -72,6 +74,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'calendar', label: 'Calendar', icon: CalendarDays, feature: 'calendar' },
   { key: 'shows', label: 'Show Board', icon: Clapperboard, feature: 'showBoard' },
+  { key: 'eventMode', label: 'Event Mode', icon: Radio, feature: 'eventMode', route: '/event-mode' },
   { key: 'estateRequests', label: 'Estate Requests', icon: Wrench, feature: 'estateRequests', route: '/estate-requests' },
   { key: 'checklists', label: 'Checklists', icon: ClipboardCheck, feature: 'checklists', route: '/checklists' },
   { key: 'inspections', label: 'Inspections', icon: SearchCheck, feature: 'inspections', route: '/inspections' },
@@ -90,6 +93,7 @@ export const NAV_LABEL_KEYS: Record<PageKey, string> = {
   dashboard: 'nav.dashboard',
   calendar: 'nav.calendar',
   shows: 'nav.showBoard',
+  eventMode: 'nav.eventMode',
   estateRequests: 'nav.estateRequests',
   checklists: 'nav.checklists',
   inspections: 'nav.inspections',
