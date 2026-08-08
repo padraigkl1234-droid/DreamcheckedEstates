@@ -197,6 +197,23 @@ export default function EventModePage() {
     [shows, today]
   );
   const isLive = todaysShows.length > 0;
+  // Once every show on the board today has all its checklists green, the
+  // page's whole ambient wash shifts from blue to green — three states, not
+  // a flag: nothing scheduled, live but still outstanding, and fully ready.
+  const allReady = isLive && todaysShows.every((s) => showReadiness(s, sections).ready);
+  const mode: 'standby' | 'live' | 'ready' = !isLive ? 'standby' : allReady ? 'ready' : 'live';
+
+  // Accent classes for the "live" chrome (show panels, hover states, the
+  // tonight callout) follow the same standby→blue→green progression as the
+  // background wash, so the whole page reads as one consistent state.
+  const panelBorder = mode === 'ready' ? 'border-emerald-400/25' : 'border-blue-400/25';
+  const panelHeaderBorder = mode === 'ready' ? 'border-emerald-400/15' : 'border-blue-400/15';
+  const panelHeaderBg = mode === 'ready' ? 'bg-emerald-400/[0.04]' : 'bg-blue-400/[0.04]';
+  const panelIconColor = mode === 'ready' ? 'text-emerald-300' : 'text-blue-300';
+  const formHoverClasses =
+    mode === 'ready' ? 'hover:border-emerald-400/40 hover:text-emerald-300' : 'hover:border-blue-400/40 hover:text-blue-300';
+  const tonightBoxClasses =
+    mode === 'ready' ? 'border-emerald-400/25 bg-emerald-400/[0.05] text-emerald-200' : 'border-blue-400/25 bg-blue-400/[0.05] text-blue-200';
 
   const handleToggleChecklist = (showId: string, checklistName: string) => {
     if (!user) return;
@@ -210,12 +227,33 @@ export default function EventModePage() {
     <div className="flex h-[calc(100vh-4rem)] flex-col md:flex-row">
       <AppMobileNav features={team?.features} isMaster={isMaster} />
       <AppSidebar features={team?.features} isMaster={isMaster} />
-      <main
-        className={`relative flex-1 overflow-y-auto font-sans text-neutral-100 transition-colors duration-700 ${
-          isLive ? 'bg-gradient-to-b from-blue-950 via-blue-950/30 to-invictus-base' : 'bg-invictus-base'
-        }`}
-      >
-        {body}
+      <main className="relative flex-1 overflow-hidden font-sans text-neutral-100">
+        {/* Ambient wash — layered, cross-fading gradients rather than a hard
+            colour swap, so the page shifts blue → green the way light does,
+            not a flat repaint. Sits behind the independently-scrolling
+            content below so it never scrolls away. */}
+        <div className="pointer-events-none absolute inset-0 bg-invictus-base" />
+        <div
+          className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-950 via-blue-950/30 to-invictus-base transition-opacity duration-[1800ms] ease-in-out ${
+            mode === 'live' ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+        <div
+          className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-emerald-950 via-emerald-900/25 to-invictus-base transition-opacity duration-[1800ms] ease-in-out ${
+            mode === 'ready' ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+        <div
+          className={`pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full blur-3xl transition-colors duration-[1800ms] ease-in-out ${
+            mode === 'ready' ? 'bg-emerald-500/10' : mode === 'live' ? 'bg-blue-500/10' : 'bg-neutral-500/10'
+          }`}
+        />
+        <div
+          className={`pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full blur-3xl transition-colors duration-[1800ms] ease-in-out ${
+            mode === 'ready' ? 'bg-emerald-500/10' : mode === 'live' ? 'bg-blue-500/10' : 'bg-neutral-500/10'
+          }`}
+        />
+        <div className="relative h-full overflow-y-auto">{body}</div>
       </main>
     </div>
   );
@@ -241,21 +279,31 @@ export default function EventModePage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-100 sm:text-3xl">
-            <Radio className={`h-6 w-6 ${isLive ? 'text-blue-400' : 'text-invictus-crimson-bright'}`} />
+            <Radio
+              className={`h-6 w-6 transition-colors duration-700 ${
+                mode === 'ready' ? 'text-emerald-400' : mode === 'live' ? 'text-blue-400' : 'text-invictus-crimson-bright'
+              }`}
+            />
             Event Mode
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
-            {isLive
+            {mode === 'ready'
+              ? `All clear — ${todaysShows.length} show${todaysShows.length > 1 ? 's' : ''} ready to go.`
+              : mode === 'live'
               ? `Live — ${todaysShows.length} show${todaysShows.length > 1 ? 's' : ''} on the board today.`
               : 'Standby — no event on the Show Board today.'}
           </p>
         </div>
         <span
-          className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-widest ${
-            isLive ? 'border-blue-400/50 bg-blue-400/10 text-blue-300' : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-500'
+          className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-widest transition-colors duration-700 ${
+            mode === 'ready'
+              ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300'
+              : mode === 'live'
+              ? 'border-blue-400/50 bg-blue-400/10 text-blue-300'
+              : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-500'
           }`}
         >
-          <StatusLight on={isLive} /> {isLive ? 'Event Live' : 'Standby'}
+          <StatusLight on={isLive} /> {mode === 'ready' ? 'Show Ready' : mode === 'live' ? 'Event Live' : 'Standby'}
         </span>
       </div>
 
@@ -276,10 +324,15 @@ export default function EventModePage() {
           {todaysShows.map((show) => {
             const { forms, done, total, ready } = showReadiness(show, sections);
             return (
-              <div key={show.id} className="overflow-hidden rounded-xl border border-blue-400/25 bg-invictus-surface/60">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-400/15 bg-blue-400/[0.04] px-5 py-3">
+              <div
+                key={show.id}
+                className={`overflow-hidden rounded-xl border bg-invictus-surface/60 transition-colors duration-700 ${panelBorder}`}
+              >
+                <div
+                  className={`flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3 transition-colors duration-700 ${panelHeaderBorder} ${panelHeaderBg}`}
+                >
                   <div className="flex items-center gap-2">
-                    <Clapperboard className="h-4 w-4 text-blue-300" />
+                    <Clapperboard className={`h-4 w-4 transition-colors duration-700 ${panelIconColor}`} />
                     <span className="text-sm font-semibold text-neutral-100">
                       {show.title ? `${show.type} — ${show.title}` : show.type}
                     </span>
@@ -317,7 +370,7 @@ export default function EventModePage() {
                           href={f.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 rounded-md border border-neutral-400/25 bg-invictus-base/60 px-2 py-1 text-[10px] uppercase tracking-widest text-neutral-400 transition-colors hover:border-blue-400/40 hover:text-blue-300"
+                          className={`flex items-center gap-1 rounded-md border border-neutral-400/25 bg-invictus-base/60 px-2 py-1 text-[10px] uppercase tracking-widest text-neutral-400 transition-colors duration-700 ${formHoverClasses}`}
                           title="Open the Microsoft Form"
                         >
                           Form <ExternalLink className="h-3 w-3" />
@@ -338,7 +391,7 @@ export default function EventModePage() {
           <h3 className="text-sm font-semibold uppercase tracking-widest text-neutral-300">Things to Remember</h3>
         </div>
         {isLive && (
-          <p className="mb-4 rounded-md border border-blue-400/25 bg-blue-400/[0.05] px-3 py-2 text-xs text-blue-200">
+          <p className={`mb-4 rounded-md border px-3 py-2 text-xs transition-colors duration-700 ${tonightBoxClasses}`}>
             Tonight: {todaysShows.map((s) => (s.title ? `${s.type} — ${s.title}` : s.type)).join(', ')}. Keep this page open for
             live readiness and the procedures below.
           </p>

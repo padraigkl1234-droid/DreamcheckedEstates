@@ -1134,19 +1134,37 @@ function EventModeBanner() {
   return (
     <Link
       href="/event-mode"
-      className="flex items-center justify-between gap-3 rounded-xl border border-blue-400/40 bg-gradient-to-r from-blue-950/60 to-blue-900/20 px-5 py-3.5 text-neutral-100 shadow-glow-subtle transition-all hover:border-blue-400/70 hover:shadow-[0_0_20px_rgba(59,130,246,0.25)]"
+      className={`relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border px-5 py-3.5 text-neutral-100 shadow-glow-subtle transition-colors duration-700 ${
+        allReady ? 'border-emerald-400/40 hover:border-emerald-400/70' : 'border-blue-400/40 hover:border-blue-400/70'
+      }`}
     >
-      <div className="flex items-center gap-3">
-        <Radio className="h-5 w-5 shrink-0 animate-pulse text-blue-400" />
+      {/* Cross-fading wash rather than a hard swap — matches the same
+          blue→green "light shifting" treatment as the Event Mode page. */}
+      <div
+        className={`pointer-events-none absolute inset-0 bg-gradient-to-r from-blue-950/60 to-blue-900/20 transition-opacity duration-[1500ms] ease-in-out ${
+          allReady ? 'opacity-0' : 'opacity-100'
+        }`}
+      />
+      <div
+        className={`pointer-events-none absolute inset-0 bg-gradient-to-r from-emerald-950/60 to-emerald-900/20 transition-opacity duration-[1500ms] ease-in-out ${
+          allReady ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+      <div className="relative flex items-center gap-3">
+        <Radio
+          className={`h-5 w-5 shrink-0 animate-pulse transition-colors duration-700 ${allReady ? 'text-emerald-400' : 'text-blue-400'}`}
+        />
         <div>
           <p className="text-sm font-semibold">
-            Event Live — {todaysShows.length} show{todaysShows.length > 1 ? 's' : ''} on the board today
+            {allReady ? 'Show Ready' : 'Event Live'} — {todaysShows.length} show{todaysShows.length > 1 ? 's' : ''} on the board today
           </p>
-          <p className="text-xs text-blue-300/80">Open Event Mode for readiness lights, procedures and live trains.</p>
+          <p className={`text-xs transition-colors duration-700 ${allReady ? 'text-emerald-300/80' : 'text-blue-300/80'}`}>
+            Open Event Mode for readiness lights, procedures and live trains.
+          </p>
         </div>
       </div>
       <span
-        className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
+        className={`relative shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest transition-colors duration-700 ${
           allReady ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300' : 'border-alert/40 bg-alert/10 text-alert'
         }`}
       >
