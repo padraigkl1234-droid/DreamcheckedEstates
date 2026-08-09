@@ -2746,11 +2746,37 @@ function SiteMapPage({
                       </text>
                     </g>
                   ))}
-                  {/* Badges on grid-reference cells that carry tasks */}
+                  {/* Grid-reference cells that carry a task but sit on open
+                      ground (no named zone covers them) used to show just a
+                      bare number with nothing around it — every named zone
+                      gets a bordered/tinted box, so a loose grid square
+                      should read the same way, not float unlabelled. */}
                   {SITE_CELLS.filter((c) => c.inside && !c.landmark && (activeCountByArea[c.areaKey] ?? 0) > 0).map((cell) => (
                     <g key={`gbadge-${cell.ref}`} pointerEvents="none">
-                      <circle cx={cell.cx} cy={cell.cy} r={9} fill={MAP_C.accent} stroke="rgb(var(--invictus-base))" strokeWidth={1} />
-                      <text x={cell.cx} y={cell.cy + 3.5} fontSize={11} fontWeight={700} fill={MAP_C.boundaryFill} textAnchor="middle">
+                      <rect
+                        x={cell.x}
+                        y={cell.y}
+                        width={CELL_W}
+                        height={CELL_H}
+                        rx={2}
+                        fill={ZONE_TONE.area.fill}
+                        stroke={ZONE_TONE.area.stroke}
+                        strokeWidth={1.2}
+                      />
+                      <text
+                        x={cell.cx}
+                        y={cell.cy + CELL_H / 2 - 5}
+                        fontSize={7.5}
+                        fontWeight={600}
+                        letterSpacing={0.5}
+                        fill={ZONE_TONE.area.text}
+                        textAnchor="middle"
+                        style={{ textTransform: 'uppercase' }}
+                      >
+                        {cell.ref}
+                      </text>
+                      <circle cx={cell.cx} cy={cell.cy - 3} r={9} fill={MAP_C.accent} stroke="rgb(var(--invictus-base))" strokeWidth={1} />
+                      <text x={cell.cx} y={cell.cy + 0.5} fontSize={11} fontWeight={700} fill={MAP_C.boundaryFill} textAnchor="middle">
                         {activeCountByArea[cell.areaKey]}
                       </text>
                     </g>
