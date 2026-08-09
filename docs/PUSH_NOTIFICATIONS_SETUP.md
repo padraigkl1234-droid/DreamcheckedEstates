@@ -68,7 +68,7 @@ curl "https://<your-app>.vercel.app/api/cron/daily?secret=<CRON_SECRET>"
 
 | Piece | File |
 |-------|------|
-| Background handler (shows notifications when the tab is closed) | `public/firebase-messaging-sw.js` |
+| Service worker — PWA shell cache + FCM background handler, one worker at the root scope so it can always see whether the app tab is open | `public/sw.js` |
 | Client: request permission, get/store/remove device token, foreground toast | `src/lib/messaging.ts` |
 | Foreground listener + token refresh (mounted app-wide) | `src/components/PushListener.tsx` |
 | Settings UI (enable toggle + category filters) | `src/app/settings/page.tsx` |

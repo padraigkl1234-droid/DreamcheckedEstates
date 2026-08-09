@@ -5,7 +5,8 @@
 // Flow:
 //  1. The user taps "Enable notifications" in Settings.
 //  2. We ask the browser for Notification permission.
-//  3. We register the background service worker (firebase-messaging-sw.js).
+//  3. We register the service worker (public/sw.js — also runs the PWA
+//     shell cache; see the comment at the top of that file).
 //  4. We fetch an FCM registration token (needs the public VAPID key).
 //  5. We store the token on users/{uid}.fcmTokens so the server can push to it.
 //
@@ -40,14 +41,25 @@ async function getMessagingIfSupported() {
   return getMessaging(getApp());
 }
 
-// Register the dedicated FCM service worker under its own scope, so it doesn't
-// evict the PWA caching worker (sw.js) which owns the root '/' scope. A given
-// scope can only have one active worker, hence the distinct sub-scope.
-const FCM_SW_SCOPE = '/firebase-cloud-messaging-push-scope';
+// The old, narrow-scoped FCM worker this app used to register. Devices that
+// enabled push before this fix still have it sitting around; clean it up so
+// it doesn't keep delivering an always-treated-as-background duplicate
+// alongside the new one.
+const STALE_FCM_SW_SCOPE = '/firebase-cloud-messaging-push-scope';
+async function unregisterStaleSw(): Promise<void> {
+  const stale = await navigator.serviceWorker.getRegistration(STALE_FCM_SW_SCOPE);
+  if (stale) await stale.unregister().catch(() => {});
+}
+
+// FCM and the PWA shell cache now share ONE service worker (public/sw.js) at
+// the root '/' scope — see the comment at the top of that file for why: a
+// separate worker at a narrow sub-scope could never detect the app tab was
+// open, which silently broke the in-app foreground toast for every push.
 async function registerSw(): Promise<ServiceWorkerRegistration> {
-  const existing = await navigator.serviceWorker.getRegistration(FCM_SW_SCOPE);
+  unregisterStaleSw().catch(() => {});
+  const existing = await navigator.serviceWorker.getRegistration('/');
   if (existing) return existing;
-  return navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: FCM_SW_SCOPE });
+  return navigator.serviceWorker.register('/sw.js');
 }
 
 export interface EnableResult {
