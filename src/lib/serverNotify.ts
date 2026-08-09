@@ -19,6 +19,12 @@ export interface PushPayload {
 export interface PushResult {
   sent: number;
   pruned: number;
+  // Distinct FCM error codes from tokens that failed to send, dead or not —
+  // e.g. "messaging/third-party-auth-error" (bad/misconfigured VAPID key on
+  // the send side), "messaging/authentication-error" (Cloud Messaging API
+  // disabled or a stale service account). Surfaced up to the UI so a failed
+  // test push is diagnosable instead of a dead end.
+  errors?: string[];
 }
 
 export async function pushToTokens(
@@ -44,11 +50,15 @@ export async function pushToTokens(
     },
   });
 
-  // Collect tokens FCM says are permanently invalid so we can drop them.
+  // Collect tokens FCM says are permanently invalid so we can drop them, and
+  // every distinct error code seen (dead-token or not) so a total failure is
+  // diagnosable instead of a silent zero.
   const dead: string[] = [];
+  const errors = new Set<string>();
   res.responses.forEach((r, i) => {
     if (r.success) return;
-    const code = r.error?.code || '';
+    const code = r.error?.code || 'messaging/unknown-error';
+    errors.add(code);
     if (
       code === 'messaging/registration-token-not-registered' ||
       code === 'messaging/invalid-registration-token' ||
@@ -66,5 +76,5 @@ export async function pushToTokens(
       .catch(() => {});
   }
 
-  return { sent: res.successCount, pruned: dead.length };
+  return { sent: res.successCount, pruned: dead.length, errors: errors.size ? Array.from(errors) : undefined };
 }

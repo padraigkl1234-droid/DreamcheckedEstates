@@ -38,7 +38,11 @@ export async function POST(req: Request) {
       tag: 'test-notification',
     });
 
-    return NextResponse.json({ ok: result.sent > 0, ...result });
+    return NextResponse.json({
+      ok: result.sent > 0,
+      ...result,
+      reason: result.sent > 0 ? undefined : 'send-failed',
+    });
   } catch (error) {
     console.error('test notify error:', error);
     return NextResponse.json(

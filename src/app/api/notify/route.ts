@@ -67,6 +67,9 @@ export async function POST(req: Request) {
       url: '/jarvis-tracker?page=tasks',
       tag: taskId ? `task-${taskId}` : undefined,
     });
+    if (!result.sent && result.errors) {
+      console.warn(`task-assignment push to ${targetUid} sent 0/${tokens.length} —`, result.errors);
+    }
 
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

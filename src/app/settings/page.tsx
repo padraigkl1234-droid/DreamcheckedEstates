@@ -126,7 +126,12 @@ export default function SettingsPage() {
         setTestMsg(t('settings.pushTestSent'));
       } else {
         setTestState('error');
-        setTestMsg(data.reason === 'no-devices' ? t('settings.pushTestNoDevices') : t('settings.pushTestFailed'));
+        const base = data.reason === 'no-devices' ? t('settings.pushTestNoDevices') : t('settings.pushTestFailed');
+        // Show the actual FCM error code(s) or server error when we have one,
+        // so a failed test is diagnosable instead of a dead end — mirrors the
+        // detail already surfaced when enabling push fails.
+        const detail: string | undefined = Array.isArray(data.errors) && data.errors.length ? data.errors.join(', ') : data.error;
+        setTestMsg(detail ? `${base} (${detail})` : base);
       }
     } catch {
       setTestState('error');

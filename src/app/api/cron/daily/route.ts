@@ -95,6 +95,7 @@ export async function GET(req: Request) {
         });
         totalSent += r.sent;
         if (r.sent) notified++;
+        else if (r.errors) console.warn(`daily cron: urgent-compliance push to ${user.uid} sent 0/${tokens.length} —`, r.errors);
       }
 
       // Daily summary: a single roll-up of the day's workload.
@@ -110,9 +111,11 @@ export async function GET(req: Request) {
         });
         totalSent += r.sent;
         if (r.sent) notified++;
+        else if (r.errors) console.warn(`daily cron: daily-summary push to ${user.uid} sent 0/${tokens.length} —`, r.errors);
       }
     }
 
+    console.log(`daily cron: ${recipients.length} device-registered user(s), ${notified} notified, ${totalSent} push(es) sent`);
     return NextResponse.json({ ok: true, users: recipients.length, notified, sent: totalSent });
   } catch (error) {
     console.error('daily cron error:', error);
