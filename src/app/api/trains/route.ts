@@ -2,63 +2,69 @@ import { NextResponse } from 'next/server';
 
 export const revalidate = 60;
 
-// Live departures into Margate for the Event Mode page. Huxley2
-// (huxley2.azurewebsites.net) is a free public REST/JSON wrapper around
-// National Rail's Darwin OpenLDBWS SOAP feed — it still needs a Darwin
-// access token passed through, which has no keyless alternative. Free
-// registration: https://www.nationalrail.co.uk/100296.aspx
+// Live arrivals into Margate for the Event Mode page, via Rail Delivery
+// Group's "Live Arrival Board" product on the Rail Data Marketplace
+// (raildata.org.uk) — a first-party REST API, no third-party proxy involved.
+// Free: subscribe to "Live Arrival Board" at raildata.org.uk, then grab the
+// Consumer key from that subscription's Specification tab.
 //
-// Until NATIONAL_RAIL_LDBWS_TOKEN is set this degrades gracefully — a 200
-// with configured:false — rather than erroring, so the widget can show a
-// calm "not set up yet" state instead of a broken one.
+// Until RAIL_DATA_MARKETPLACE_API_KEY is set this degrades gracefully — a 200
+// with configured:false — so the widget can show a calm "not set up yet"
+// state instead of erroring.
 const MARGATE_CRS = 'MAR';
+const ARRIVALS_URL = `https://api1.raildata.org.uk/1010-live-arrival-board-arr/LDBWS/api/20220120/GetArrBoardWithDetails/${MARGATE_CRS}`;
 
-interface HuxleyDestination {
+interface RdmLocation {
   locationName?: string;
   crs?: string;
 }
-interface HuxleyService {
-  std?: string;
-  etd?: string;
+interface RdmService {
+  sta?: string; // scheduled time of arrival
+  eta?: string; // estimated time of arrival, or a status string ("On time", "Delayed" etc.)
   operator?: string;
   platform?: string | null;
-  destination?: HuxleyDestination[];
+  isCancelled?: boolean;
+  origin?: RdmLocation[]; // where the train is coming FROM — the useful field on an arrivals board
 }
-interface HuxleyMessage {
+interface RdmMessage {
   value?: string;
 }
 
 export async function GET() {
-  const token = process.env.NATIONAL_RAIL_LDBWS_TOKEN;
-  if (!token) {
+  const apiKey = process.env.RAIL_DATA_MARKETPLACE_API_KEY;
+  if (!apiKey) {
     return NextResponse.json({ configured: false });
   }
 
   try {
-    const url = `https://huxley2.azurewebsites.net/departures/${MARGATE_CRS}/10?accessToken=${encodeURIComponent(token)}&expand=false`;
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(ARRIVALS_URL, {
+      headers: { 'x-apikey': apiKey },
+      cache: 'no-store',
+    });
 
     if (!res.ok) {
-      return NextResponse.json({ configured: true, error: 'Train departures request was rejected' }, { status: 502 });
+      return NextResponse.json(
+        { configured: true, error: `Arrivals request was rejected (HTTP ${res.status})` },
+        { status: 502 }
+      );
     }
 
     const data = await res.json();
-    const services: HuxleyService[] = Array.isArray(data?.trainServices) ? data.trainServices : [];
+    const services: RdmService[] = Array.isArray(data?.trainServices) ? data.trainServices : [];
 
     const trains = services.map((s) => ({
-      std: s.std ?? '',
-      etd: s.etd ?? 'On time',
+      sta: s.sta ?? '',
+      eta: s.isCancelled ? 'Cancelled' : s.eta ?? 'On time',
       operator: s.operator ?? 'Unknown operator',
-      destination: s.destination?.[0]?.locationName ?? s.destination?.[0]?.crs ?? 'Unknown',
+      origin: s.origin?.[0]?.locationName ?? s.origin?.[0]?.crs ?? 'Unknown',
       platform: s.platform ?? null,
     }));
 
-    // Darwin's disruption messages sometimes carry raw HTML (e.g. wrapped in
-    // <p> tags) — strip tags so the client can render them as plain text
-    // without needing dangerouslySetInnerHTML.
+    // The feed's disruption messages sometimes carry raw HTML — strip tags so
+    // the client can render them as plain text without dangerouslySetInnerHTML.
     const stripHtml = (s: string) => s.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
     const nrccMessages: string[] = Array.isArray(data?.nrccMessages)
-      ? (data.nrccMessages as HuxleyMessage[])
+      ? (data.nrccMessages as RdmMessage[])
           .map((m) => (m.value ? stripHtml(m.value) : ''))
           .filter((v): v is string => Boolean(v))
       : [];
@@ -71,6 +77,6 @@ export async function GET() {
       trains,
     });
   } catch {
-    return NextResponse.json({ configured: true, error: 'Failed to fetch train departures' }, { status: 502 });
+    return NextResponse.json({ configured: true, error: 'Failed to fetch train arrivals' }, { status: 502 });
   }
 }

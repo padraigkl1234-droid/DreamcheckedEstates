@@ -31,10 +31,10 @@ function StatusLight({ on }: { on: boolean }) {
 }
 
 interface TrainService {
-  std: string;
-  etd: string;
+  sta: string;
+  eta: string;
   operator: string;
-  destination: string;
+  origin: string;
   platform: string | null;
 }
 interface TrainsResponse {
@@ -58,7 +58,7 @@ function TrainsWidget() {
           if (!cancelled) setData(d);
         })
         .catch(() => {
-          if (!cancelled) setData({ configured: true, error: 'Failed to fetch train departures' });
+          if (!cancelled) setData({ configured: true, error: 'Failed to fetch train arrivals' });
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -78,11 +78,11 @@ function TrainsWidget() {
         <TrainFront className="h-4 w-4 text-invictus-crimson-bright" />
         <h3 className="text-sm font-semibold uppercase tracking-widest text-neutral-300">Trains into Margate</h3>
       </div>
-      {loading && <p className="py-4 text-center text-xs text-neutral-600">Loading live departures…</p>}
+      {loading && <p className="py-4 text-center text-xs text-neutral-600">Loading live arrivals…</p>}
       {!loading && data && !data.configured && (
         <p className="py-4 text-center text-xs text-neutral-600">
-          Live train departures aren&apos;t set up yet — add a free National Rail Darwin token as{' '}
-          <code className="text-neutral-500">NATIONAL_RAIL_LDBWS_TOKEN</code> to enable this.
+          Live train arrivals aren&apos;t set up yet — add a free Rail Data Marketplace key as{' '}
+          <code className="text-neutral-500">RAIL_DATA_MARKETPLACE_API_KEY</code> to enable this.
         </p>
       )}
       {!loading && data?.configured && data.error && <p className="py-4 text-center text-xs text-alert">{data.error}</p>}
@@ -101,11 +101,11 @@ function TrainsWidget() {
             </div>
           )}
           {(!data.trains || data.trains.length === 0) && (
-            <p className="py-4 text-center text-xs text-neutral-600">No departures found for Margate.</p>
+            <p className="py-4 text-center text-xs text-neutral-600">No arrivals found for Margate.</p>
           )}
           <div className="space-y-1.5">
             {data.trains?.map((t, i) => {
-              const disrupted = t.etd.toLowerCase() !== 'on time';
+              const disrupted = t.eta.toLowerCase() !== 'on time';
               return (
                 <div
                   key={i}
@@ -114,13 +114,13 @@ function TrainsWidget() {
                   }`}
                 >
                   <span className="text-neutral-300">
-                    {t.std} → {t.destination}
+                    {t.sta} from {t.origin}
                   </span>
                   <span className="text-neutral-500">
                     {t.operator}
                     {t.platform ? ` · Plat ${t.platform}` : ''}
                   </span>
-                  <span className={disrupted ? 'font-semibold text-alert' : 'text-emerald-400'}>{t.etd}</span>
+                  <span className={disrupted ? 'font-semibold text-alert' : 'text-emerald-400'}>{t.eta}</span>
                 </div>
               );
             })}
