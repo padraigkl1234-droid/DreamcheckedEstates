@@ -32,6 +32,8 @@ import {
   Lock,
   Users,
   ClipboardCheck,
+  ArrowDownWideNarrow,
+  ArrowUpWideNarrow,
 } from 'lucide-react';
 import { INSPECTION_OUTCOME_STYLES, answerText, groupBySection, recordAnswers, type InspectionAnswer } from '@/lib/inspections';
 import { drawDreamlandWordmark, drawInvictusCorner, drawInvictusFooter } from '@/lib/brandMark';
@@ -99,6 +101,7 @@ export function ReportsView({
   // Filters.
   const [search, setSearch] = useState('');
   const [outcomeFilter, setOutcomeFilter] = useState<'all' | ReportOutcome>('all');
+  const [sortDir, setSortDir] = useState<'newest' | 'oldest'>('newest');
 
   // Form fields.
   const [title, setTitle] = useState('');
@@ -205,8 +208,8 @@ export function ReportsView({
             (r.createdByName ?? '').toLowerCase().includes(q)
           );
         })
-        .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)),
-    [reports, profile, isMaster, outcomeFilter, search]
+        .sort((a, b) => (sortDir === 'newest' ? (b.createdAt ?? 0) - (a.createdAt ?? 0) : (a.createdAt ?? 0) - (b.createdAt ?? 0))),
+    [reports, profile, isMaster, outcomeFilter, search, sortDir]
   );
 
   const onPickFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -570,6 +573,14 @@ export function ReportsView({
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setSortDir((d) => (d === 'newest' ? 'oldest' : 'newest'))}
+          title={sortDir === 'newest' ? 'Newest submitted first — click for oldest first' : 'Oldest submitted first — click for newest first'}
+          className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-500 transition-colors hover:border-invictus-crimson-bright/40 hover:text-neutral-300"
+        >
+          {sortDir === 'newest' ? <ArrowDownWideNarrow className="h-3.5 w-3.5" /> : <ArrowUpWideNarrow className="h-3.5 w-3.5" />}
+          {sortDir === 'newest' ? 'Newest' : 'Oldest'}
+        </button>
       </div>
 
       {/* List */}
