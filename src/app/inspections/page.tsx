@@ -53,7 +53,6 @@ import {
   newQuestionId,
   ordinal,
   overallOutcome,
-  recordAnswers,
   scheduleSummary,
   sectionNames,
   summarise,
@@ -490,42 +489,6 @@ export default function InspectionsPage() {
               </button>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Filed inspections */}
-      {recent.length > 0 && (
-        <div className="mt-10">
-          <h2 className="mb-2 text-[10px] uppercase tracking-widest text-neutral-500">Filed inspections</h2>
-          <div className="space-y-1.5">
-            {recent.slice(0, 12).map((r) => {
-              const counts = countByOutcome(recordAnswers(r.inspection!));
-              return (
-                <div
-                  key={r.id}
-                  className="flex items-center gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 px-3 py-2 text-sm"
-                >
-                  <span
-                    className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest ${
-                      r.outcome === 'fail'
-                        ? 'border-alert/50 bg-alert/10 text-alert'
-                        : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
-                    }`}
-                  >
-                    {r.outcome === 'fail' ? 'Fail' : 'Pass'}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-neutral-200">{r.title}</span>
-                  <span className="shrink-0 text-[11px] text-neutral-500">
-                    {counts.graded ? `${counts.pass}/${counts.graded} passed · ` : ''}
-                    {r.date}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-[11px] text-neutral-600">
-            Open any of these in Reports to see every answer, or export it as a PDF.
-          </p>
         </div>
       )}
 
