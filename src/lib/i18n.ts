@@ -33,6 +33,7 @@ const en: Record<string, string> = {
   'nav.group.events': 'Events',
   'nav.group.actions': 'Actions',
   'nav.team': 'Team',
+  'nav.incidents': 'Incident Reports',
   'nav.siteMap': 'Site Map',
   'nav.taskManager': 'Task Manager',
   'nav.compliance': 'Compliance',

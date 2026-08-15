@@ -104,6 +104,38 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.ownerUid == request.auth.uid;
     }
 
+    // Incident / near-miss reports. Deliberately NOT team-wide like the
+    // reports below — locked to the master admin, whoever it's assigned to,
+    // and (if not filed anonymously) the person who filed it. Nobody else,
+    // not even a commander, sees a report by default; only master assigns
+    // it or changes its status. Anyone on a team may file one, any rank —
+    // safety reporting shouldn't be gated by chain of command.
+    match /incidentReports/{id} {
+      allow read: if request.auth != null && (
+        isMasterAdmin() ||
+        resource.data.assignedUid == request.auth.uid ||
+        (resource.data.anonymous == false && resource.data.createdBy == request.auth.uid)
+      );
+      allow create: if request.auth != null &&
+        amTeamMember() &&
+        request.resource.data.teamId == myTeam() &&
+        request.resource.data.status == 'submitted' &&
+        request.resource.data.anonymous is bool &&
+        !('assignedUid' in request.resource.data) &&
+        !('assignedName' in request.resource.data) &&
+        !('assignedAt' in request.resource.data) &&
+        !('investigationNotes' in request.resource.data) &&
+        (
+          request.resource.data.anonymous == true
+            ? !('createdBy' in request.resource.data) && !('createdByName' in request.resource.data)
+            : request.resource.data.createdBy == request.auth.uid
+        );
+      // Only master assigns a report, changes its status, or adds
+      // investigation notes — the person it's assigned to can read but not
+      // edit (see the class comment above).
+      allow update, delete: if isMasterAdmin();
+    }
+
     // Authored reports. "team" reports are visible team-wide; "command" reports
     // only to their author, team commanders and the master. Viewers can't file.
     match /reports/{reportId} {
