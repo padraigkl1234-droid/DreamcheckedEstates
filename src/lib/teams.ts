@@ -19,6 +19,7 @@ export const TOGGLEABLE_PAGES: { key: string; label: string }[] = [
   { key: 'showBoard', label: 'Show Board' },
   { key: 'eventMode', label: 'Event Mode' },
   { key: 'siteMap', label: 'Site Map' },
+  { key: 'team', label: 'Team' },
   { key: 'taskManager', label: 'Task Manager' },
   { key: 'compliance', label: 'Compliance' },
   { key: 'archive', label: 'Archive' },
@@ -102,6 +103,11 @@ export interface UserProfile {
   lastSeen?: number;
   fcmTokens?: string[]; // registered device push tokens (Cloud Messaging)
   notifPrefs?: NotifPrefs; // which push categories this user wants
+  // Safety-role badges, shown on the Team page. Only a commander (or master)
+  // may grant/revoke these — enforced in firestore.rules, not just the UI —
+  // so they can't be self-assigned.
+  fireMarshal?: boolean;
+  firstAider?: boolean;
 }
 
 // Which push-notification categories a user opts into. Stored on the user

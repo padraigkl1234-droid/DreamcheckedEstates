@@ -36,6 +36,7 @@ import {
   ChevronDown,
   Cloud,
   Radio,
+  Users,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -62,6 +63,7 @@ export type PageKey =
   | 'audits'
   | 'tasks'
   | 'sitemap'
+  | 'team'
   | 'compliance'
   | 'archive'
   | 'reports'
@@ -87,6 +89,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'audits', label: 'Audits', icon: ClipboardList, feature: 'audits', route: '/audits' },
   { key: 'tasks', label: 'Task Manager', icon: ListChecks, feature: 'taskManager' },
   { key: 'sitemap', label: 'Site Map', icon: MapIcon, feature: 'siteMap' },
+  { key: 'team', label: 'Team', icon: Users, feature: 'team', route: '/team' },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck, feature: 'compliance' },
   { key: 'archive', label: 'Archive', icon: Archive, feature: 'archive' },
   { key: 'reports', label: 'Reports', icon: FileText, feature: 'reports' },
@@ -106,6 +109,7 @@ export const NAV_LABEL_KEYS: Record<PageKey, string> = {
   audits: 'nav.audits',
   tasks: 'nav.taskManager',
   sitemap: 'nav.siteMap',
+  team: 'nav.team',
   compliance: 'nav.compliance',
   archive: 'nav.archive',
   reports: 'nav.reports',
@@ -143,6 +147,7 @@ const NAV_LAYOUT: { key: PageKey | NavGroupKey; gapBefore?: boolean }[] = [
   { key: 'actions' },
   { key: 'tasks' },
   { key: 'sitemap' },
+  { key: 'team' },
   { key: 'archive', gapBefore: true },
   { key: 'reports' },
   { key: 'admin', gapBefore: true },

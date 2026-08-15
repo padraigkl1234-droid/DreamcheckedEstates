@@ -32,6 +32,7 @@ const en: Record<string, string> = {
   'nav.eventMode': 'Event Mode',
   'nav.group.events': 'Events',
   'nav.group.actions': 'Actions',
+  'nav.team': 'Team',
   'nav.siteMap': 'Site Map',
   'nav.taskManager': 'Task Manager',
   'nav.compliance': 'Compliance',

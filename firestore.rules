@@ -62,12 +62,27 @@ service cloud.firestore {
         !('rank' in request.resource.data) &&
         !('teamId' in request.resource.data) &&
         !('blocked' in request.resource.data) &&
+        !('fireMarshal' in request.resource.data) &&
+        !('firstAider' in request.resource.data) &&
         request.resource.data.get('email', request.auth.token.email) == request.auth.token.email;
+      // Self-edit: everything except the fields locked to admin/commander
+      // control (fireMarshal/firstAider join that list — a member can't
+      // self-assign a safety badge, only a commander can grant one).
       allow update: if request.auth != null && request.auth.uid == uid &&
         request.resource.data.get('rank', null) == resource.data.get('rank', null) &&
         request.resource.data.get('teamId', null) == resource.data.get('teamId', null) &&
         request.resource.data.get('blocked', false) == resource.data.get('blocked', false) &&
+        request.resource.data.get('fireMarshal', false) == resource.data.get('fireMarshal', false) &&
+        request.resource.data.get('firstAider', false) == resource.data.get('firstAider', false) &&
         request.resource.data.get('email', request.auth.token.email) == request.auth.token.email;
+      // A team commander (or master) may flip a teammate's Fire Marshal /
+      // First Aider badges on the Team page — and ONLY those two fields on
+      // that teammate's doc, nothing else (hasOnly guarantees teamId, rank,
+      // blocked etc. all stay put, so this can't be used to touch anything
+      // the self-edit rule above already locks down).
+      allow update: if request.auth != null &&
+        (isMasterAdmin() || isCommanderOf(resource.data.teamId)) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fireMarshal', 'firstAider']);
       allow delete: if false;
     }
 
