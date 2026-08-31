@@ -1,0 +1,270 @@
+Screens:
+  scrHistory As screen:
+    Properties:
+      Fill: =varNavy
+
+    Children:
+
+    # ── Header bar ──────────────────────────────────────────────────────────
+    - recHistHeader As rectangle:
+        Properties:
+          X: =0
+          Y: =0
+          Width: =Parent.Width
+          Height: =64
+          Fill: =varNavy2
+          BorderStyle: =BorderStyle.None
+
+    - lblHistLogo As label:
+        Properties:
+          X: =8
+          Y: =8
+          Width: =48
+          Height: =48
+          Fill: =varGold
+          Color: =varNavy
+          Text: ="D"
+          Size: =22
+          FontWeight: =FontWeight.Bold
+          Align: =Align.Center
+          VerticalAlign: =VerticalAlign.Middle
+          RadiusTopLeft: =6
+          RadiusTopRight: =6
+          RadiusBottomLeft: =6
+          RadiusBottomRight: =6
+          BorderStyle: =BorderStyle.None
+
+    - lblHistAppTitle As label:
+        Properties:
+          X: =64
+          Y: =0
+          Width: =300
+          Height: =64
+          Text: ="DreamChecked"
+          Color: =varGoldSoft
+          Fill: =RGBA(0,0,0,0)
+          Size: =20
+          FontWeight: =FontWeight.Bold
+          VerticalAlign: =VerticalAlign.Middle
+          BorderStyle: =BorderStyle.None
+
+    # ── Top navigation (Dashboard | History) ────────────────────────────────
+    - btnNavDashboard As button:
+        Properties:
+          X: =Parent.Width - 296
+          Y: =16
+          Width: =130
+          Height: =32
+          Text: ="Dashboard"
+          Fill: =RGBA(0,0,0,0)
+          Color: =varMuted
+          Size: =12
+          RadiusTopLeft: =6
+          RadiusTopRight: =6
+          RadiusBottomLeft: =6
+          RadiusBottomRight: =6
+          BorderStyle: =BorderStyle.None
+          OnSelect: =Navigate(scrDashboard)
+
+    - btnNavHistory As button:
+        Properties:
+          X: =Parent.Width - 156
+          Y: =16
+          Width: =100
+          Height: =32
+          Text: ="History"
+          Fill: =varGold
+          Color: =varNavy
+          Size: =12
+          FontWeight: =FontWeight.Bold
+          RadiusTopLeft: =6
+          RadiusTopRight: =6
+          RadiusBottomLeft: =6
+          RadiusBottomRight: =6
+          BorderStyle: =BorderStyle.None
+          OnSelect: =Navigate(scrHistory)
+
+    # ── Filter bar ───────────────────────────────────────────────────────────
+    - txtSearch As textInput:
+        Properties:
+          X: =16
+          Y: =80
+          Width: =600
+          Height: =44
+          HintText: ="Search asset, check type, or notes…"
+          Fill: =varNavy2
+          Color: =varText
+          BorderColor: =varMuted
+          BorderStyle: =BorderStyle.Solid
+          BorderThickness: =1
+          FocusedBorderColor: =varGold
+          FocusedBorderThickness: =2
+          RadiusTopLeft: =6
+          RadiusTopRight: =6
+          RadiusBottomLeft: =6
+          RadiusBottomRight: =6
+          Size: =13
+
+    - ddCategory As dropdown:
+        Properties:
+          X: =632
+          Y: =80
+          Width: =220
+          Height: =44
+          # "All" prepended so the user can clear the filter
+          Items: =["All","Toilets","Vendors","Bars","Scenic Railway","Electrical/PAT","Fire Safety"]
+          Default: ="All"
+          Fill: =varNavy2
+          Color: =varText
+          ChevronFill: =varGold
+          ChevronBackground: =varNavy2
+          BorderColor: =varMuted
+          BorderStyle: =BorderStyle.Solid
+          BorderThickness: =1
+          FocusedBorderColor: =varGold
+          RadiusTopLeft: =6
+          RadiusTopRight: =6
+          RadiusBottomLeft: =6
+          RadiusBottomRight: =6
+          Size: =13
+
+    - ddStatus As dropdown:
+        Properties:
+          X: =868
+          Y: =80
+          Width: =200
+          Height: =44
+          Items: =["All","Pass/OK","Needs Action","Fail"]
+          Default: ="All"
+          Fill: =varNavy2
+          Color: =varText
+          ChevronFill: =varGold
+          ChevronBackground: =varNavy2
+          BorderColor: =varMuted
+          BorderStyle: =BorderStyle.Solid
+          BorderThickness: =1
+          FocusedBorderColor: =varGold
+          RadiusTopLeft: =6
+          RadiusTopRight: =6
+          RadiusBottomLeft: =6
+          RadiusBottomRight: =6
+          Size: =13
+
+    # Result count label
+    - lblCount As label:
+        Properties:
+          X: =16
+          Y: =136
+          Width: =400
+          Height: =24
+          # galHistory.AllItems gives the full filtered set including non-visible rows
+          Text: ="Showing " & CountRows(galHistory.AllItems) & " checks"
+          Color: =varMuted
+          Fill: =RGBA(0,0,0,0)
+          Size: =12
+          BorderStyle: =BorderStyle.None
+
+    # ── History gallery ──────────────────────────────────────────────────────
+    - galHistory As gallery:
+        Properties:
+          # NOTE: The 'in' operator (free-text search) is NOT delegable against
+          # SharePoint. This works correctly up to ~2,000 rows. See README for
+          # the Dataverse migration path when the dataset grows beyond that.
+          Items: |-
+            =Filter(DreamChecked_Logs,
+              (IsBlank(txtSearch.Text)
+                || txtSearch.Text in 'Area / Asset'
+                || txtSearch.Text in 'Check Type'
+                || txtSearch.Text in Notes)
+              && (ddCategory.Selected.Value = "All"
+                || Category.Value = ddCategory.Selected.Value)
+              && (ddStatus.Selected.Value = "All"
+                || Status.Value = ddStatus.Selected.Value))
+          Layout: =Layout.Vertical
+          TemplatePadding: =0
+          TemplateSize: =80
+          X: =16
+          Y: =168
+          Width: =Parent.Width - 32
+          Height: =Parent.Height - 184
+          Fill: =RGBA(0,0,0,0)
+          BorderStyle: =BorderStyle.None
+
+        Children:
+        - recHistRow As rectangle:
+            Properties:
+              X: =0
+              Y: =2
+              Width: =Parent.TemplateWidth
+              Height: =74
+              Fill: =varNavy2
+              RadiusTopLeft: =6
+              RadiusTopRight: =6
+              RadiusBottomLeft: =6
+              RadiusBottomRight: =6
+              BorderStyle: =BorderStyle.None
+
+        - lblHistAsset As label:
+            Properties:
+              X: =12
+              Y: =10
+              Width: =600
+              Height: =26
+              Text: =ThisItem.'Area / Asset'
+              Color: =varText
+              Fill: =RGBA(0,0,0,0)
+              Size: =13
+              FontWeight: =FontWeight.Semibold
+              BorderStyle: =BorderStyle.None
+
+        - lblHistMeta As label:
+            Properties:
+              X: =12
+              Y: =36
+              Width: =700
+              Height: =22
+              Text: =ThisItem.Category.Value & " · " & ThisItem.'Check Type' & " · " & Text(ThisItem.'Date Checked', "dd mmm yyyy")
+              Color: =varMuted
+              Fill: =RGBA(0,0,0,0)
+              Size: =11
+              BorderStyle: =BorderStyle.None
+
+        # Status pill — same colour logic as Dashboard
+        - lblHistStatus As label:
+            Properties:
+              X: =Parent.TemplateWidth - 180
+              Y: =20
+              Width: =136
+              Height: =32
+              Text: =ThisItem.Status.Value
+              Color: =varNavy
+              Fill: =Switch(ThisItem.Status.Value,
+                      "Pass/OK",     varGreen,
+                      "Needs Action",varGold,
+                      "Fail",        varRed,
+                                     varMuted)
+              Size: =11
+              FontWeight: =FontWeight.Bold
+              Align: =Align.Center
+              VerticalAlign: =VerticalAlign.Middle
+              RadiusTopLeft: =4
+              RadiusTopRight: =4
+              RadiusBottomLeft: =4
+              RadiusBottomRight: =4
+              BorderStyle: =BorderStyle.None
+
+        # Notes teaser (truncated, only shown when non-blank)
+        - lblHistNotes As label:
+            Properties:
+              X: =Parent.TemplateWidth - 40
+              Y: =20
+              Width: =28
+              Height: =32
+              # Show a "…" indicator if notes exist
+              Text: =If(IsBlank(ThisItem.Notes), "", "…")
+              Color: =varMuted
+              Fill: =RGBA(0,0,0,0)
+              Size: =14
+              Align: =Align.Center
+              VerticalAlign: =VerticalAlign.Middle
+              BorderStyle: =BorderStyle.None

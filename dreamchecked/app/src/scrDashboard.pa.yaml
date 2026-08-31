@@ -1,0 +1,431 @@
+Screens:
+  scrDashboard As screen:
+    Properties:
+      Fill: =varNavy
+
+    Children:
+
+    # ── Header bar ──────────────────────────────────────────────────────────
+    - recHeader As rectangle:
+        Properties:
+          X: =0
+          Y: =0
+          Width: =Parent.Width
+          Height: =64
+          Fill: =varNavy2
+          BorderStyle: =BorderStyle.None
+
+    # "D" logo tile
+    - lblLogo As label:
+        Properties:
+          X: =8
+          Y: =8
+          Width: =48
+          Height: =48
+          Fill: =varGold
+          Color: =varNavy
+          Text: ="D"
+          Size: =22
+          FontWeight: =FontWeight.Bold
+          Align: =Align.Center
+          VerticalAlign: =VerticalAlign.Middle
+          RadiusTopLeft: =6
+          RadiusTopRight: =6
+          RadiusBottomLeft: =6
+          RadiusBottomRight: =6
+          BorderStyle: =BorderStyle.None
+
+    - lblAppTitle As label:
+        Properties:
+          X: =64
+          Y: =0
+          Width: =300
+          Height: =64
+          Text: ="DreamChecked"
+          Color: =varGoldSoft
+          Fill: =RGBA(0,0,0,0)
+          Size: =20
+          FontWeight: =FontWeight.Bold
+          VerticalAlign: =VerticalAlign.Middle
+          BorderStyle: =BorderStyle.None
+
+    # "Log Check" CTA button — top right
+    - btnLogCheck As button:
+        Properties:
+          X: =Parent.Width - 148
+          Y: =14
+          Width: =136
+          Height: =36
+          Text: ="+ Log Check"
+          Fill: =varGold
+          Color: =varNavy
+          Size: =13
+          FontWeight: =FontWeight.Bold
+          RadiusTopLeft: =6
+          RadiusTopRight: =6
+          RadiusBottomLeft: =6
+          RadiusBottomRight: =6
+          BorderStyle: =BorderStyle.None
+          OnSelect: =NewForm(frmLog); Navigate(scrLog)
+
+    # ── Stat tiles (Y=80, H=108) ────────────────────────────────────────────
+    # Each tile: background rect + large count label + description label
+
+    # Tile 1 — Overdue
+    - recTile1 As rectangle:
+        Properties:
+          X: =16
+          Y: =80
+          Width: =294
+          Height: =108
+          Fill: =varNavy2
+          RadiusTopLeft: =8
+          RadiusTopRight: =8
+          RadiusBottomLeft: =8
+          RadiusBottomRight: =8
+          BorderStyle: =BorderStyle.None
+
+    - lblCount1 As label:
+        Properties:
+          X: =16
+          Y: =88
+          Width: =294
+          Height: =60
+          Text: =Text(CountRows(Filter(DreamChecked_Logs, !IsBlank('Next Due') && 'Next Due' < Today())))
+          Color: =varRed
+          Fill: =RGBA(0,0,0,0)
+          Size: =36
+          FontWeight: =FontWeight.Bold
+          Align: =Align.Center
+          VerticalAlign: =VerticalAlign.Middle
+          BorderStyle: =BorderStyle.None
+
+    - lblDesc1 As label:
+        Properties:
+          X: =16
+          Y: =150
+          Width: =294
+          Height: =32
+          Text: ="Overdue"
+          Color: =varMuted
+          Fill: =RGBA(0,0,0,0)
+          Size: =12
+          Align: =Align.Center
+          VerticalAlign: =VerticalAlign.Middle
+          BorderStyle: =BorderStyle.None
+
+    # Tile 2 — Due ≤7 days
+    - recTile2 As rectangle:
+        Properties:
+          X: =326
+          Y: =80
+          Width: =294
+          Height: =108
+          Fill: =varNavy2
+          RadiusTopLeft: =8
+          RadiusTopRight: =8
+          RadiusBottomLeft: =8
+          RadiusBottomRight: =8
+          BorderStyle: =BorderStyle.None
+
+    - lblCount2 As label:
+        Properties:
+          X: =326
+          Y: =88
+          Width: =294
+          Height: =60
+          Text: =Text(CountRows(Filter(DreamChecked_Logs, !IsBlank('Next Due') && 'Next Due' >= Today() && 'Next Due' <= Today()+7)))
+          Color: =varGold
+          Fill: =RGBA(0,0,0,0)
+          Size: =36
+          FontWeight: =FontWeight.Bold
+          Align: =Align.Center
+          VerticalAlign: =VerticalAlign.Middle
+          BorderStyle: =BorderStyle.None
+
+    - lblDesc2 As label:
+        Properties:
+          X: =326
+          Y: =150
+          Width: =294
+          Height: =32
+          Text: ="Due within 7 days"
+          Color: =varMuted
+          Fill: =RGBA(0,0,0,0)
+          Size: =12
+          Align: =Align.Center
+          VerticalAlign: =VerticalAlign.Middle
+          BorderStyle: =BorderStyle.None
+
+    # Tile 3 — Needs Action
+    - recTile3 As rectangle:
+        Properties:
+          X: =636
+          Y: =80
+          Width: =294
+          Height: =108
+          Fill: =varNavy2
+          RadiusTopLeft: =8
+          RadiusTopRight: =8
+          RadiusBottomLeft: =8
+          RadiusBottomRight: =8
+          BorderStyle: =BorderStyle.None
+
+    - lblCount3 As label:
+        Properties:
+          X: =636
+          Y: =88
+          Width: =294
+          Height: =60
+          Text: =Text(CountRows(Filter(DreamChecked_Logs, Status.Value="Needs Action" || Status.Value="Fail")))
+          Color: =varGoldSoft
+          Fill: =RGBA(0,0,0,0)
+          Size: =36
+          FontWeight: =FontWeight.Bold
+          Align: =Align.Center
+          VerticalAlign: =VerticalAlign.Middle
+          BorderStyle: =BorderStyle.None
+
+    - lblDesc3 As label:
+        Properties:
+          X: =636
+          Y: =150
+          Width: =294
+          Height: =32
+          Text: ="Needs Action / Fail"
+          Color: =varMuted
+          Fill: =RGBA(0,0,0,0)
+          Size: =12
+          Align: =Align.Center
+          VerticalAlign: =VerticalAlign.Middle
+          BorderStyle: =BorderStyle.None
+
+    # Tile 4 — Total
+    - recTile4 As rectangle:
+        Properties:
+          X: =946
+          Y: =80
+          Width: =294
+          Height: =108
+          Fill: =varNavy2
+          RadiusTopLeft: =8
+          RadiusTopRight: =8
+          RadiusBottomLeft: =8
+          RadiusBottomRight: =8
+          BorderStyle: =BorderStyle.None
+
+    - lblCount4 As label:
+        Properties:
+          X: =946
+          Y: =88
+          Width: =294
+          Height: =60
+          Text: =Text(CountRows(DreamChecked_Logs))
+          Color: =varText
+          Fill: =RGBA(0,0,0,0)
+          Size: =36
+          FontWeight: =FontWeight.Bold
+          Align: =Align.Center
+          VerticalAlign: =VerticalAlign.Middle
+          BorderStyle: =BorderStyle.None
+
+    - lblDesc4 As label:
+        Properties:
+          X: =946
+          Y: =150
+          Width: =294
+          Height: =32
+          Text: ="Total Logged"
+          Color: =varMuted
+          Fill: =RGBA(0,0,0,0)
+          Size: =12
+          Align: =Align.Center
+          VerticalAlign: =VerticalAlign.Middle
+          BorderStyle: =BorderStyle.None
+
+    # ── Section headers ──────────────────────────────────────────────────────
+    - lblDueHeader As label:
+        Properties:
+          X: =16
+          Y: =204
+          Width: =648
+          Height: =24
+          Text: ="Due & Overdue"
+          Color: =varGoldSoft
+          Fill: =RGBA(0,0,0,0)
+          Size: =13
+          FontWeight: =FontWeight.Bold
+          BorderStyle: =BorderStyle.None
+
+    - lblRecentHeader As label:
+        Properties:
+          X: =682
+          Y: =204
+          Width: =668
+          Height: =24
+          Text: ="Recent Activity"
+          Color: =varGoldSoft
+          Fill: =RGBA(0,0,0,0)
+          Size: =13
+          FontWeight: =FontWeight.Bold
+          BorderStyle: =BorderStyle.None
+
+    # ── Due & Overdue gallery (left column) ──────────────────────────────────
+    - galDueOverdue As gallery:
+        Properties:
+          # All items with a Next Due date that are due today or within 7 days
+          # sorted earliest first so most urgent appear at top.
+          Items: =Sort(Filter(DreamChecked_Logs, !IsBlank('Next Due') && 'Next Due' <= Today()+7), 'Next Due', Ascending)
+          Layout: =Layout.Vertical
+          TemplatePadding: =0
+          TemplateSize: =80
+          X: =16
+          Y: =232
+          Width: =648
+          Height: =500
+          Fill: =RGBA(0,0,0,0)
+          BorderStyle: =BorderStyle.None
+          ShowScrollbar: =false
+
+        Children:
+        - recDueRow As rectangle:
+            Properties:
+              X: =0
+              Y: =2
+              Width: =Parent.TemplateWidth
+              Height: =74
+              Fill: =varNavy2
+              RadiusTopLeft: =6
+              RadiusTopRight: =6
+              RadiusBottomLeft: =6
+              RadiusBottomRight: =6
+              BorderStyle: =BorderStyle.None
+
+        - lblDueAsset As label:
+            Properties:
+              X: =12
+              Y: =10
+              Width: =430
+              Height: =26
+              Text: =ThisItem.'Area / Asset'
+              Color: =varText
+              Fill: =RGBA(0,0,0,0)
+              Size: =13
+              FontWeight: =FontWeight.Semibold
+              BorderStyle: =BorderStyle.None
+
+        - lblDueMeta As label:
+            Properties:
+              X: =12
+              Y: =36
+              Width: =430
+              Height: =22
+              Text: =ThisItem.Category.Value & " · " & ThisItem.'Check Type'
+              Color: =varMuted
+              Fill: =RGBA(0,0,0,0)
+              Size: =11
+              BorderStyle: =BorderStyle.None
+
+        # Due / Overdue badge
+        - lblDueBadge As label:
+            Properties:
+              X: =Parent.TemplateWidth - 148
+              Y: =20
+              Width: =136
+              Height: =32
+              # Positive d = days until due; negative = already overdue
+              Text: |-
+                =With({d:DateDiff(Today(),ThisItem.'Next Due',Days)},
+                  If(d<0, Abs(d)&"d overdue",
+                     d=0, "Due today",
+                          "in "&d&"d"))
+              Color: =varNavy
+              Fill: =If(DateDiff(Today(),ThisItem.'Next Due',Days)<0, varRed, varGold)
+              Size: =11
+              FontWeight: =FontWeight.Bold
+              Align: =Align.Center
+              VerticalAlign: =VerticalAlign.Middle
+              RadiusTopLeft: =4
+              RadiusTopRight: =4
+              RadiusBottomLeft: =4
+              RadiusBottomRight: =4
+              BorderStyle: =BorderStyle.None
+
+    # ── Recent Activity gallery (right column) ───────────────────────────────
+    - galRecent As gallery:
+        Properties:
+          # Six most recently created records, newest first
+          Items: =FirstN(Sort(DreamChecked_Logs, Created, Descending), 6)
+          Layout: =Layout.Vertical
+          TemplatePadding: =0
+          TemplateSize: =80
+          X: =682
+          Y: =232
+          Width: =668
+          Height: =500
+          Fill: =RGBA(0,0,0,0)
+          BorderStyle: =BorderStyle.None
+          ShowScrollbar: =false
+
+        Children:
+        - recRecentRow As rectangle:
+            Properties:
+              X: =0
+              Y: =2
+              Width: =Parent.TemplateWidth
+              Height: =74
+              Fill: =varNavy2
+              RadiusTopLeft: =6
+              RadiusTopRight: =6
+              RadiusBottomLeft: =6
+              RadiusBottomRight: =6
+              BorderStyle: =BorderStyle.None
+
+        - lblRecentAsset As label:
+            Properties:
+              X: =12
+              Y: =10
+              Width: =430
+              Height: =26
+              Text: =ThisItem.'Area / Asset'
+              Color: =varText
+              Fill: =RGBA(0,0,0,0)
+              Size: =13
+              FontWeight: =FontWeight.Semibold
+              BorderStyle: =BorderStyle.None
+
+        - lblRecentMeta As label:
+            Properties:
+              X: =12
+              Y: =36
+              Width: =430
+              Height: =22
+              Text: =ThisItem.Category.Value & " · " & Text(ThisItem.'Date Checked', "dd mmm yyyy")
+              Color: =varMuted
+              Fill: =RGBA(0,0,0,0)
+              Size: =11
+              BorderStyle: =BorderStyle.None
+
+        # Status pill — colour-coded per status value
+        - lblRecentStatus As label:
+            Properties:
+              X: =Parent.TemplateWidth - 148
+              Y: =20
+              Width: =136
+              Height: =32
+              Text: =ThisItem.Status.Value
+              Color: =varNavy
+              Fill: =Switch(ThisItem.Status.Value,
+                      "Pass/OK",     varGreen,
+                      "Needs Action",varGold,
+                      "Fail",        varRed,
+                                     varMuted)
+              Size: =11
+              FontWeight: =FontWeight.Bold
+              Align: =Align.Center
+              VerticalAlign: =VerticalAlign.Middle
+              RadiusTopLeft: =4
+              RadiusTopRight: =4
+              RadiusBottomLeft: =4
+              RadiusBottomRight: =4
+              BorderStyle: =BorderStyle.None
