@@ -46,6 +46,11 @@ export async function pushToTokens(
       ...(payload.tag ? { tag: payload.tag } : {}),
     },
     webpush: {
+      // High urgency so a sleeping phone is woken for it rather than the push
+      // being held until the device next stirs; a day's TTL so one that
+      // arrives while the phone is off is still delivered when it comes back
+      // rather than silently expiring.
+      headers: { Urgency: 'high', TTL: '86400' },
       fcmOptions: { link: payload.url || '/' },
     },
   });

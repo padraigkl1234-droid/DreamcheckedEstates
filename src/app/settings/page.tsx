@@ -15,7 +15,7 @@ import { useLang } from '@/components/LanguageProvider';
 import { LANGUAGES } from '@/lib/i18n';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { profileName, notifEnabled, type NotifPrefs } from '@/lib/teams';
-import { enablePush, disablePush, notificationPermission } from '@/lib/messaging';
+import { enablePush, disablePush, notificationPermission, needsIosHomeScreen } from '@/lib/messaging';
 
 const inputClass =
   'w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50';
@@ -85,9 +85,13 @@ export default function SettingsPage() {
   const [deviceOn, setDeviceOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
+  // iPhone/iPad in a Safari tab: push is "unsupported" only until the app is
+  // added to the Home Screen, so show how instead of a dead end.
+  const [iosInstall, setIosInstall] = useState(false);
   const deviceFlagKey = user ? `invictus-push-${user.uid}` : null;
   useEffect(() => {
     setPermission(notificationPermission());
+    setIosInstall(needsIosHomeScreen());
     if (deviceFlagKey) {
       try {
         setDeviceOn(window.localStorage.getItem(deviceFlagKey) === '1');
@@ -397,7 +401,7 @@ export default function SettingsPage() {
           {/* Master push enable/disable for this device. */}
           {permission === 'unsupported' ? (
             <p className="rounded-md border border-neutral-400/25 bg-invictus-base/40 px-4 py-3 text-[11px] text-neutral-500">
-              {t('settings.pushUnsupported')}
+              {iosInstall ? t('settings.pushIosInstall') : t('settings.pushUnsupported')}
             </p>
           ) : (
             <ToggleRow
@@ -412,6 +416,11 @@ export default function SettingsPage() {
           )}
           {pushError && <p className="text-[10px] text-alert">{pushError}</p>}
           <p className="text-[10px] text-neutral-600">{t('settings.pushHint')}</p>
+          {/* Tokens are per device, so this is the honest "is my phone actually
+              on?" answer — a count of 1 with the phone in hand means it isn't. */}
+          <p className="text-[10px] text-neutral-500">
+            {t('settings.pushDevices').replace('{n}', String(profile?.fcmTokens?.length ?? 0))}
+          </p>
 
           {/* One-tap self-test so a user can verify delivery on their own device. */}
           {pushEnabled && (

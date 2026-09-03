@@ -34,6 +34,48 @@ export function notificationPermission(): NotificationPermission | 'unsupported'
   return Notification.permission;
 }
 
+// iOS only allows web push for sites that have been added to the Home Screen
+// (16.4+). In a plain Safari tab `PushManager` doesn't exist at all, so
+// `pushSupported()` comes back false there — this tells Settings that the fix
+// is "install it to the Home Screen first", not "this device can't do it".
+export function needsIosHomeScreen(): boolean {
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') return false;
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
+  if (!isIOS) return false;
+  const standalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true;
+  return !standalone;
+}
+
+// Hand a notification to the OS notification centre (Windows Action Center,
+// macOS Notification Center, the phone's shade) via the service worker. Used
+// for pushes that arrive while the app is open: FCM deliberately doesn't show
+// a system notification then, so without this a push only ever surfaces as an
+// in-app toast that's gone the moment you look away. The click handler in
+// public/sw.js takes care of opening `url`.
+export async function showSystemNotification(payload: {
+  title: string;
+  body: string;
+  url?: string;
+  tag?: string;
+}): Promise<void> {
+  try {
+    if (!pushSupported() || Notification.permission !== 'granted') return;
+    const registration = await navigator.serviceWorker.ready;
+    await registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: payload.tag,
+      data: { url: payload.url || '/' },
+    });
+  } catch (error) {
+    console.error('showSystemNotification failed:', error);
+  }
+}
+
 async function getMessagingIfSupported() {
   const { isSupported, getMessaging } = await import('firebase/messaging');
   if (!(await isSupported())) return null;
@@ -150,7 +192,7 @@ export async function disablePush(uid: string): Promise<void> {
 // Foreground messages: when the app is open and focused, FCM doesn't show a
 // system notification. Subscribe here to surface an in-app toast instead.
 export async function onForegroundMessage(
-  handler: (payload: { title: string; body: string; url?: string }) => void
+  handler: (payload: { title: string; body: string; url?: string; tag?: string }) => void
 ): Promise<() => void> {
   const messaging = await getMessagingIfSupported();
   if (!messaging) return () => {};
@@ -162,6 +204,7 @@ export async function onForegroundMessage(
       title: n?.title || d.title || 'INVICTUS',
       body: n?.body || d.body || '',
       url: d.url,
+      tag: d.tag,
     });
   });
 }
