@@ -102,6 +102,7 @@ import {
   Loader2,
   ImagePlus,
   ChevronDown,
+  ChevronUp,
   Tag,
   Package,
   MessageSquarePlus,
@@ -2160,6 +2161,13 @@ function SiteMapPage({
   const [hoverRef, setHoverRef] = useState<string | null>(null);
   // 'tasks' shows how much work sits where; 'cost' shows what it's costing.
   const [mapMode, setMapMode] = useState<'tasks' | 'cost'>('tasks');
+  // Archived jobs are folded out of the "Tasks here" list by default — a
+  // square with months of finished work otherwise buries the one live task
+  // under a wall of done rows. Their cost still counts toward the material
+  // total above regardless (see costByArea, which sums costedTasks). Resets
+  // per square so switching squares doesn't leave it stuck open.
+  const [showArchivedHere, setShowArchivedHere] = useState(false);
+  useEffect(() => setShowArchivedHere(false), [selectedRef]);
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<Priority>('Medium');
   const [dueDate, setDueDate] = useState('');
@@ -2768,7 +2776,9 @@ function SiteMapPage({
                   {tasksForArea.length === 0 && (
                     <p className="py-2 text-xs text-neutral-600">No tasks assigned to this location yet.</p>
                   )}
-                  {tasksForArea.map((t) => {
+                  {tasksForArea
+                    .filter((t) => !t.archived || showArchivedHere)
+                    .map((t) => {
                     const cost = materialsTotal(t.materials);
                     return (
                       <div
@@ -2799,6 +2809,22 @@ function SiteMapPage({
                       </div>
                     );
                   })}
+                  {tasksForArea.some((t) => t.archived) && (
+                    <button
+                      onClick={() => setShowArchivedHere((v) => !v)}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-neutral-400/20 bg-invictus-base/20 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-500 transition-colors hover:text-neutral-300"
+                    >
+                      {showArchivedHere ? (
+                        <>
+                          <ChevronUp className="h-3 w-3" /> Hide {tasksForArea.filter((t) => t.archived).length} archived
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-3 w-3" /> Show {tasksForArea.filter((t) => t.archived).length} archived
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 
