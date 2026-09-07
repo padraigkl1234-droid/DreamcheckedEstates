@@ -3613,14 +3613,15 @@ function TaskManager({
             <button
               onClick={() => pickImages(task.id)}
               disabled={uploadingImageFor === task.id}
-              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright disabled:opacity-50"
               title="Add photos"
             >
               {uploadingImageFor === task.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+              <span className="text-xs font-medium">Photos</span>
             </button>
             <button
               onClick={() => openMaterials(task.id)}
-              className={`flex items-center gap-1.5 rounded-md border p-1.5 transition-all ${
+              className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 transition-all ${
                 materialsOpenFor === task.id || (task.materials?.length ?? 0) > 0
                   ? 'border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 text-invictus-crimson-bright'
                   : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright'
@@ -3628,13 +3629,13 @@ function TaskManager({
               title="Materials needed for this task"
             >
               <Package className="h-3.5 w-3.5" />
-              {(task.materials?.length ?? 0) > 0 && (
-                <span className="text-xs font-semibold">{task.materials!.length}</span>
-              )}
+              <span className="text-xs font-medium">
+                Materials{(task.materials?.length ?? 0) > 0 ? ` (${task.materials!.length})` : ''}
+              </span>
             </button>
             <button
               onClick={() => openTimeline(task.id)}
-              className={`flex items-center gap-1.5 rounded-md border p-1.5 transition-all ${
+              className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 transition-all ${
                 timelineOpenFor === task.id || (task.updates?.length ?? 0) > 0
                   ? 'border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 text-invictus-crimson-bright'
                   : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright'
@@ -3642,16 +3643,17 @@ function TaskManager({
               title="Add an update — every addition is timestamped"
             >
               <MessageSquarePlus className="h-3.5 w-3.5" />
-              {(task.updates?.length ?? 0) > 0 && (
-                <span className="text-xs font-semibold">{task.updates!.length}</span>
-              )}
+              <span className="text-xs font-medium">
+                Updates{(task.updates?.length ?? 0) > 0 ? ` (${task.updates!.length})` : ''}
+              </span>
             </button>
             <button
               onClick={() => startEdit(task)}
-              className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+              className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
               title="Edit task"
             >
               <Pencil className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Edit</span>
             </button>
             <button
               onClick={() => onFileReport(task)}
