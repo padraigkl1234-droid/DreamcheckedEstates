@@ -2081,12 +2081,16 @@ function toPoints(poly: Pt[]): string {
 // Thermal ramp used by the dashboard heat-map: cool/dark (few tasks) through
 // crimson and orange to amber/white-hot (busiest). t is normalised 0..1.
 function heatColor(t: number): string {
+  // Cool/legible yellow at the cheap end, deep red at the dear end — red
+  // reads as "hottest/most expensive", not the reverse. (No near-black stop
+  // at the top: that shade existed to fade low-activity squares into the
+  // background, which is wrong once the top of the ramp is what should pop.)
   const stops: Array<[number, [number, number, number]]> = [
-    [0.0, [40, 20, 22]],
-    [0.25, [120, 26, 28]],
+    [0.0, [250, 214, 70]],
+    [0.25, [240, 130, 34]],
     [0.5, [200, 38, 38]],
-    [0.75, [240, 130, 34]],
-    [1.0, [250, 214, 70]],
+    [0.75, [160, 30, 30]],
+    [1.0, [120, 26, 28]],
   ];
   const v = Math.max(0, Math.min(1, t));
   for (let i = 1; i < stops.length; i++) {
@@ -2098,7 +2102,7 @@ function heatColor(t: number): string {
       return `rgb(${mix(c0[0], c1[0])}, ${mix(c0[1], c1[1])}, ${mix(c0[2], c1[2])})`;
     }
   }
-  return 'rgb(250, 214, 70)';
+  return 'rgb(120, 26, 28)';
 }
 
 // Toggleable teammate chips — lets an assigner pick any number of people at
