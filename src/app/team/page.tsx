@@ -266,19 +266,26 @@ export default function TeamPage() {
                       </div>
 
                       <div className="flex shrink-0 flex-wrap items-center gap-2">
-                        {/* Fire Marshal / First Aider — a commander/master sees a toggle
-                            for every badge; anyone else only sees the ones actually granted. */}
+                        {/* Fire Marshal / First Aider — a commander/master sees a clickable
+                            toggle for every badge; anyone else sees the same two badges
+                            read-only, dim when not held, so it's always clear either way
+                            rather than a blank that could just as easily mean "not tracked". */}
                         {BADGES.map(({ key, label, icon: Icon }) => {
                           const on = Boolean(m[key]);
                           if (!canManage) {
-                            return on ? (
+                            return (
                               <span
                                 key={key}
-                                className="flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-widest text-amber-300"
+                                title={on ? `Certified ${label}` : `Not marked as ${label}`}
+                                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-widest ${
+                                  on
+                                    ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
+                                    : 'border-neutral-400/15 bg-invictus-base/40 text-neutral-600'
+                                }`}
                               >
                                 <Icon className="h-3 w-3" /> {label}
                               </span>
-                            ) : null;
+                            );
                           }
                           return (
                             <button
