@@ -4463,50 +4463,242 @@ function TaskArchive({
   onRestore: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const sorted = [...archivedTasks].sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+  const [search, setSearch] = useState('');
+  const [areaFilter, setAreaFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState<Priority | ''>('');
+  // Collapsed groups only — a category you haven't touched starts open, same
+  // convention as the Inspections list.
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+
+  const areas = useMemo(
+    () => Array.from(new Set(archivedTasks.map((t) => t.area).filter((a): a is string => Boolean(a)))).sort(),
+    [archivedTasks]
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return archivedTasks.filter((t) => {
+      if (q && !t.name.toLowerCase().includes(q) && !(t.notes ?? '').toLowerCase().includes(q)) return false;
+      if (areaFilter && t.area !== areaFilter) return false;
+      if (priorityFilter && t.priority !== priorityFilter) return false;
+      return true;
+    });
+  }, [archivedTasks, search, areaFilter, priorityFilter]);
+
+  // Grouped by category — the biggest groups first, so "Maintenance" (say)
+  // doesn't get buried below a run of one-off categories.
+  const groups = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    for (const t of filtered) {
+      const key = t.category?.trim() || 'Uncategorized';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(t);
+    }
+    return Array.from(map.entries())
+      .map(([name, items]) => ({ name, items: items.sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0)) }))
+      .sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
+  }, [filtered]);
+
+  const toggleGroup = (name: string) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleSelectGroup = (items: Task[]) => {
+    const allSelected = items.every((t) => selected.has(t.id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      items.forEach((t) => (allSelected ? next.delete(t.id) : next.add(t.id)));
+      return next;
+    });
+  };
+
+  const bulkRestore = () => {
+    selected.forEach((id) => onRestore(id));
+    setSelected(new Set());
+  };
+  const bulkDelete = () => {
+    selected.forEach((id) => onDelete(id));
+    setSelected(new Set());
+    setConfirmBulkDelete(false);
+  };
+
+  const filtersActive = Boolean(search || areaFilter || priorityFilter);
+  const clearFilters = () => {
+    setSearch('');
+    setAreaFilter('');
+    setPriorityFilter('');
+  };
 
   return (
     <div className="space-y-5">
       <Panel title={`Archived Tasks (${archivedTasks.length})`} icon={Archive} refCode="0105-T">
-        <div className="space-y-2">
-          {sorted.length === 0 && (
-            <p className="py-8 text-center text-xs text-neutral-600">
-              No archived tasks yet — completed tasks you archive from Task Manager will show up here.
-            </p>
-          )}
-          {sorted.map((task) => (
-            <div
-              key={task.id}
-              className="relative flex flex-col gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:flex-row md:items-center md:justify-between"
-            >
-              <MicroCorners />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-neutral-400">{task.name}</p>
-                <Kicker>
-                  Archived {task.archivedAt ? new Date(task.archivedAt).toLocaleDateString() : '—'}
-                </Kicker>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
-                  {task.priority}
-                </span>
-                <button
-                  onClick={() => onRestore(task.id)}
-                  className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
-                  title="Restore to active tasks"
-                >
-                  <ArchiveRestore className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => onDelete(task.id)}
-                  className="rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
-                  title="Delete permanently"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+        {archivedTasks.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[200px] flex-1">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-500" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search archived tasks…"
+                className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 pl-8 pr-3 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+              />
             </div>
-          ))}
+            <InvictusSelect
+              value={areaFilter}
+              onChange={setAreaFilter}
+              compact
+              className="w-auto bg-invictus-base/60"
+              options={[{ value: '', label: 'All areas' }, ...areas.map((a) => ({ value: a, label: a }))]}
+            />
+            <InvictusSelect
+              value={priorityFilter}
+              onChange={(v) => setPriorityFilter(v as Priority | '')}
+              compact
+              className="w-auto bg-invictus-base/60"
+              options={[
+                { value: '', label: 'All priorities' },
+                { value: 'High', label: 'High' },
+                { value: 'Medium', label: 'Medium' },
+                { value: 'Low', label: 'Low' },
+              ]}
+            />
+            {filtersActive && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-[11px] text-neutral-400 transition-colors hover:text-neutral-200"
+              >
+                <X className="h-3 w-3" /> Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {selected.size > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-3 py-2">
+            <span className="text-xs font-semibold text-neutral-100">{selected.size} selected</span>
+            <button
+              onClick={bulkRestore}
+              className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1 text-[11px] text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+            >
+              <ArchiveRestore className="h-3 w-3" /> Restore
+            </button>
+            {confirmBulkDelete ? (
+              <>
+                <button onClick={bulkDelete} className="rounded-md border border-alert/50 bg-alert/10 px-2.5 py-1 text-[11px] font-semibold text-alert">
+                  Confirm delete
+                </button>
+                <button onClick={() => setConfirmBulkDelete(false)} className="text-[11px] text-neutral-500 hover:text-neutral-300">
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setConfirmBulkDelete(true)}
+                className="flex items-center gap-1.5 rounded-md border border-alert/30 bg-alert/10 px-2.5 py-1 text-[11px] text-alert transition-colors hover:bg-alert/20"
+              >
+                <Trash2 className="h-3 w-3" /> Delete permanently
+              </button>
+            )}
+            <button onClick={() => setSelected(new Set())} className="ml-auto text-[11px] text-neutral-500 hover:text-neutral-300">
+              Clear selection
+            </button>
+          </div>
+        )}
+
+        {groups.length === 0 && (
+          <p className="py-8 text-center text-xs text-neutral-600">
+            {archivedTasks.length === 0
+              ? 'No archived tasks yet — completed tasks you archive from Task Manager will show up here.'
+              : 'Nothing matches those filters.'}
+          </p>
+        )}
+
+        <div className="space-y-4">
+          {groups.map((g) => {
+            const isOpen = !collapsedGroups.has(g.name);
+            const allSelected = g.items.every((t) => selected.has(t.id));
+            return (
+              <div key={g.name}>
+                <div className="mb-2 flex items-center gap-2">
+                  <button onClick={() => toggleGroup(g.name)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                    <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-neutral-500 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                    <Tag className="h-3 w-3 shrink-0 text-neutral-600" />
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">{g.name}</span>
+                    <span className="rounded-full border border-neutral-400/25 px-1.5 py-0.5 text-[9px] text-neutral-500">{g.items.length}</span>
+                    <span className="h-px flex-1 bg-neutral-400/15" />
+                  </button>
+                  {isOpen && (
+                    <button
+                      onClick={() => toggleSelectGroup(g.items)}
+                      className="shrink-0 text-[10px] uppercase tracking-widest text-neutral-500 transition-colors hover:text-neutral-300"
+                    >
+                      {allSelected ? 'Deselect all' : 'Select all'}
+                    </button>
+                  )}
+                </div>
+                {isOpen && (
+                  <div className="space-y-2">
+                    {g.items.map((task) => (
+                      <div
+                        key={task.id}
+                        className="relative flex flex-col gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:flex-row md:items-center md:justify-between"
+                      >
+                        <MicroCorners />
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(task.id)}
+                            onChange={() => toggleSelect(task.id)}
+                            className="mt-1 h-4 w-4 shrink-0 accent-invictus-crimson-bright"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm text-neutral-400">{task.name}</p>
+                            <Kicker>
+                              Archived {task.archivedAt ? new Date(task.archivedAt).toLocaleDateString() : '—'}
+                              {task.area ? ` · ${task.area}` : ''}
+                            </Kicker>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 pl-7 md:pl-0">
+                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
+                            {task.priority}
+                          </span>
+                          <button
+                            onClick={() => onRestore(task.id)}
+                            className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+                            title="Restore to active tasks"
+                          >
+                            <ArchiveRestore className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onDelete(task.id)}
+                            className="rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
+                            title="Delete permanently"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </Panel>
     </div>
