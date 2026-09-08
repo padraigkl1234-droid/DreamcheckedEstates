@@ -5249,7 +5249,7 @@ function ComplianceTracker({
         {/* Shared file picker for attaching reports to items */}
         <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChosen} />
         {uploadError && <p className="mb-3 text-xs text-alert">{uploadError}</p>}
-        <div className="mb-2 hidden gap-3 px-3 text-[10px] uppercase tracking-widest text-neutral-600 md:grid md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.1fr_auto_auto]">
+        <div className="mb-2 hidden gap-3 px-3 text-[10px] uppercase tracking-widest text-neutral-600 md:grid md:grid-cols-[32px_1.3fr_0.75fr_0.75fr_1.1fr_240px_40px]">
           <span>Status</span>
           <span>Item</span>
           <span>Last Completed</span>
@@ -5279,7 +5279,7 @@ function ComplianceTracker({
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    className="relative grid grid-cols-1 items-start gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:grid-cols-[auto_1.3fr_0.75fr_0.75fr_1.1fr_auto_auto]"
+                    className="relative grid grid-cols-1 items-start gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:grid-cols-[32px_1.3fr_0.75fr_0.75fr_1.1fr_240px_40px]"
                   >
                     <MicroCorners />
                     <button
