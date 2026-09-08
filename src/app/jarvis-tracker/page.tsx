@@ -5,6 +5,14 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { zonePlanFor } from '@/lib/zonePlans';
 import {
+  type RecurrenceFreq,
+  type EventRecurrence,
+  type CalendarEvent,
+  formatDisplayTime,
+  addRecurrenceStep,
+  getOccurrencesInRange,
+} from '@/lib/calendarEvents';
+import {
   type Pt,
   type GridCell,
   SITE_BOUNDARY,
@@ -66,6 +74,7 @@ import {
   ShieldCheck,
   Plus,
   Trash2,
+  Link as LinkIcon,
   Wifi,
   Newspaper,
   CheckCircle2,
@@ -218,56 +227,9 @@ interface TeamMember {
   lastSeen?: number;
 }
 
-type RecurrenceFreq = 'weekly' | 'fortnightly' | 'monthly';
-
-interface EventRecurrence {
-  freq: RecurrenceFreq;
-  until: string; // ISO date, inclusive
-}
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  date: string; // first occurrence
-  time?: string; // optional start time, "HH:MM" 24h
-  priority: Priority;
-  notes: string;
-  recurrence?: EventRecurrence;
-  completedDates?: string[]; // occurrence dates (YYYY-MM-DD) ticked off as done
-}
-
-// Turn a 24h "HH:MM" string into a friendly "2:30 PM". Returns '' if empty/bad.
-function formatDisplayTime(time: string | undefined): string {
-  if (!time) return '';
-  const [h, m] = time.split(':').map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return '';
-  const period = h < 12 ? 'AM' : 'PM';
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
-}
-
-function addRecurrenceStep(d: Date, freq: RecurrenceFreq): Date {
-  if (freq === 'weekly') return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7);
-  if (freq === 'fortnightly') return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 14);
-  return new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
-}
-
-// Expands a (possibly recurring) event into every occurrence date that falls within [rangeStart, rangeEnd].
-function getOccurrencesInRange(event: CalendarEvent, rangeStart: string, rangeEnd: string): string[] {
-  if (!event.recurrence) {
-    return event.date >= rangeStart && event.date <= rangeEnd ? [event.date] : [];
-  }
-  const occurrences: string[] = [];
-  const until = event.recurrence.until && event.recurrence.until < rangeEnd ? event.recurrence.until : rangeEnd;
-  const [y, m, d] = event.date.split('-').map(Number);
-  let cur = new Date(y, m - 1, d);
-  while (toDateInputValue(cur) <= until) {
-    const curStr = toDateInputValue(cur);
-    if (curStr >= rangeStart && curStr >= event.date) occurrences.push(curStr);
-    cur = addRecurrenceStep(cur, event.recurrence.freq);
-  }
-  return occurrences;
-}
+// Calendar event shape + recurrence math live in @/lib/calendarEvents
+// (imported above) — shared with /assignments, which writes straight into a
+// user's jarvisState/{uid}.events the same way this tab does.
 
 // ---------------------------------------------------------------------------
 // Seed data
@@ -2051,12 +2013,20 @@ function CalendarPage({
                 {selectedEvent.event.notes || 'No notes added.'}
               </p>
             </div>
+            {selectedEvent.event.link && (
+              <Link
+                href={selectedEvent.event.link.href}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 py-2 text-xs font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-all hover:bg-invictus-crimson-bright/20"
+              >
+                <LinkIcon className="h-3.5 w-3.5" /> {selectedEvent.event.link.label}
+              </Link>
+            )}
             <button
               onClick={() => {
                 onDelete(selectedEvent.event.id);
                 setSelectedEvent(null);
               }}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-alert/40 bg-alert/10 py-2 text-xs font-semibold uppercase tracking-widest text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-alert/40 bg-alert/10 py-2 text-xs font-semibold uppercase tracking-widest text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
             >
               <Trash2 className="h-3.5 w-3.5" /> {selectedEvent.event.recurrence ? 'Delete Entire Series' : 'Delete Entry'}
             </button>

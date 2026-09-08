@@ -38,6 +38,7 @@ import {
   Radio,
   Users,
   AlertTriangle,
+  UserCheck,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -63,6 +64,7 @@ export type PageKey =
   | 'inspections'
   | 'audits'
   | 'incidents'
+  | 'assignments'
   | 'tasks'
   | 'sitemap'
   | 'team'
@@ -90,6 +92,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'inspections', label: 'Inspections', icon: SearchCheck, feature: 'inspections', route: '/inspections' },
   { key: 'audits', label: 'Audits', icon: ClipboardList, feature: 'audits', route: '/audits' },
   { key: 'incidents', label: 'Incident Reports', icon: AlertTriangle, feature: 'incidents', route: '/incidents' },
+  { key: 'assignments', label: 'Assignments', icon: UserCheck, feature: 'assignments', route: '/assignments' },
   { key: 'tasks', label: 'Task Manager', icon: ListChecks, feature: 'taskManager' },
   { key: 'sitemap', label: 'Site Map', icon: MapIcon, feature: 'siteMap' },
   { key: 'team', label: 'Team', icon: Users, feature: 'team', route: '/team' },
@@ -111,6 +114,7 @@ export const NAV_LABEL_KEYS: Record<PageKey, string> = {
   inspections: 'nav.inspections',
   audits: 'nav.audits',
   incidents: 'nav.incidents',
+  assignments: 'nav.assignments',
   tasks: 'nav.taskManager',
   sitemap: 'nav.siteMap',
   team: 'nav.team',
@@ -138,7 +142,7 @@ const NAV_GROUPS: NavGroup[] = [
     key: 'actions',
     labelKey: 'nav.group.actions',
     icon: ClipboardCheck,
-    items: ['checklists', 'inspections', 'estateRequests', 'audits', 'incidents', 'compliance'],
+    items: ['checklists', 'inspections', 'estateRequests', 'audits', 'incidents', 'assignments', 'compliance'],
   },
 ];
 

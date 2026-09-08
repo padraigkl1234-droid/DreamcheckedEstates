@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebaseAdmin';
 import { runAutomation } from '@/lib/automationHandlers/registry';
-import { runScheduledInspection } from '@/lib/automationHandlers/inspectionSchedule';
 import type { Automation } from '@/lib/automations';
-import { isTemplateDueToday, type InspectionTemplate } from '@/lib/inspections';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Daily cron (see vercel.json — Vercel's Hobby plan only allows daily-or-
-// slower schedules, so this can't run more often). Two independent jobs share
-// this one trigger:
-//   - automations: checks every enabled automation doc and runs whichever are
-//     due today (weekday match).
-//   - inspection schedules: checks every inspection template's own recurring
-//     schedule (see /inspections) and raises a task when one's due.
-// Both guard against a retried cron the same day via `lastRunKey`.
+// slower schedules, so this can't run more often). Checks every enabled
+// automation doc and runs whichever are due today (weekday match), guarding
+// against a retried cron the same day via `lastRunKey`.
+//
+// Inspections used to have their own recurring-schedule path here too (set
+// on the template itself, raising a task when due) — that's been replaced by
+// /assignments, which puts a one-off or recurring entry straight on the
+// assignee's Calendar once they accept, so there's nothing left for a daily
+// job to check.
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -54,30 +54,5 @@ export async function GET(req: Request) {
     }
   }
 
-  const templatesSnap = await db.collection('inspectionTemplates').get();
-  const inspectionResults: Record<string, string> = {};
-
-  for (const doc of templatesSnap.docs) {
-    const template = { id: doc.id, ...doc.data() } as InspectionTemplate;
-    if (!isTemplateDueToday(template.schedule, now)) continue;
-    if (template.lastRunKey === runKey) continue;
-    try {
-      const result = await runScheduledInspection(db, template, now);
-      await doc.ref.update({ lastRunKey: runKey, lastRunAt: Date.now(), lastRunDetail: result.detail });
-      inspectionResults[doc.id] = result.detail;
-    } catch (error) {
-      const detail = `error: ${(error as Error).message}`;
-      inspectionResults[doc.id] = detail;
-      await doc.ref.update({ lastRunKey: runKey, lastRunAt: Date.now(), lastRunDetail: detail }).catch(() => {});
-      console.error(`inspection schedule ${doc.id} failed:`, error);
-    }
-  }
-
-  return NextResponse.json({
-    ok: true,
-    checked: snap.size,
-    results,
-    inspectionsChecked: templatesSnap.size,
-    inspectionResults,
-  });
+  return NextResponse.json({ ok: true, checked: snap.size, results });
 }

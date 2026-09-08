@@ -8,6 +8,7 @@
 // attachments and PDF export.
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { collection, deleteDoc, doc, onSnapshot, query, setDoc, where, type QuerySnapshot } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
@@ -26,7 +27,6 @@ import {
   MessageSquare,
   Asterisk,
   Tag,
-  CalendarClock,
   Users,
   Layers,
 } from 'lucide-react';
@@ -35,14 +35,11 @@ import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { AppSidebar, AppMobileNav } from '@/components/AppSidebar';
 import { InvictusSelect } from '@/components/InvictusSelect';
-import { featureEnabled, isCommander, profileName, type UserProfile } from '@/lib/teams';
-import { DAY_LABELS } from '@/lib/automations';
+import { featureEnabled, isCommander, profileName } from '@/lib/teams';
 import {
   INSPECTION_OUTCOMES,
   INSPECTION_OUTCOME_STYLES,
-  MAX_DAY_OF_MONTH,
   QUESTION_TYPES,
-  RECURRENCE_LABELS,
   STARTER_TEMPLATES,
   blankAnswers,
   blankQuestion,
@@ -51,9 +48,7 @@ import {
   groupBySection,
   isUnanswered,
   newQuestionId,
-  ordinal,
   overallOutcome,
-  scheduleSummary,
   sectionNames,
   summarise,
   templateQuestions,
@@ -62,9 +57,7 @@ import {
   type InspectionPhoto,
   type InspectionQuestion,
   type InspectionQuestionType,
-  type InspectionSchedule,
   type InspectionTemplate,
-  type RecurrenceFrequency,
 } from '@/lib/inspections';
 import type { Report, ReportAttachment, ReportVisibility } from '@/lib/reports';
 
@@ -98,7 +91,6 @@ export default function InspectionsPage() {
 
   const [templates, setTemplates] = useState<InspectionTemplate[]>([]);
   const [recent, setRecent] = useState<Report[]>([]);
-  const [roster, setRoster] = useState<UserProfile[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [showBuilder, setShowBuilder] = useState(false);
@@ -177,20 +169,6 @@ export default function InspectionsPage() {
     };
   }, [user, teamId, amCommander]);
 
-  // The team roster, for the assignee picker — who a due inspection raises a
-  // task for.
-  useEffect(() => {
-    if (!user || !teamId) {
-      setRoster([]);
-      return;
-    }
-    return onSnapshot(
-      query(collection(db, 'users'), where('teamId', '==', teamId)),
-      (snap) => setRoster(snap.docs.map((d) => ({ ...(d.data() as Omit<UserProfile, 'uid'>), uid: d.id }))),
-      (e) => console.error('Roster subscription failed:', e)
-    );
-  }, [user, teamId]);
-
   const lastRunByTemplate = useMemo(() => {
     const map = new Map<string, Report>();
     // `recent` is newest-first, so the first hit per template is the latest.
@@ -211,9 +189,6 @@ export default function InspectionsPage() {
     description: string;
     group: string;
     questions: InspectionQuestion[];
-    schedule: InspectionSchedule;
-    assigneeUids: string[];
-    assigneeNames: string[];
   }) => {
     if (!user || !teamId) throw new Error('You need to be in a team to create an inspection.');
     const id = editing?.id ?? genId('insp');
@@ -223,9 +198,6 @@ export default function InspectionsPage() {
       ...(draft.description ? { description: draft.description } : {}),
       ...(draft.group ? { group: draft.group } : {}),
       questions: draft.questions,
-      schedule: draft.schedule,
-      assigneeUids: draft.assigneeUids,
-      assigneeNames: draft.assigneeNames,
       teamId,
       createdAt: editing?.createdAt ?? Date.now(),
       createdBy: editing?.createdBy ?? user.uid,
@@ -348,7 +320,6 @@ export default function InspectionsPage() {
           key={editing?.id ?? 'new'}
           template={editing}
           existingGroups={existingGroups}
-          roster={roster}
           onCancel={() => {
             setShowBuilder(false);
             setEditing(null);
@@ -381,7 +352,6 @@ export default function InspectionsPage() {
                     const isOpen = expanded === t.id;
                     const last = lastRunByTemplate.get(t.id);
                     const questions = templateQuestions(t);
-                    const schedule = scheduleSummary(t.schedule, DAY_LABELS);
                     return (
                       <section key={t.id} className="overflow-hidden rounded-xl border border-neutral-400/20 bg-invictus-surface/60">
                         <div className="flex flex-wrap items-center gap-2 p-4">
@@ -397,24 +367,17 @@ export default function InspectionsPage() {
                                 {questions.length} question{questions.length === 1 ? '' : 's'}
                                 {last ? ` · last run ${last.date} — ${last.outcome === 'fail' ? 'failed' : 'passed'}` : ' · never run'}
                               </p>
-                              {(schedule || !!t.assigneeNames?.length) && (
-                                <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-neutral-600">
-                                  {schedule && (
-                                    <span className="flex items-center gap-1">
-                                      <CalendarClock className="h-3 w-3" /> {schedule}
-                                    </span>
-                                  )}
-                                  {!!t.assigneeNames?.length && (
-                                    <span className="flex items-center gap-1">
-                                      <Users className="h-3 w-3" /> {t.assigneeNames.join(', ')}
-                                    </span>
-                                  )}
-                                </p>
-                              )}
                             </div>
                           </button>
                           {user && (
                             <>
+                              <Link
+                                href={`/assignments?item=${t.id}`}
+                                className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                                title="Assign this inspection to someone"
+                              >
+                                <Users className="h-3.5 w-3.5" /> Assign
+                              </Link>
                               <button
                                 onClick={() => setRunning(t)}
                                 className="flex shrink-0 items-center gap-1.5 rounded-md border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20"
@@ -512,22 +475,17 @@ export default function InspectionsPage() {
 function TemplateBuilder({
   template,
   existingGroups,
-  roster,
   onCancel,
   onSave,
 }: {
   template: InspectionTemplate | null;
   existingGroups: string[];
-  roster: UserProfile[];
   onCancel: () => void;
   onSave: (draft: {
     name: string;
     description: string;
     group: string;
     questions: InspectionQuestion[];
-    schedule: InspectionSchedule;
-    assigneeUids: string[];
-    assigneeNames: string[];
   }) => Promise<void>;
 }) {
   const [name, setName] = useState(template?.name ?? '');
@@ -537,19 +495,12 @@ function TemplateBuilder({
   );
   const [groupChoice, setGroupChoice] = useState(template?.group?.trim() || '');
   const [newGroupName, setNewGroupName] = useState('');
-  const [frequency, setFrequency] = useState<RecurrenceFrequency>(template?.schedule?.frequency ?? 'none');
-  const [dayOfWeek, setDayOfWeek] = useState(template?.schedule?.dayOfWeek ?? 1); // Monday
-  const [dayOfMonth, setDayOfMonth] = useState(template?.schedule?.dayOfMonth ?? 1);
-  const [assigneeUids, setAssigneeUids] = useState<string[]>(template?.assigneeUids ?? []);
   // Which question is mid-"type a new section name" — its select just chose
   // "+ New section…" and is waiting on the inline text box below it.
   const [pendingSectionFor, setPendingSectionFor] = useState<string | null>(null);
   const [pendingSectionName, setPendingSectionName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const toggleAssignee = (uid: string) =>
-    setAssigneeUids((prev) => (prev.includes(uid) ? prev.filter((u) => u !== uid) : [...prev, uid]));
 
   const patch = (id: string, changes: Partial<InspectionQuestion>) =>
     setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, ...changes } : q)));
@@ -666,10 +617,6 @@ function TemplateBuilder({
       setError(`"${badChoice.label}" needs at least two options.`);
       return;
     }
-    if (frequency !== 'none' && !assigneeUids.length) {
-      setError('Pick at least one person for the schedule to raise a task for, or set it back to Manual only.');
-      return;
-    }
     setSaving(true);
     setError(null);
     try {
@@ -678,21 +625,11 @@ function TemplateBuilder({
         Object.fromEntries(Object.entries(q).filter(([, v]) => v !== undefined && v !== false))
       ) as unknown as InspectionQuestion[];
       const group = groupChoice === NEW_GROUP ? newGroupName.trim() : groupChoice;
-      const schedule: InspectionSchedule =
-        frequency === 'weekly'
-          ? { frequency, dayOfWeek }
-          : frequency === 'monthly'
-            ? { frequency, dayOfMonth }
-            : { frequency: 'none' };
-      const chosen = roster.filter((u) => assigneeUids.includes(u.uid));
       await onSave({
         name: name.trim(),
         description: description.trim(),
         group,
         questions: stripped,
-        schedule,
-        assigneeUids: chosen.map((u) => u.uid),
-        assigneeNames: chosen.map((u) => profileName(u)),
       });
     } catch (err) {
       console.error('Failed to save inspection template:', err);
@@ -915,82 +852,13 @@ function TemplateBuilder({
         ))}
       </div>
 
-      <div className="space-y-3 rounded-xl border border-neutral-400/20 bg-invictus-base/40 p-4">
-        <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-500">
-          <CalendarClock className="h-3.5 w-3.5" /> Recurring schedule (optional)
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          {(Object.keys(RECURRENCE_LABELS) as RecurrenceFrequency[]).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFrequency(f)}
-              className={`rounded-md border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest transition-colors ${
-                frequency === f
-                  ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 text-neutral-100'
-                  : 'border-neutral-400/25 text-neutral-500 hover:text-neutral-300'
-              }`}
-            >
-              {RECURRENCE_LABELS[f]}
-            </button>
-          ))}
-        </div>
-
-        {frequency === 'weekly' && (
-          <div className="w-48">
-            <label className="mb-1 block text-[10px] uppercase tracking-widest text-neutral-500">Day</label>
-            <InvictusSelect
-              value={String(dayOfWeek)}
-              onChange={(v) => setDayOfWeek(Number(v))}
-              className="bg-invictus-surface/60"
-              options={DAY_LABELS.map((label, i) => ({ value: String(i), label }))}
-            />
-          </div>
-        )}
-        {frequency === 'monthly' && (
-          <div className="w-48">
-            <label className="mb-1 block text-[10px] uppercase tracking-widest text-neutral-500">Day of month</label>
-            <InvictusSelect
-              value={String(dayOfMonth)}
-              onChange={(v) => setDayOfMonth(Number(v))}
-              className="bg-invictus-surface/60"
-              // Capped at the 28th so the job never skips a February.
-              options={Array.from({ length: MAX_DAY_OF_MONTH }, (_, i) => ({ value: String(i + 1), label: ordinal(i + 1) }))}
-            />
-          </div>
-        )}
-
-        {frequency !== 'none' && (
-          <div>
-            <label className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-500">
-              <Users className="h-3 w-3" /> Goes to — first person owns it, the rest are offered it
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {roster
-                .filter((u) => !u.blocked)
-                .map((u) => {
-                  const on = assigneeUids.includes(u.uid);
-                  return (
-                    <button
-                      key={u.uid}
-                      type="button"
-                      onClick={() => toggleAssignee(u.uid)}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                        on
-                          ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
-                          : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-400 hover:text-neutral-200'
-                      }`}
-                      title={u.email ?? undefined}
-                    >
-                      {profileName(u)}
-                    </button>
-                  );
-                })}
-              {roster.length === 0 && <p className="text-xs text-neutral-600">No people found.</p>}
-            </div>
-          </div>
-        )}
-      </div>
+      <p className="rounded-xl border border-neutral-400/20 bg-invictus-base/40 p-4 text-[11px] text-neutral-500">
+        Assigning this to someone, one-off or on a repeating schedule, happens from{' '}
+        <Link href="/assignments" className="text-invictus-crimson-bright hover:underline">
+          Assignments
+        </Link>{' '}
+        once it's saved.
+      </p>
 
       {error && <p className="text-xs text-alert">{error}</p>}
 

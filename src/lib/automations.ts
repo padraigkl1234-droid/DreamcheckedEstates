@@ -9,9 +9,8 @@
 // src/lib/automationHandlers, and (3) a case in automationHandlers/registry.ts
 // — no changes to the cron route or the scheduling UI are needed.
 //
-// Recurring inspections (see src/lib/inspections.ts) are a separate, simpler
-// scheduling concept living on the template itself rather than as a doc here
-// — see isTemplateDueToday and src/lib/automationHandlers/inspectionSchedule.
+// Assigning and scheduling an inspection (one-off or recurring) is a
+// separate concept, not one of these — see src/app/assignments/page.tsx.
 
 export type AutomationType = 'weeklyReport' | 'overdueReport' | 'showScheduled';
 

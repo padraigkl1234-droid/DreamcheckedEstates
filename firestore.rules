@@ -195,11 +195,30 @@ service cloud.firestore {
       allow read: if isMasterAdmin() || teamId == myTeam();
     }
 
-    // Estates assignments module. Not yet team-scoped (its documents carry no
-    // teamId), so this is the coarser bar used elsewhere pre-team-scoping:
-    // signed in AND actually on a team, not just any Google account.
-    match /assignments/{assignmentId} {
-      allow read, write: if isMasterAdmin() || amTeamMember();
+    // Assigning a piece of work (see /assignments) to a specific person, for
+    // a date or a repeating schedule, with an explicit accept/decline —
+    // private to the two parties, like a task, not team-wide visible.
+    match /assignments/{id} {
+      function isAssigner() { return resource.data.assignedByUid == request.auth.uid; }
+      function isAssignee() { return resource.data.assigneeUid == request.auth.uid; }
+      allow read: if request.auth != null && (isMasterAdmin() || isAssigner() || isAssignee());
+      allow create: if request.auth != null &&
+        amTeamMember() &&
+        request.resource.data.teamId == myTeam() &&
+        request.resource.data.assignedByUid == request.auth.uid &&
+        request.resource.data.assigneeUid != request.auth.uid &&
+        request.resource.data.status == 'pending';
+      // Only the assignee may accept/decline their own offer, and only that
+      // — nothing else on the document may change from here. The assigner
+      // may retract a still-pending offer by deleting it.
+      allow update: if request.auth != null && (
+        isMasterAdmin() ||
+        (isAssignee() &&
+          resource.data.status == 'pending' &&
+          request.resource.data.status in ['accepted', 'declined'] &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt']))
+      );
+      allow delete: if request.auth != null && (isMasterAdmin() || (isAssigner() && resource.data.status == 'pending'));
     }
 
     // Scheduled automations (e.g. the weekly email report). Master-only —
