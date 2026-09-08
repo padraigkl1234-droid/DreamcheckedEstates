@@ -19,6 +19,7 @@ export const TOGGLEABLE_PAGES: { key: string; label: string }[] = [
   { key: 'assignments', label: 'Assignments' },
   { key: 'calendar', label: 'Calendar' },
   { key: 'showBoard', label: 'Show Board' },
+  { key: 'showLog', label: 'Show Log' },
   { key: 'eventMode', label: 'Event Mode' },
   { key: 'siteMap', label: 'Site Map' },
   { key: 'team', label: 'Team' },

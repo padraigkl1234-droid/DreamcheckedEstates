@@ -75,6 +75,7 @@ import {
   Plus,
   Trash2,
   Link as LinkIcon,
+  History,
   Wifi,
   Newspaper,
   CheckCircle2,
@@ -3094,6 +3095,202 @@ function ShowsBoard({
 }
 
 // ---------------------------------------------------------------------------
+// Show Log — a compact, searchable record of shows that have already
+// happened. Upcoming shows stay on the Show Board above; this is purely a
+// history view (see the session discussion this was built from). Status is
+// the same live Ready/Outstanding signal the Board already computes from
+// each show's checklists — nothing new is stored, just a denser way to
+// browse what's piled up.
+// ---------------------------------------------------------------------------
+
+function ShowLog({
+  shows,
+  sections,
+  signedIn,
+  onDelete,
+  onToggleChecklist,
+}: {
+  shows: Show[];
+  sections: ChecklistSection[];
+  signedIn: boolean;
+  onDelete: (id: string) => void;
+  onToggleChecklist: (showId: string, checklistName: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'' | 'ready' | 'outstanding'>('');
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const today = showsTodayStr();
+
+  const past = useMemo(() => shows.filter((s) => s.date < today), [shows, today]);
+  const types = useMemo(() => Array.from(new Set(past.map((s) => s.type))).sort(), [past]);
+
+  const rows = useMemo(() => {
+    return past
+      .map((s) => ({ show: s, readiness: showReadiness(s, sections) }))
+      .filter(({ show, readiness }) => {
+        const q = search.trim().toLowerCase();
+        if (q && !`${show.type} ${show.title ?? ''}`.toLowerCase().includes(q)) return false;
+        if (typeFilter && show.type !== typeFilter) return false;
+        if (statusFilter === 'ready' && !readiness.ready) return false;
+        if (statusFilter === 'outstanding' && readiness.ready) return false;
+        return true;
+      })
+      .sort((a, b) => (a.show.date < b.show.date ? 1 : a.show.date > b.show.date ? -1 : 0));
+  }, [past, search, typeFilter, statusFilter, sections]);
+
+  if (!signedIn) {
+    return (
+      <div className="space-y-5">
+        <Panel title="Show Log" icon={History} refCode="0082-S">
+          <p className="py-10 text-center text-xs uppercase tracking-widest text-neutral-500">Sign in to view the Show Log.</p>
+        </Panel>
+      </div>
+    );
+  }
+
+  const filtersActive = Boolean(search || typeFilter || statusFilter);
+  const clearFilters = () => {
+    setSearch('');
+    setTypeFilter('');
+    setStatusFilter('');
+  };
+
+  return (
+    <div className="space-y-5">
+      <Panel title={`Show Log (${past.length})`} icon={History} refCode="0082-S">
+        <p className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
+          Every show that&apos;s already happened — upcoming shows stay on the Show Board.
+        </p>
+
+        {past.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[200px] flex-1">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-500" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search past shows…"
+                className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 pl-8 pr-3 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+              />
+            </div>
+            <InvictusSelect
+              value={typeFilter}
+              onChange={setTypeFilter}
+              compact
+              className="w-auto bg-invictus-base/60"
+              options={[{ value: '', label: 'All types' }, ...types.map((t) => ({ value: t, label: t }))]}
+            />
+            <InvictusSelect
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v as '' | 'ready' | 'outstanding')}
+              compact
+              className="w-auto bg-invictus-base/60"
+              options={[
+                { value: '', label: 'All statuses' },
+                { value: 'ready', label: 'Ready' },
+                { value: 'outstanding', label: 'Outstanding' },
+              ]}
+            />
+            {filtersActive && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-[11px] text-neutral-400 transition-colors hover:text-neutral-200"
+              >
+                <X className="h-3 w-3" /> Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {rows.length === 0 && (
+          <p className="py-8 text-center text-xs text-neutral-600">
+            {past.length === 0
+              ? "No shows have happened yet — this fills in once a scheduled show's date passes."
+              : 'Nothing matches those filters.'}
+          </p>
+        )}
+
+        <div className="space-y-1.5">
+          {rows.map(({ show, readiness }) => {
+            const isOpen = expanded === show.id;
+            return (
+              <div key={show.id} className="overflow-hidden rounded-md border border-neutral-400/20 bg-invictus-base/40">
+                <div className="flex flex-wrap items-center gap-3 p-3">
+                  <button
+                    onClick={() => setExpanded(isOpen ? null : show.id)}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  >
+                    <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-neutral-500 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                    <span className="w-24 shrink-0 text-xs text-neutral-500">{formatDisplayDate(show.date)}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-neutral-100">
+                      {show.title ? `${show.type} — ${show.title}` : show.type}
+                    </span>
+                    <span
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
+                        readiness.ready
+                          ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300'
+                          : 'border-alert/40 bg-alert/10 text-alert'
+                      }`}
+                    >
+                      <StatusLight on={readiness.ready} />
+                      {readiness.ready ? 'Ready' : `${readiness.total - readiness.done} Outstanding`}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => onDelete(show.id)}
+                    className="shrink-0 rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
+                    title="Remove show"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {isOpen && (
+                  <div className="space-y-2 border-t border-neutral-400/15 p-3">
+                    {readiness.forms.length === 0 && (
+                      <p className="py-2 text-center text-xs text-neutral-600">No checklists defined for this show type.</p>
+                    )}
+                    {readiness.forms.map((f) => {
+                      const isDone = Boolean(show.completed[f.name]);
+                      return (
+                        <div
+                          key={f.name}
+                          className={`flex items-center gap-3 rounded-md border p-2.5 transition-colors ${
+                            isDone ? 'border-emerald-400/25 bg-emerald-400/[0.04]' : 'border-neutral-400/20 bg-invictus-base/60'
+                          }`}
+                        >
+                          <button
+                            onClick={() => onToggleChecklist(show.id, f.name)}
+                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                            title={isDone ? 'Mark outstanding' : 'Mark complete'}
+                          >
+                            <StatusLight on={isDone} />
+                            <span className={`truncate text-sm ${isDone ? 'text-emerald-200' : 'text-neutral-100'}`}>{f.name}</span>
+                          </button>
+                          <a
+                            href={f.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 rounded-md border border-neutral-400/25 bg-invictus-base/60 px-2 py-1 text-[10px] uppercase tracking-widest text-neutral-400 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                            title="Open the Microsoft Form"
+                          >
+                            Form <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Task Manager
 // ---------------------------------------------------------------------------
 
@@ -5215,7 +5412,7 @@ function BootSplash() {
 let hasBootedThisSession = false;
 
 const VALID_PAGE_KEYS: PageKey[] = [
-  'dashboard', 'calendar', 'shows', 'sitemap', 'tasks', 'archive', 'compliance', 'reports', 'admin',
+  'dashboard', 'calendar', 'shows', 'showLog', 'sitemap', 'tasks', 'archive', 'compliance', 'reports', 'admin',
 ];
 
 export default function InvictusTrackerPage() {
@@ -5787,6 +5984,15 @@ function InvictusTracker() {
                 sections={teamSections}
                 signedIn={!!user}
                 onAdd={handleAddShow}
+                onDelete={handleDeleteShow}
+                onToggleChecklist={handleToggleShowChecklist}
+              />
+            )}
+            {activePage === 'showLog' && (
+              <ShowLog
+                shows={shows}
+                sections={teamSections}
+                signedIn={!!user}
                 onDelete={handleDeleteShow}
                 onToggleChecklist={handleToggleShowChecklist}
               />

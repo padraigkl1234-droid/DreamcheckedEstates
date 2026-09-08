@@ -29,6 +29,7 @@ const en: Record<string, string> = {
   'nav.dashboard': 'Dashboard',
   'nav.calendar': 'Calendar',
   'nav.showBoard': 'Show Board',
+  'nav.showLog': 'Show Log',
   'nav.eventMode': 'Event Mode',
   'nav.group.events': 'Events',
   'nav.group.actions': 'Actions',

@@ -39,6 +39,7 @@ import {
   Users,
   AlertTriangle,
   UserCheck,
+  History,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -58,6 +59,7 @@ export type PageKey =
   | 'dashboard'
   | 'calendar'
   | 'shows'
+  | 'showLog'
   | 'eventMode'
   | 'estateRequests'
   | 'checklists'
@@ -86,6 +88,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'calendar', label: 'Calendar', icon: CalendarDays, feature: 'calendar' },
   { key: 'shows', label: 'Show Board', icon: Clapperboard, feature: 'showBoard' },
+  { key: 'showLog', label: 'Show Log', icon: History, feature: 'showLog' },
   { key: 'eventMode', label: 'Event Mode', icon: Radio, feature: 'eventMode', route: '/event-mode' },
   { key: 'estateRequests', label: 'Estate Requests', icon: Wrench, feature: 'estateRequests', route: '/estate-requests' },
   { key: 'checklists', label: 'Checklists', icon: ClipboardCheck, feature: 'checklists', route: '/checklists' },
@@ -108,6 +111,7 @@ export const NAV_LABEL_KEYS: Record<PageKey, string> = {
   dashboard: 'nav.dashboard',
   calendar: 'nav.calendar',
   shows: 'nav.showBoard',
+  showLog: 'nav.showLog',
   eventMode: 'nav.eventMode',
   estateRequests: 'nav.estateRequests',
   checklists: 'nav.checklists',
@@ -137,7 +141,7 @@ interface NavGroup {
 }
 
 const NAV_GROUPS: NavGroup[] = [
-  { key: 'events', labelKey: 'nav.group.events', icon: Clapperboard, items: ['shows', 'eventMode'] },
+  { key: 'events', labelKey: 'nav.group.events', icon: Clapperboard, items: ['shows', 'showLog', 'eventMode'] },
   {
     key: 'actions',
     labelKey: 'nav.group.actions',
