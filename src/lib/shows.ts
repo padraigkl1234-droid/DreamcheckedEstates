@@ -14,6 +14,16 @@ export interface Show {
   title?: string;
   completed: Record<string, boolean>;
   teamId?: string | null;
+  // Set when someone presses "Complete Show" on the Show Board — that's what
+  // moves a show off the working board and into the Show Log. finishedResult
+  // freezes the readiness tally at that moment, so the Log records what the
+  // result actually was rather than recomputing it live against whatever the
+  // team's checklists happen to look like later.
+  finished?: boolean;
+  finishedAt?: number;
+  finishedBy?: string;
+  finishedByName?: string;
+  finishedResult?: { done: number; total: number; ready: boolean };
 }
 
 export interface ShowReadiness {

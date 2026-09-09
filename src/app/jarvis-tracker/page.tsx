@@ -1104,7 +1104,12 @@ function EventModeBanner() {
     const today = showsTodayStr();
     const unsub = onSnapshot(
       query(collection(db, 'shows'), where('teamId', '==', teamId), where('date', '==', today)),
-      (snap) => setTodaysShows(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Show, 'id'>) }))),
+      // A show already wrapped up (Complete Show pressed) shouldn't still read
+      // as "live and needs attention" on the dashboard.
+      (snap) =>
+        setTodaysShows(
+          snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Show, 'id'>) })).filter((s) => !s.finished)
+        ),
       (error) => console.error('Event Mode banner subscription failed:', error)
     );
     return unsub;
@@ -2909,6 +2914,7 @@ function ShowsBoard({
   onAdd,
   onDelete,
   onToggleChecklist,
+  onComplete,
 }: {
   shows: Show[];
   sections: ChecklistSection[];
@@ -2916,6 +2922,7 @@ function ShowsBoard({
   onAdd: (show: Show) => void;
   onDelete: (id: string) => void;
   onToggleChecklist: (showId: string, checklistName: string) => void;
+  onComplete: (id: string) => void;
 }) {
   const [date, setDate] = useState(() => toDateInputValue(new Date()));
   const [type, setType] = useState('');
@@ -2927,8 +2934,10 @@ function ShowsBoard({
     if (sections.length && !sections.some((s) => s.name === type)) setType(sections[0].name);
   }, [sections, type]);
 
+  // Once someone completes a show it's off the working board — see it in the
+  // Show Log from here on.
   const sortedShows = useMemo(
-    () => [...shows].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
+    () => shows.filter((s) => !s.finished).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
     [shows]
   );
 
@@ -3044,13 +3053,22 @@ function ShowsBoard({
                   {done}/{total} complete
                 </span>
               </div>
-              <button
-                onClick={() => onDelete(show.id)}
-                className="flex items-center justify-center rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
-                title="Remove show"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onComplete(show.id)}
+                  className="flex items-center gap-1.5 rounded-md border border-emerald-400/50 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-300 transition-all hover:bg-emerald-400/20"
+                  title="Wrap this show up — records the result and moves it to the Show Log"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Complete Show
+                </button>
+                <button
+                  onClick={() => onDelete(show.id)}
+                  className="flex items-center justify-center rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20 hover:shadow-glow-alert"
+                  title="Remove show"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -3095,12 +3113,13 @@ function ShowsBoard({
 }
 
 // ---------------------------------------------------------------------------
-// Show Log — a compact, searchable record of shows that have already
-// happened. Upcoming shows stay on the Show Board above; this is purely a
-// history view (see the session discussion this was built from). Status is
-// the same live Ready/Outstanding signal the Board already computes from
-// each show's checklists — nothing new is stored, just a denser way to
-// browse what's piled up.
+// Show Log — a recorded history of shows someone has actually wrapped up.
+// A show only lands here once "Complete Show" is pressed on the Show Board
+// (see handleCompleteShow) — that action freezes the show's readiness tally
+// as finishedResult, which is what this page displays as the result, rather
+// than recomputing it live (a checklist edited afterward shouldn't silently
+// rewrite history). The expandable per-checklist detail below each row still
+// reads live, so a mistake can still be corrected after the fact.
 // ---------------------------------------------------------------------------
 
 function ShowLog({
@@ -3109,35 +3128,36 @@ function ShowLog({
   signedIn,
   onDelete,
   onToggleChecklist,
+  onReopen,
 }: {
   shows: Show[];
   sections: ChecklistSection[];
   signedIn: boolean;
   onDelete: (id: string) => void;
   onToggleChecklist: (showId: string, checklistName: string) => void;
+  onReopen: (id: string) => void;
 }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | 'ready' | 'outstanding'>('');
   const [expanded, setExpanded] = useState<string | null>(null);
-  const today = showsTodayStr();
 
-  const past = useMemo(() => shows.filter((s) => s.date < today), [shows, today]);
-  const types = useMemo(() => Array.from(new Set(past.map((s) => s.type))).sort(), [past]);
+  const finished = useMemo(() => shows.filter((s) => s.finished), [shows]);
+  const types = useMemo(() => Array.from(new Set(finished.map((s) => s.type))).sort(), [finished]);
 
   const rows = useMemo(() => {
-    return past
-      .map((s) => ({ show: s, readiness: showReadiness(s, sections) }))
-      .filter(({ show, readiness }) => {
+    return finished
+      .filter((show) => {
         const q = search.trim().toLowerCase();
         if (q && !`${show.type} ${show.title ?? ''}`.toLowerCase().includes(q)) return false;
         if (typeFilter && show.type !== typeFilter) return false;
-        if (statusFilter === 'ready' && !readiness.ready) return false;
-        if (statusFilter === 'outstanding' && readiness.ready) return false;
+        const ready = show.finishedResult?.ready ?? false;
+        if (statusFilter === 'ready' && !ready) return false;
+        if (statusFilter === 'outstanding' && ready) return false;
         return true;
       })
-      .sort((a, b) => (a.show.date < b.show.date ? 1 : a.show.date > b.show.date ? -1 : 0));
-  }, [past, search, typeFilter, statusFilter, sections]);
+      .sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0));
+  }, [finished, search, typeFilter, statusFilter]);
 
   if (!signedIn) {
     return (
@@ -3158,19 +3178,19 @@ function ShowLog({
 
   return (
     <div className="space-y-5">
-      <Panel title={`Show Log (${past.length})`} icon={History} refCode="0082-S">
+      <Panel title={`Show Log (${finished.length})`} icon={History} refCode="0082-S">
         <p className="mb-4 text-[10px] uppercase tracking-widest text-neutral-600">
-          Every show that&apos;s already happened — upcoming shows stay on the Show Board.
+          Recorded when someone presses Complete Show on the Show Board — that&apos;s what moves a show here.
         </p>
 
-        {past.length > 0 && (
+        {finished.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <div className="relative min-w-[200px] flex-1">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-500" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search past shows…"
+                placeholder="Search the Show Log…"
                 className="w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 py-2 pl-8 pr-3 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
               />
             </div>
@@ -3205,15 +3225,17 @@ function ShowLog({
 
         {rows.length === 0 && (
           <p className="py-8 text-center text-xs text-neutral-600">
-            {past.length === 0
-              ? "No shows have happened yet — this fills in once a scheduled show's date passes."
+            {finished.length === 0
+              ? 'Nothing recorded yet — press Complete Show on the Show Board once a show is wrapped up.'
               : 'Nothing matches those filters.'}
           </p>
         )}
 
         <div className="space-y-1.5">
-          {rows.map(({ show, readiness }) => {
+          {rows.map((show) => {
             const isOpen = expanded === show.id;
+            const result = show.finishedResult;
+            const liveForms = showReadiness(show, sections).forms;
             return (
               <div key={show.id} className="overflow-hidden rounded-md border border-neutral-400/20 bg-invictus-base/40">
                 <div className="flex flex-wrap items-center gap-3 p-3">
@@ -3226,16 +3248,29 @@ function ShowLog({
                     <span className="min-w-0 flex-1 truncate text-sm text-neutral-100">
                       {show.title ? `${show.type} — ${show.title}` : show.type}
                     </span>
-                    <span
-                      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
-                        readiness.ready
-                          ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300'
-                          : 'border-alert/40 bg-alert/10 text-alert'
-                      }`}
-                    >
-                      <StatusLight on={readiness.ready} />
-                      {readiness.ready ? 'Ready' : `${readiness.total - readiness.done} Outstanding`}
+                    {result && (
+                      <span
+                        className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
+                          result.ready
+                            ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300'
+                            : 'border-alert/40 bg-alert/10 text-alert'
+                        }`}
+                      >
+                        <StatusLight on={result.ready} />
+                        {result.ready ? 'Ready' : `${result.total - result.done} Outstanding`}
+                      </span>
+                    )}
+                    <span className="shrink-0 text-[10px] text-neutral-600">
+                      {show.finishedByName ? `Completed by ${show.finishedByName}` : 'Completed'}
+                      {show.finishedAt ? ` · ${new Date(show.finishedAt).toLocaleDateString()}` : ''}
                     </span>
+                  </button>
+                  <button
+                    onClick={() => onReopen(show.id)}
+                    className="shrink-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+                    title="Put this show back on the Show Board"
+                  >
+                    <ArchiveRestore className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => onDelete(show.id)}
@@ -3247,10 +3282,10 @@ function ShowLog({
                 </div>
                 {isOpen && (
                   <div className="space-y-2 border-t border-neutral-400/15 p-3">
-                    {readiness.forms.length === 0 && (
+                    {liveForms.length === 0 && (
                       <p className="py-2 text-center text-xs text-neutral-600">No checklists defined for this show type.</p>
                     )}
-                    {readiness.forms.map((f) => {
+                    {liveForms.map((f) => {
                       const isDone = Boolean(show.completed[f.name]);
                       return (
                         <div
@@ -5943,6 +5978,33 @@ function InvictusTracker() {
       console.error('Failed to update show checklist:', e)
     );
   };
+  // Marks a show finished — off the working Show Board, into the Show Log —
+  // freezing its readiness tally at this moment as the recorded result.
+  const handleCompleteShow = (id: string) => {
+    if (!user) return;
+    const show = shows.find((s) => s.id === id);
+    if (!show) return;
+    const result = showReadiness(show, teamSections);
+    updateDoc(doc(db, 'shows', id), {
+      finished: true,
+      finishedAt: Date.now(),
+      finishedBy: user.uid,
+      finishedByName: user.displayName || user.email || 'Unknown',
+      finishedResult: { done: result.done, total: result.total, ready: result.ready },
+    }).catch((e) => console.error('Failed to complete show:', e));
+  };
+  // Puts a finished show back on the working Show Board — the undo for a
+  // show marked complete by mistake.
+  const handleReopenShow = (id: string) => {
+    if (!user) return;
+    updateDoc(doc(db, 'shows', id), {
+      finished: false,
+      finishedAt: null,
+      finishedBy: null,
+      finishedByName: null,
+      finishedResult: null,
+    }).catch((e) => console.error('Failed to reopen show:', e));
+  };
 
   return (
     <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
@@ -5986,6 +6048,7 @@ function InvictusTracker() {
                 onAdd={handleAddShow}
                 onDelete={handleDeleteShow}
                 onToggleChecklist={handleToggleShowChecklist}
+                onComplete={handleCompleteShow}
               />
             )}
             {activePage === 'showLog' && (
@@ -5995,6 +6058,7 @@ function InvictusTracker() {
                 signedIn={!!user}
                 onDelete={handleDeleteShow}
                 onToggleChecklist={handleToggleShowChecklist}
+                onReopen={handleReopenShow}
               />
             )}
             {activePage === 'sitemap' && (

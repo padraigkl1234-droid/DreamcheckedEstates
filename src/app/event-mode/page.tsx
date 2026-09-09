@@ -189,7 +189,9 @@ export default function EventModePage() {
 
   const today = todayStr();
   const todaysShows = useMemo(
-    () => shows.filter((s) => s.date === today).sort((a, b) => a.type.localeCompare(b.type)),
+    // A show already wrapped up (Complete Show pressed on the Show Board)
+    // shouldn't still read as live here.
+    () => shows.filter((s) => s.date === today && !s.finished).sort((a, b) => a.type.localeCompare(b.type)),
     [shows, today]
   );
   const upcoming = useMemo(
