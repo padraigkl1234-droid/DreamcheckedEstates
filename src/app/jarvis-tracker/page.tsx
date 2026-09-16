@@ -76,6 +76,7 @@ import {
   Trash2,
   Link as LinkIcon,
   History,
+  FileDown,
   Wifi,
   Newspaper,
   CheckCircle2,
@@ -3112,6 +3113,73 @@ function ShowsBoard({
   );
 }
 
+// One show's Show Log entry as a PDF event report — the recorded result plus
+// the full checklist breakdown, branded to match every other export in the
+// app (Reports, Inspections).
+async function exportShowToPdf(show: Show, sections: ChecklistSection[]) {
+  const { jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const crimson: [number, number, number] = [37, 99, 235];
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const generatedAt = new Date();
+  const title = show.title ? `${show.type} — ${show.title}` : show.type;
+  const result = show.finishedResult;
+
+  drawInvictusCorner(doc, pageW - 40, 46);
+  const markBottom = drawDreamlandWordmark(doc, 40, 50);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...crimson);
+  doc.text('Event Report', 40, markBottom + 30);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  doc.text(`${title} · ${formatDisplayDate(show.date)}`, 40, markBottom + 46);
+  const resultLine = result
+    ? `${result.ready ? 'Ready' : `${result.total - result.done} outstanding`} — ${result.done}/${result.total} checklists complete`
+    : 'Not yet completed';
+  doc.text(resultLine, 40, markBottom + 60);
+  let detailY = markBottom + 74;
+  if (show.finishedByName) {
+    doc.text(
+      `Completed by ${show.finishedByName}${show.finishedAt ? ` on ${new Date(show.finishedAt).toLocaleString('en-GB')}` : ''}`,
+      40,
+      detailY
+    );
+    detailY += 14;
+  }
+
+  const forms = showReadiness(show, sections).forms;
+
+  autoTable(doc, {
+    startY: detailY + 8,
+    head: [['Checklist', 'Status']],
+    body: forms.map((f) => [f.name, show.completed[f.name] ? 'Complete' : 'Outstanding']),
+    headStyles: { fillColor: crimson, textColor: 255, fontSize: 8.5 },
+    bodyStyles: { fontSize: 8.5, textColor: [40, 40, 40] },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+    columnStyles: { 1: { cellWidth: 110 } },
+    // The status column is what a reader scans for — colour it.
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        const complete = data.cell.raw === 'Complete';
+        data.cell.styles.textColor = complete ? [16, 130, 90] : [190, 40, 45];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+    margin: { left: 40, right: 40, bottom: 56 },
+    didDrawPage: () => drawInvictusFooter(doc, 40, pageW - 40, pageH - 30, generatedAt),
+  });
+
+  const safeName = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
+  doc.save(`invictus-event-report-${safeName}-${show.date}.pdf`);
+}
+
 // ---------------------------------------------------------------------------
 // Show Log — a recorded history of shows someone has actually wrapped up.
 // A show only lands here once "Complete Show" is pressed on the Show Board
@@ -3141,6 +3209,18 @@ function ShowLog({
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | 'ready' | 'outstanding'>('');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [pdfBusyId, setPdfBusyId] = useState<string | null>(null);
+
+  const downloadPdf = async (show: Show) => {
+    setPdfBusyId(show.id);
+    try {
+      await exportShowToPdf(show, sections);
+    } catch (e) {
+      console.error('Failed to export event report:', e);
+    } finally {
+      setPdfBusyId(null);
+    }
+  };
 
   const finished = useMemo(() => shows.filter((s) => s.finished), [shows]);
   const types = useMemo(() => Array.from(new Set(finished.map((s) => s.type))).sort(), [finished]);
@@ -3264,6 +3344,15 @@ function ShowLog({
                       {show.finishedByName ? `Completed by ${show.finishedByName}` : 'Completed'}
                       {show.finishedAt ? ` · ${new Date(show.finishedAt).toLocaleDateString()}` : ''}
                     </span>
+                  </button>
+                  <button
+                    onClick={() => downloadPdf(show)}
+                    disabled={pdfBusyId === show.id}
+                    className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright disabled:opacity-50"
+                    title="Download this show as a PDF event report"
+                  >
+                    {pdfBusyId === show.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+                    PDF
                   </button>
                   <button
                     onClick={() => onReopen(show.id)}
