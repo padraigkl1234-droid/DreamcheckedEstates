@@ -22,6 +22,7 @@ export const TOGGLEABLE_PAGES: { key: string; label: string }[] = [
   { key: 'showLog', label: 'Show Log' },
   { key: 'eventMode', label: 'Event Mode' },
   { key: 'siteMap', label: 'Site Map' },
+  { key: 'estatesHud', label: 'Estates HUD' },
   { key: 'team', label: 'Team' },
   { key: 'taskManager', label: 'Task Manager' },
   { key: 'compliance', label: 'Compliance' },
