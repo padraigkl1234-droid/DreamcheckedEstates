@@ -1,7 +1,7 @@
-// Estates HUD — how the site map's zones are grouped for the at-a-glance
-// status board (see /estates-hud). Purely a presentation grouping: every
-// name here is a real SITE_ZONES label, which is also what a task's `area`
-// holds, so a location's dot is driven by the same data the Site Map uses.
+// How the site map's zones are grouped for the Location Status board at the
+// foot of the Site Map. Purely a presentation grouping: every name here is a
+// real SITE_ZONES label, which is also what a task's `area` holds, so a
+// location's dot is driven by the same data the map itself uses.
 //
 // Adding a finer-grained location (a specific toilet block, say) is a
 // two-step job on purpose: add the zone to SITE_ZONES so tasks can actually
@@ -11,13 +11,13 @@
 
 import { SITE_AREA_NAMES } from '@/lib/siteMapData';
 
-export interface HudSection {
+export interface SiteSection {
   name: string;
   /** SITE_ZONES labels, in the order they should read on the board. */
   locations: string[];
 }
 
-export const HUD_SECTIONS: HudSection[] = [
+export const SITE_SECTIONS: SiteSection[] = [
   {
     name: 'Toilets',
     locations: [
@@ -69,10 +69,10 @@ export const HUD_SECTIONS: HudSection[] = [
  * section yet — so a zone added to SITE_ZONES shows up on the board whether
  * or not this file was updated alongside it.
  */
-export function hudSections(): HudSection[] {
+export function siteSections(): SiteSection[] {
   const known = new Set(SITE_AREA_NAMES);
   const filed = new Set<string>();
-  const sections = HUD_SECTIONS.map((s) => {
+  const sections = SITE_SECTIONS.map((s) => {
     const locations = s.locations.filter((l) => {
       if (!known.has(l)) return false; // listed here but no longer on the map
       filed.add(l);

@@ -37,7 +37,6 @@ const en: Record<string, string> = {
   'nav.incidents': 'Incident Reports',
   'nav.assignments': 'Assignments',
   'nav.siteMap': 'Site Map',
-  'nav.estatesHud': 'Estates HUD',
   'nav.taskManager': 'Task Manager',
   'nav.compliance': 'Compliance',
   'nav.archive': 'Archive',

@@ -50,7 +50,7 @@ export const SITE_ZONES: SiteZone[] = [
   // middle, listed *before* the bigger areas they stand in (the Arcade, the
   // Food Court oval) so that square resolves to the toilet rather than the
   // space around it. Tasks pin to them like any other zone, which is what
-  // gives each one its own light on the Estates HUD.
+  // gives each one its own light on the Location Status board.
   { label: 'Ballroom Toilets', x: 105, y: 160, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['Ballroom', 'Toilets'] },
   { label: 'Arcade Toilets', x: 155, y: 160, w: 40, h: 30, tone: 'building', labelSize: 5.5, labelLines: ['Arcade', 'Toilets'] },
   { label: 'Concourse Toilets', x: 105, y: 210, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['Concourse', 'Toilets'] },

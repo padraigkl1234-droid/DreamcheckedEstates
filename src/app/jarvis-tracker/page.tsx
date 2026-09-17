@@ -4,6 +4,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { zonePlanFor } from '@/lib/zonePlans';
+import { siteSections } from '@/lib/siteSections';
 import {
   type RecurrenceFreq,
   type EventRecurrence,
@@ -2044,6 +2045,11 @@ function CalendarPage({
   );
 }
 
+// The two lights used by the Location Status board at the foot of the Site
+// Map — matching StatusLight's red/green so the whole app reads the same.
+const STATUS_ALERT = 'rgb(255 59 78)';
+const STATUS_CLEAR = 'rgb(52 211 153)';
+
 // ---------------------------------------------------------------------------
 // Site Map
 // ---------------------------------------------------------------------------
@@ -2236,6 +2242,15 @@ function SiteMapPage({
     }
     return counts;
   }, [tasks]);
+
+  // The Location Status board at the foot of the page: every named place on
+  // the map, grouped, lit red where it has outstanding work. Reads from the
+  // same activeCountByArea the map's own count badges use, so the two can't
+  // disagree. Grid references are deliberately absent — this board is about
+  // named places.
+  const statusSections = useMemo(() => siteSections(), []);
+  const statusLocations = useMemo(() => statusSections.flatMap((s) => s.locations), [statusSections]);
+  const flaggedLocations = statusLocations.filter((l) => (activeCountByArea[l] ?? 0) > 0).length;
 
   // Archived work still counts towards what a place has cost — filing a job
   // away doesn't unspend the money — so spend is summed over both lists even
@@ -2886,6 +2901,79 @@ function SiteMapPage({
           )}
         </Panel>
       </div>
+
+      <Panel title="Location Status" icon={Gauge} refCode="0107-M">
+        <div className="mb-4 flex flex-wrap items-center gap-4">
+          <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_CLEAR, boxShadow: `0 0 6px ${STATUS_CLEAR}` }} />
+            Clear
+          </span>
+          <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_ALERT, boxShadow: `0 0 6px ${STATUS_ALERT}` }} />
+            Task outstanding
+          </span>
+          <span
+            className={`ml-auto text-[11px] font-semibold uppercase tracking-widest ${
+              flaggedLocations > 0 ? 'text-alert' : 'text-emerald-300'
+            }`}
+          >
+            {flaggedLocations > 0
+              ? `${flaggedLocations} of ${statusLocations.length} need attention`
+              : 'All locations clear'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {statusSections.map((section) => {
+            const hot = section.locations.filter((l) => (activeCountByArea[l] ?? 0) > 0).length;
+            return (
+              <div key={section.name} className="rounded-xl border border-neutral-400/20 bg-invictus-base/40 p-4">
+                <div className="mb-2.5 flex items-center gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-300">{section.name}</span>
+                  <span className="h-px flex-1 bg-neutral-400/15" />
+                  {hot > 0 && (
+                    <span className="rounded-full border border-alert/40 bg-alert/10 px-1.5 py-0.5 text-[9px] font-semibold text-alert">
+                      {hot}
+                    </span>
+                  )}
+                </div>
+                <ul className="space-y-1.5">
+                  {section.locations.map((loc) => {
+                    const count = activeCountByArea[loc] ?? 0;
+                    const lit = count > 0;
+                    return (
+                      <li key={loc}>
+                        <button
+                          // Jumps the map to this place, same as clicking its square.
+                          onClick={() => setSelectedRef(SITE_CELLS.find((c) => c.inside && c.areaKey === loc)?.ref ?? null)}
+                          className="flex w-full items-center gap-2.5 rounded text-left transition-colors hover:text-neutral-100"
+                          title={`Show ${loc} on the map`}
+                        >
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{
+                              background: lit ? STATUS_ALERT : STATUS_CLEAR,
+                              boxShadow: `0 0 ${lit ? 7 : 5}px ${lit ? 'rgb(255 59 78 / 0.9)' : 'rgb(52 211 153 / 0.6)'}`,
+                            }}
+                          />
+                          <span className={`min-w-0 flex-1 truncate text-sm ${lit ? 'text-neutral-100' : 'text-neutral-400'}`}>
+                            {loc}
+                          </span>
+                          {lit && (
+                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-alert">
+                              {count} open
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
     </div>
   );
 }
