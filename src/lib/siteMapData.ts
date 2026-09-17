@@ -45,6 +45,19 @@ export const SITE_ZONES: SiteZone[] = [
   { label: 'Ballroom', x: 33, y: 146, w: 66, h: 46, tone: 'building' },
   { label: 'Boardroom', x: 33, y: 198, w: 66, h: 34, tone: 'building', labelSize: 6.5 },
   { label: 'Hall by the Sea', x: 52, y: 264, w: 58, h: 82, tone: 'building', labelSize: 7, labelLines: ['Hall by', 'the Sea'] },
+  // Toilet blocks, each named for the venue it serves. Same trick as the
+  // food-court outlets below: small boxes sat on a single grid square's
+  // middle, listed *before* the bigger areas they stand in (the Arcade, the
+  // Food Court oval) so that square resolves to the toilet rather than the
+  // space around it. Tasks pin to them like any other zone, which is what
+  // gives each one its own light on the Estates HUD.
+  { label: 'Ballroom Toilets', x: 105, y: 160, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['Ballroom', 'Toilets'] },
+  { label: 'Arcade Toilets', x: 155, y: 160, w: 40, h: 30, tone: 'building', labelSize: 5.5, labelLines: ['Arcade', 'Toilets'] },
+  { label: 'Concourse Toilets', x: 105, y: 210, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['Concourse', 'Toilets'] },
+  { label: 'VIP Toilets', x: 105, y: 353, w: 40, h: 30, tone: 'building', labelSize: 5.5, labelLines: ['VIP', 'Toilets'] },
+  { label: 'Food Court Toilets', x: 405, y: 460, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['Food Court', 'Toilets'] },
+  { label: 'Shed Toilets', x: 606, y: 308, w: 38, h: 28, tone: 'building', labelSize: 5.5, labelLines: ['Shed', 'Toilets'] },
+  { label: 'Teddy & Betty / Ark Toilets', x: 755, y: 410, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['T&B / Ark', 'Toilets'] },
   // Operational areas
   { label: 'Concourse', x: 116, y: 240, w: 50, h: 44, tone: 'area', labelSize: 6.5 },
   { label: 'Arcade', x: 170, y: 154, w: 150, h: 46, tone: 'area' },

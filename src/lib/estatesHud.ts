@@ -20,7 +20,16 @@ export interface HudSection {
 export const HUD_SECTIONS: HudSection[] = [
   {
     name: 'Toilets',
-    locations: ['Container Toilets'],
+    locations: [
+      'Food Court Toilets',
+      'VIP Toilets',
+      'Arcade Toilets',
+      'Ballroom Toilets',
+      'Concourse Toilets',
+      'Shed Toilets',
+      'Teddy & Betty / Ark Toilets',
+      'Container Toilets',
+    ],
   },
   {
     name: 'Food & Beverage',
