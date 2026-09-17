@@ -47,11 +47,11 @@ export const SITE_SECTIONS: SiteSection[] = [
   },
   {
     name: 'Venue Spaces',
-    locations: ['Ballroom', 'Hall by the Sea', 'Cinema', 'Cinque Ports', 'Boardroom', 'Arcade', 'Concourse'],
+    locations: ['Ballroom', 'Hall by the Sea', 'Cinema', 'Cinque Ports', 'Boardroom', 'Arcade', 'Concourse', 'Scenic Stage'],
   },
   {
     name: 'Rides & Attractions',
-    locations: ['Rides', 'Roller Area', 'Scenic Railway', 'Scenic Stage', 'Teddy & Betty / Ark'],
+    locations: ['Rides', 'Roller Area', 'Scenic Railway', 'Teddy & Betty / Ark'],
   },
   {
     name: 'Access & Circulation',
