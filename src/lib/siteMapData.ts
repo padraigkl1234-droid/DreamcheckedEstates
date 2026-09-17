@@ -51,13 +51,13 @@ export const SITE_ZONES: SiteZone[] = [
   // Food Court oval) so that square resolves to the toilet rather than the
   // space around it. Tasks pin to them like any other zone, which is what
   // gives each one its own light on the Location Status board.
-  { label: 'Ballroom Toilets', x: 105, y: 160, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['Ballroom', 'Toilets'] },
-  { label: 'Arcade Toilets', x: 155, y: 160, w: 40, h: 30, tone: 'building', labelSize: 5.5, labelLines: ['Arcade', 'Toilets'] },
+  { label: 'Ballroom Toilets', x: 5, y: 160, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['Ballroom', 'Toilets'] },
+  { label: 'Ingress Toilets', x: 405, y: 160, w: 40, h: 30, tone: 'building', labelSize: 5.5, labelLines: ['Ingress', 'Toilets'] },
   { label: 'Concourse Toilets', x: 105, y: 210, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['Concourse', 'Toilets'] },
-  { label: 'VIP Toilets', x: 105, y: 353, w: 40, h: 30, tone: 'building', labelSize: 5.5, labelLines: ['VIP', 'Toilets'] },
-  { label: 'Food Court Toilets', x: 405, y: 460, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['Food Court', 'Toilets'] },
-  { label: 'Shed Toilets', x: 606, y: 308, w: 38, h: 28, tone: 'building', labelSize: 5.5, labelLines: ['Shed', 'Toilets'] },
-  { label: 'Teddy & Betty / Ark Toilets', x: 755, y: 410, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['T&B / Ark', 'Toilets'] },
+  { label: 'VIP Toilets', x: 155, y: 462, w: 40, h: 30, tone: 'building', labelSize: 5.5, labelLines: ['VIP', 'Toilets'] },
+  { label: 'Food Court Toilets', x: 255, y: 460, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['Food Court', 'Toilets'] },
+  { label: 'Shed Toilets', x: 555, y: 360, w: 40, h: 30, tone: 'building', labelSize: 5.5, labelLines: ['Shed', 'Toilets'] },
+  { label: 'Teddy & Betty / Ark Toilets', x: 655, y: 360, w: 40, h: 30, tone: 'building', labelSize: 5.2, labelLines: ['T&B / Ark', 'Toilets'] },
   // Operational areas
   { label: 'Concourse', x: 116, y: 240, w: 50, h: 44, tone: 'area', labelSize: 6.5 },
   { label: 'Arcade', x: 170, y: 154, w: 150, h: 46, tone: 'area' },

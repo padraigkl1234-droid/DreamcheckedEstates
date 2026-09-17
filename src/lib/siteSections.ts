@@ -23,7 +23,7 @@ export const SITE_SECTIONS: SiteSection[] = [
     locations: [
       'Food Court Toilets',
       'VIP Toilets',
-      'Arcade Toilets',
+      'Ingress Toilets',
       'Ballroom Toilets',
       'Concourse Toilets',
       'Shed Toilets',
