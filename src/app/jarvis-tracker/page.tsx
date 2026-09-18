@@ -4101,7 +4101,7 @@ function TaskManager({
                   alt="Task attachment"
                   loading="lazy"
                   decoding="async"
-                  className="h-full w-full transform-gpu cursor-zoom-in object-cover"
+                  className="h-full w-full cursor-zoom-in object-cover"
                   onClick={() => setLightbox(img.url)}
                 />
                 <button

@@ -645,7 +645,7 @@ function IncidentDetail({
             {report.attachments!.map((a) => (
               // eslint-disable-next-line @next/next/no-img-element
               <a key={a.path} href={a.url} target="_blank" rel="noreferrer" className="group relative aspect-square overflow-hidden rounded-md border border-neutral-400/25">
-                <img src={a.url} alt={a.name} loading="lazy" decoding="async" className="h-full w-full transform-gpu object-cover transition-opacity group-hover:opacity-80" />
+                <img src={a.url} alt={a.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition-opacity group-hover:opacity-80" />
               </a>
             ))}
           </div>

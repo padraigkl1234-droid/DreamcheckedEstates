@@ -680,7 +680,7 @@ export function ReportsView({
                                   {a.photos.map((p) => (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <a key={p.path} href={p.url} target="_blank" rel="noreferrer">
-                                      <img src={p.url} alt={p.name} loading="lazy" decoding="async" className="h-10 w-10 transform-gpu rounded border border-neutral-400/25 object-cover" />
+                                      <img src={p.url} alt={p.name} loading="lazy" decoding="async" className="h-10 w-10 rounded border border-neutral-400/25 object-cover" />
                                     </a>
                                   ))}
                                 </span>
@@ -700,7 +700,7 @@ export function ReportsView({
                 {selected.attachments!.map((a) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <a key={a.path} href={a.url} target="_blank" rel="noreferrer" className="group relative aspect-square overflow-hidden rounded-md border border-neutral-400/25">
-                    <img src={a.url} alt={a.name} loading="lazy" decoding="async" className="h-full w-full transform-gpu object-cover transition-opacity group-hover:opacity-80" />
+                    <img src={a.url} alt={a.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition-opacity group-hover:opacity-80" />
                   </a>
                 ))}
               </div>

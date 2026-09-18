@@ -1384,7 +1384,7 @@ function PhotoPicker({
         {photos.map((p) => (
           <span key={p.path} className="group relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.url} alt={p.name} loading="lazy" decoding="async" className="h-12 w-12 transform-gpu rounded border border-neutral-400/25 object-cover" />
+            <img src={p.url} alt={p.name} loading="lazy" decoding="async" className="h-12 w-12 rounded border border-neutral-400/25 object-cover" />
             <button
               type="button"
               onClick={() => onRemove(p.path)}
