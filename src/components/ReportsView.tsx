@@ -699,8 +699,8 @@ export function ReportsView({
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {selected.attachments!.map((a) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <a key={a.path} href={a.url} target="_blank" rel="noreferrer" className="group relative aspect-square overflow-hidden rounded-md border border-neutral-400/25">
-                    <img src={a.url} alt={a.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition-opacity group-hover:opacity-80" />
+                  <a key={a.path} href={a.url} target="_blank" rel="noreferrer" className="group relative aspect-square">
+                    <img src={a.url} alt={a.name} loading="lazy" decoding="async" className="h-full w-full rounded-md border border-neutral-400/25 object-cover transition-opacity group-hover:opacity-80" />
                   </a>
                 ))}
               </div>

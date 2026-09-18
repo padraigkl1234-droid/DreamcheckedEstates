@@ -4094,14 +4094,21 @@ function TaskManager({
         {(task.images?.length ?? 0) > 0 && (
           <div className="ml-8 flex flex-wrap gap-2">
             {task.images!.map((img) => (
-              <div key={img.path} className="group/img relative h-20 w-20 overflow-hidden rounded-md border border-neutral-400/25">
+              // No overflow-hidden here: clipping the photo to a rounded parent
+              // makes the browser paint it through a separate mask, which is
+              // what had it lagging a frame behind the rest of the row while
+              // scrolling. The radius sits on the image itself instead — same
+              // look, no clip layer.
+              <div key={img.path} className="group/img relative h-20 w-20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={img.url}
                   alt="Task attachment"
                   loading="lazy"
                   decoding="async"
-                  className="h-full w-full cursor-zoom-in object-cover"
+                  width={80}
+                  height={80}
+                  className="h-20 w-20 cursor-zoom-in rounded-md border border-neutral-400/25 object-cover"
                   onClick={() => setLightbox(img.url)}
                 />
                 <button
