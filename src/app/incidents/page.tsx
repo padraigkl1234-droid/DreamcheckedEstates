@@ -32,6 +32,7 @@ import {
   Users,
 } from 'lucide-react';
 import { db, storage } from '@/lib/firebase';
+import { downscaleImage } from '@/lib/imageResize';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { AppSidebar, AppMobileNav } from '@/components/AppSidebar';
@@ -208,7 +209,7 @@ export default function IncidentsPage() {
       for (const file of files) {
         const path = `incidentReports/${id}/${Date.now()}-${file.name}`;
         const r = storageRef(storage, path);
-        await uploadBytes(r, file);
+        await uploadBytes(r, await downscaleImage(file));
         const url = await getDownloadURL(r);
         attachments.push({ url, path, name: file.name, uploadedAt: Date.now() });
       }
@@ -644,7 +645,7 @@ function IncidentDetail({
             {report.attachments!.map((a) => (
               // eslint-disable-next-line @next/next/no-img-element
               <a key={a.path} href={a.url} target="_blank" rel="noreferrer" className="group relative aspect-square overflow-hidden rounded-md border border-neutral-400/25">
-                <img src={a.url} alt={a.name} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                <img src={a.url} alt={a.name} loading="lazy" decoding="async" className="h-full w-full transform-gpu object-cover transition-opacity group-hover:opacity-80" />
               </a>
             ))}
           </div>

@@ -6,6 +6,7 @@ import { Settings as SettingsIcon, User as UserFallback, Loader2, Check, LogOut,
 import { doc, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
+import { downscaleImage } from '@/lib/imageResize';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useTheme, type ThemePref } from '@/components/ThemeProvider';
@@ -232,7 +233,7 @@ export default function SettingsPage() {
     try {
       const path = `profiles/${user.uid}/${Date.now()}-${file.name}`;
       const r = storageRef(storage, path);
-      await uploadBytes(r, file);
+      await uploadBytes(r, await downscaleImage(file));
       const url = await getDownloadURL(r);
       setPhotoURL(url);
       await setDoc(doc(db, 'users', user.uid), { photoURL: url }, { merge: true });

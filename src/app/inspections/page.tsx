@@ -31,6 +31,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { db, storage } from '@/lib/firebase';
+import { downscaleImage } from '@/lib/imageResize';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { AppSidebar, AppMobileNav } from '@/components/AppSidebar';
@@ -1073,7 +1074,7 @@ function RunInspection({
       for (const file of files) {
         const path = `reports/${reportId}/${Date.now()}-${file.name}`;
         const r = storageRef(storage, path);
-        await uploadBytes(r, file);
+        await uploadBytes(r, await downscaleImage(file));
         added.push({ url: await getDownloadURL(r), path, name: file.name });
       }
       setAnswers((prev) => prev.map((a, j) => (j === i ? { ...a, photos: [...(a.photos ?? []), ...added] } : a)));
@@ -1383,7 +1384,7 @@ function PhotoPicker({
         {photos.map((p) => (
           <span key={p.path} className="group relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.url} alt={p.name} className="h-12 w-12 rounded border border-neutral-400/25 object-cover" />
+            <img src={p.url} alt={p.name} loading="lazy" decoding="async" className="h-12 w-12 transform-gpu rounded border border-neutral-400/25 object-cover" />
             <button
               type="button"
               onClick={() => onRemove(p.path)}

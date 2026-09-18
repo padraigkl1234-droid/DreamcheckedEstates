@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { zonePlanFor } from '@/lib/zonePlans';
 import { siteSections } from '@/lib/siteSections';
+import { downscaleImage } from '@/lib/imageResize';
 import {
   type RecurrenceFreq,
   type EventRecurrence,
@@ -3711,7 +3712,7 @@ function TaskManager({
       for (const file of files) {
         const path = `tasks/${id}/${Date.now()}-${file.name}`;
         const fileRef = storageRef(storage, path);
-        await uploadBytes(fileRef, file);
+        await uploadBytes(fileRef, await downscaleImage(file));
         const url = await getDownloadURL(fileRef);
         added.push({ url, path, uploadedAt: Date.now() });
       }
@@ -4098,7 +4099,9 @@ function TaskManager({
                 <img
                   src={img.url}
                   alt="Task attachment"
-                  className="h-full w-full cursor-zoom-in object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full transform-gpu cursor-zoom-in object-cover"
                   onClick={() => setLightbox(img.url)}
                 />
                 <button
@@ -5384,7 +5387,7 @@ function ComplianceTracker({
       for (const file of files) {
         const path = `compliance/${id}/${Date.now()}-${file.name}`;
         const fileRef = storageRef(storage, path);
-        await uploadBytes(fileRef, file);
+        await uploadBytes(fileRef, await downscaleImage(file));
         const url = await getDownloadURL(fileRef);
         onAddAttachment(id, { name: file.name, url, path, uploadedAt: Date.now() });
       }
