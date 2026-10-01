@@ -3923,7 +3923,13 @@ function TaskManager({
     const overdue = isOverdue(task);
     return (
       <div key={task.id} className="flex flex-col gap-3 px-5 py-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        {/* The action cluster (badges, status, Photos/Materials/Updates/Edit/
+            Report) runs to roughly 840px once its labels are showing, so it
+            only sits beside the title where there's genuinely room for both.
+            Below that it drops onto its own full-width line and wraps — which
+            beats squeezing the title into a one-word-per-line column, as it
+            did in a split-screen window. */}
+        <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-start">
           <div className="flex flex-1 items-start gap-3">
           <button
             onClick={() => {
@@ -3992,7 +3998,7 @@ function TaskManager({
             )}
           </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 pl-8 sm:shrink-0 sm:justify-end sm:pl-0">
+          <div className="flex flex-wrap items-center gap-2 pl-8 2xl:shrink-0 2xl:justify-end 2xl:pl-0">
             {overdue && (
               <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${URGENCY_STYLES.red}`}>
                 {formatDueIn(daysFromToday(task.dueDate, todayStr))}
@@ -4495,7 +4501,11 @@ function TaskManager({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Add a task and press enter..."
-          className="min-w-0 flex-1 bg-transparent text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
+          // A floor on the typing area: without it the input is the only thing
+          // that can shrink, so once the option buttons wrap it collapses to a
+          // few characters wide. Below this width the buttons wrap under it
+          // instead.
+          className="min-w-[14rem] flex-1 bg-transparent text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
         />
         <input
           type="date"
@@ -4702,7 +4712,9 @@ function TaskManager({
       )}
 
       {viewMode === 'board' ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        // Three status columns need real width to be readable — below that
+        // they stack rather than squeezing to ~200px each.
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {boardColumns.map((col) => (
             <div
               key={col.status}
