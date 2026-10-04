@@ -1,8 +1,8 @@
 // Pure hotel logic (no Firestore), shared by pages and unit-tested in
 // tests/hotel-logic.test.ts.
 
-import { CLEAN_TYPE_ORDER } from '@/lib/hotel/constants';
-import type { AssignmentOutcome, HotelAssignment } from '@/lib/hotel/types';
+import { CLEAN_TYPE_ORDER, priorityMeta } from '@/lib/hotel/constants';
+import type { AssignmentOutcome, HotelAssignment, HotelFault } from '@/lib/hotel/types';
 
 export const FINISHED_OUTCOMES: AssignmentOutcome[] = ['done', 'refused', 'dnd'];
 
@@ -17,4 +17,9 @@ export function sortMyTasks(list: HotelAssignment[]): HotelAssignment[] {
       CLEAN_TYPE_ORDER[a.cleanType] - CLEAN_TYPE_ORDER[b.cleanType] ||
       a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true })
   );
+}
+
+/** The maintenance queue: highest priority first, then oldest first. */
+export function sortFaultQueue(list: HotelFault[]): HotelFault[] {
+  return [...list].sort((a, b) => priorityMeta(a.priority).rank - priorityMeta(b.priority).rank || a.createdAt - b.createdAt);
 }
