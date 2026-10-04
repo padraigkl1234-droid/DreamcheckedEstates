@@ -54,7 +54,9 @@ export const db = initializeFirestore(app, {
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-if (useEmulators) {
+// Spelled out (not via useEmulators) so the build inlines the env var and drops
+// this whole block from production bundles.
+if (process.env.NEXT_PUBLIC_USE_EMULATORS === '1') {
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectStorageEmulator(storage, '127.0.0.1', 9199);

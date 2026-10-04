@@ -259,3 +259,40 @@ describe('append-only history', () => {
     await assertSucceeds(setDoc(doc(db, 'hotelRoomEvents', 'real'), { teamId: A, roomId: `${A}-101`, to: 'clean', byUid: 'aHk', at: 2 }));
   });
 });
+
+describe('the writes the hub actually makes', () => {
+  it('a housekeeper ticks a checklist item with a dotted path', async () => {
+    const db = as('aHk');
+    await assertSucceeds(
+      updateDoc(doc(db, 'hotelAssignments', `${A}_${TODAY}_${A}-101`), { 'checklist.dep1': true, updatedAt: 2, updatedBy: 'aHk', updatedByName: 'aHk' })
+    );
+  });
+
+  it("the photo outbox can attach a photo to the reporter's own fault, and nothing else", async () => {
+    const db = as('aHk');
+    const ref = doc(db, 'hotelFaults', `${A}-f1`);
+    await assertSucceeds(updateDoc(ref, { photos: [{ url: 'u', path: 'p', name: 'n', uploadedAt: 1 }], pendingPhotos: 0, updatedAt: 3 }));
+    await assertFails(updateDoc(ref, { priority: 'low', updatedAt: 3 }));
+    await assertFails(updateDoc(doc(as('aHk2'), 'hotelFaults', `${A}-f1`), { photos: [], updatedAt: 3 }));
+  });
+
+  it('a manager changes a role with a merge write, and the audit entry goes with it', async () => {
+    const db = as('aManager');
+    await assertSucceeds(
+      setDoc(doc(db, 'hotelStaff', `${A}_aHk2`), { teamId: A, uid: 'aHk2', name: 'aHk2', role: 'maintenance', active: true, updatedAt: 2, updatedBy: 'aManager' }, { merge: true })
+    );
+    await assertSucceeds(setDoc(doc(db, 'hotelAudit', 'a2'), { teamId: A, at: 2, byUid: 'aManager', byName: 'm', action: 'staff.role', detail: 'x' }));
+  });
+
+  it('maintenance failing a check can raise a fault and log the result', async () => {
+    const db = as('aMaint');
+    await assertSucceeds(
+      setDoc(doc(db, 'hotelFaults', 'fromCheck'), {
+        teamId: A, roomId: null, area: 'Fire alarm test', category: 'Safety', priority: 'high', status: 'open', note: 'x',
+        photos: [], afterPhotos: [], pendingPhotos: 0, reportedBy: 'aMaint', createdAt: 1, updatedAt: 1,
+      })
+    );
+    await assertSucceeds(setDoc(doc(db, 'hotelComplianceLogs', 'l2'), { teamId: A, checkId: `${A}-c1`, result: 'fail', byUid: 'aMaint', at: 2 }));
+    await assertFails(setDoc(doc(as('aHk'), 'hotelComplianceLogs', 'l3'), { teamId: A, checkId: `${A}-c1`, result: 'pass', byUid: 'aHk', at: 2 }));
+  });
+});
