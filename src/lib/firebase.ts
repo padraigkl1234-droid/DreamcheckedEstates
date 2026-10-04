@@ -1,16 +1,25 @@
 'use client';
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, connectAuthEmulator, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import {
   initializeFirestore,
+  connectFirestoreEmulator,
+  type FirestoreSettings,
   doc,
   getDocFromServer,
   persistentLocalCache,
   persistentMultipleTabManager,
 } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import firebaseConfig from '../../firebase-applet-config.json';
+import { getStorage, connectStorageEmulator, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import appletConfig from '../../firebase-applet-config.json';
+
+// Local development against the Firebase Emulator Suite (`firebase emulators:start`)
+// instead of production. Off unless NEXT_PUBLIC_USE_EMULATORS=1 is set, and
+// it swaps in a demo-* project id, which the emulators guarantee can never
+// reach a real Firebase project.
+const useEmulators = process.env.NEXT_PUBLIC_USE_EMULATORS === '1';
+const firebaseConfig = useEmulators ? { ...appletConfig, projectId: 'demo-invictus' } : appletConfig;
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
@@ -30,10 +39,17 @@ export const db = initializeFirestore(app, {
   // working in dead zones (theme parks / event fields) and syncs when signal
   // returns. Multi-tab manager keeps several open tabs consistent.
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-}, firebaseConfig.firestoreDatabaseId);
+  // useFetchStreams is a real (internal) setting the public type omits.
+} as FirestoreSettings, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+if (useEmulators) {
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  connectStorageEmulator(storage, '127.0.0.1', 9199);
+}
 export const googleProvider = new GoogleAuthProvider();
 
 // Validate Connection to Firestore

@@ -27,6 +27,8 @@ export const dynamic = 'force-dynamic';
 //   list                          — all teams + all users
 //   createTeam {name}             — create a new team with a fresh code
 //   regenCode {teamId}            — roll a team's referral code
+//   setModule {teamId, module}    — switch a team to the hotel hub ('hotel')
+//                                   or back to the estates app (null)
 //   moveUser {targetUid, teamId}  — move a user to another team
 //   block / unblock {targetUid}   — disable / re-enable an account's sign-in
 //   remove {targetUid, deleteData}— strip from shared tasks + delete user doc
@@ -117,6 +119,26 @@ async function migrateTaskTeamIds(db: Firestore) {
   await metaRef.set({ migratedTaskTeamIds: true, migratedTaskTeamIdsAt: Date.now() }, { merge: true });
 }
 
+// Hotel teams: everyone who joins gets a hotel role straight away, starting
+// as a housekeeper (the lowest-privilege role) until a manager changes it.
+// Existing roles are never overwritten, so re-joining keeps your role.
+async function ensureHotelStaff(db: Firestore, teamId: string, uid: string) {
+  const team = (await db.collection('teams').doc(teamId).get()).data();
+  if (team?.module !== 'hotel') return;
+  const ref = db.collection('hotelStaff').doc(`${teamId}_${uid}`);
+  const existing = await ref.get();
+  if (existing.exists) return;
+  const user = (await db.collection('users').doc(uid).get()).data() ?? {};
+  await ref.set({
+    teamId,
+    uid,
+    name: user.displayName || user.name || user.email || 'Unknown',
+    role: 'housekeeper',
+    active: true,
+    createdAt: Date.now(),
+  });
+}
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get('authorization') ?? '';
@@ -166,6 +188,7 @@ export async function POST(req: Request) {
       if (match.empty) return NextResponse.json({ error: 'No team found for that code' }, { status: 404 });
       const team = match.docs[0];
       await db.collection('users').doc(decoded.uid).set({ teamId: team.id }, { merge: true });
+      await ensureHotelStaff(db, team.id, decoded.uid);
       return NextResponse.json({ ok: true, teamId: team.id, teamName: team.data().name });
     }
 
@@ -232,6 +255,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, referralCode: code });
     }
 
+    if (action === 'setModule') {
+      const teamId = typeof body.teamId === 'string' ? body.teamId : '';
+      const mod = body.module === 'hotel' ? 'hotel' : null;
+      if (!teamId) return NextResponse.json({ error: 'Missing teamId' }, { status: 400 });
+      if (teamId === DREAMLAND_TEAM_ID && mod) {
+        return NextResponse.json({ error: 'Dreamland stays on the estates app' }, { status: 403 });
+      }
+      const ref = db.collection('teams').doc(teamId);
+      if (!(await ref.get()).exists) return NextResponse.json({ error: 'No such team' }, { status: 404 });
+      await ref.set({ module: mod ?? FieldValue.delete() }, { merge: true });
+      // Give everyone already on the team a starting hotel role.
+      if (mod) {
+        const members = await db.collection('users').where('teamId', '==', teamId).get();
+        for (const m of members.docs) await ensureHotelStaff(db, teamId, m.id);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     if (action === 'archiveTeam') {
       const teamId = typeof body.teamId === 'string' ? body.teamId : '';
       const archived = body.archived === true;
@@ -288,6 +329,7 @@ export async function POST(req: Request) {
       const teamId = typeof body.teamId === 'string' ? body.teamId : '';
       if (!teamId) return NextResponse.json({ error: 'Missing teamId' }, { status: 400 });
       await targetRef.set({ teamId }, { merge: true });
+      await ensureHotelStaff(db, teamId, targetUid);
       return NextResponse.json({ ok: true });
     }
     if (action === 'block') {

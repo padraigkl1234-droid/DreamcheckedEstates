@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Zap,
   ChevronRight,
+  BedDouble,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
@@ -54,6 +55,7 @@ type Action =
   | { action: 'createTeam'; name: string }
   | { action: 'regenCode'; teamId: string }
   | { action: 'setFeature'; teamId: string; feature: string; enabled: boolean }
+  | { action: 'setModule'; teamId: string; module: 'hotel' | null }
   | { action: 'archiveTeam'; teamId: string; archived: boolean }
   | { action: 'deleteTeam'; teamId: string; deleteData: boolean }
   | { action: 'moveUser'; targetUid: string; teamId: string }
@@ -307,6 +309,28 @@ export default function MasterPage() {
                         ))}
                     </div>
                   </div>
+
+                  {/* Product module: estates app (default) or the hotel hub */}
+                  {team.id !== 'dreamland' && (
+                    <div className="flex flex-wrap items-center gap-2 border-b border-neutral-400/15 p-4">
+                      <span className="mr-1 self-center text-[9px] uppercase tracking-widest text-neutral-600">Module</span>
+                      <button
+                        onClick={() => run({ action: 'setModule', teamId: team.id, module: team.module === 'hotel' ? null : 'hotel' })}
+                        className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                          team.module === 'hotel'
+                            ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20'
+                            : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-600 hover:text-neutral-400'
+                        }`}
+                        title={team.module === 'hotel' ? 'Switch this team back to the estates app' : 'Switch this team to the Hotel Operations hub'}
+                      >
+                        <BedDouble className="h-2.5 w-2.5" />
+                        {team.module === 'hotel' ? 'Hotel hub — on' : 'Hotel hub — off'}
+                      </button>
+                      {team.module === 'hotel' && (
+                        <span className="text-[10px] text-neutral-500">Members land on /hotel and see only hotel navigation. Pages below don&apos;t apply.</span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Per-team page visibility */}
                   <div className="flex flex-wrap gap-1.5 border-b border-neutral-400/15 p-4">

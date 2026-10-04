@@ -11,7 +11,7 @@ import {
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import { InstallPwaButton } from '@/components/InstallPwaButton';
 import { Button } from '@/components/ui/button';
-import { Users, Settings, Crown, Sun, Moon } from 'lucide-react';
+import { Users, Settings, Crown, Sun, Moon, BedDouble } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +24,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { useT } from '@/components/LanguageProvider';
-import { profileName } from '@/lib/teams';
+import { isHotelTeam, profileName } from '@/lib/teams';
 import { useSound } from '@/components/SoundProvider';
 
 export function Navbar() {
@@ -81,12 +81,22 @@ export function Navbar() {
                   {team && <span className="truncate text-[10px] font-normal uppercase tracking-widest text-muted-foreground">{team.name}</span>}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/team" className="cursor-pointer gap-2"><Users className="h-4 w-4" /> {t('nav.myTeam')}</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="cursor-pointer gap-2"><Settings className="h-4 w-4" /> {t('nav.settings')}</Link>
-                </DropdownMenuItem>
+                {isHotelTeam(team) ? (
+                  // Hotel teams have their own hub (and their own staff and
+                  // settings pages inside it) instead of the estates ones.
+                  <DropdownMenuItem asChild>
+                    <Link href="/hotel" className="cursor-pointer gap-2"><BedDouble className="h-4 w-4" /> Hotel hub</Link>
+                  </DropdownMenuItem>
+                ) : (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/team" className="cursor-pointer gap-2"><Users className="h-4 w-4" /> {t('nav.myTeam')}</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings" className="cursor-pointer gap-2"><Settings className="h-4 w-4" /> {t('nav.settings')}</Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 {isMaster && (
                   <DropdownMenuItem asChild>
                     <Link href="/master" className="cursor-pointer gap-2"><Crown className="h-4 w-4 text-amber-400" /> {t('nav.masterConsole')}</Link>
