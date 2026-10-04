@@ -32,7 +32,7 @@ import {
   Users,
 } from 'lucide-react';
 import { db, storage } from '@/lib/firebase';
-import { downscaleImage } from '@/lib/imageResize';
+import { downscaleImage, IMAGE_CACHE_CONTROL } from '@/lib/imageResize';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { AppSidebar, AppMobileNav } from '@/components/AppSidebar';
@@ -209,7 +209,7 @@ export default function IncidentsPage() {
       for (const file of files) {
         const path = `incidentReports/${id}/${Date.now()}-${file.name}`;
         const r = storageRef(storage, path);
-        await uploadBytes(r, await downscaleImage(file));
+        await uploadBytes(r, await downscaleImage(file), { cacheControl: IMAGE_CACHE_CONTROL });
         const url = await getDownloadURL(r);
         attachments.push({ url, path, name: file.name, uploadedAt: Date.now() });
       }

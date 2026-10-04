@@ -38,7 +38,7 @@ import {
 import { INSPECTION_OUTCOME_STYLES, answerText, groupBySection, recordAnswers, type InspectionAnswer } from '@/lib/inspections';
 import { drawDreamlandWordmark, drawInvictusCorner, drawInvictusFooter } from '@/lib/brandMark';
 import { db, storage } from '@/lib/firebase';
-import { downscaleImage } from '@/lib/imageResize';
+import { downscaleImage, IMAGE_CACHE_CONTROL } from '@/lib/imageResize';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
@@ -235,7 +235,7 @@ export function ReportsView({
       for (const file of files) {
         const path = `reports/${id}/${Date.now()}-${file.name}`;
         const r = storageRef(storage, path);
-        await uploadBytes(r, await downscaleImage(file));
+        await uploadBytes(r, await downscaleImage(file), { cacheControl: IMAGE_CACHE_CONTROL });
         const url = await getDownloadURL(r);
         attachments.push({ url, path, name: file.name, uploadedAt: Date.now() });
       }

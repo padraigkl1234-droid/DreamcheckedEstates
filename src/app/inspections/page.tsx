@@ -31,7 +31,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { db, storage } from '@/lib/firebase';
-import { downscaleImage } from '@/lib/imageResize';
+import { downscaleImage, IMAGE_CACHE_CONTROL } from '@/lib/imageResize';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { AppSidebar, AppMobileNav } from '@/components/AppSidebar';
@@ -1074,7 +1074,7 @@ function RunInspection({
       for (const file of files) {
         const path = `reports/${reportId}/${Date.now()}-${file.name}`;
         const r = storageRef(storage, path);
-        await uploadBytes(r, await downscaleImage(file));
+        await uploadBytes(r, await downscaleImage(file), { cacheControl: IMAGE_CACHE_CONTROL });
         added.push({ url: await getDownloadURL(r), path, name: file.name });
       }
       setAnswers((prev) => prev.map((a, j) => (j === i ? { ...a, photos: [...(a.photos ?? []), ...added] } : a)));

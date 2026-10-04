@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { zonePlanFor } from '@/lib/zonePlans';
 import { siteSections } from '@/lib/siteSections';
-import { downscaleImage } from '@/lib/imageResize';
+import { downscaleImage, makeThumbnail, IMAGE_CACHE_CONTROL } from '@/lib/imageResize';
 import {
   type RecurrenceFreq,
   type EventRecurrence,
@@ -175,6 +175,11 @@ interface TaskImage {
   url: string;
   path: string; // storage path, for deletion
   uploadedAt: number;
+  // A small (320px) copy used for the thumbnail in the row, so scrolling the
+  // list never has to paint the full-size photo. Optional: photos attached
+  // before this existed have none and fall back to the full image.
+  thumbUrl?: string;
+  thumbPath?: string;
 }
 
 // A product/part needed to complete a task. Price is per-unit, so the line
@@ -3710,11 +3715,32 @@ function TaskManager({
     try {
       const added: TaskImage[] = [];
       for (const file of files) {
-        const path = `tasks/${id}/${Date.now()}-${file.name}`;
+        const stamp = Date.now();
+        const path = `tasks/${id}/${stamp}-${file.name}`;
         const fileRef = storageRef(storage, path);
-        await uploadBytes(fileRef, await downscaleImage(file));
+        await uploadBytes(fileRef, await downscaleImage(file), { cacheControl: IMAGE_CACHE_CONTROL });
         const url = await getDownloadURL(fileRef);
-        added.push({ url, path, uploadedAt: Date.now() });
+
+        // Store a small companion image for the row thumbnail. If it can't be
+        // made the entry simply goes without one and falls back to the full
+        // photo, so a thumbnail failure never costs you the upload.
+        let thumbUrl: string | undefined;
+        let thumbPath: string | undefined;
+        try {
+          const thumb = await makeThumbnail(file);
+          if (thumb) {
+            thumbPath = `tasks/${id}/thumbs/${stamp}-${thumb.name}`;
+            const thumbRef = storageRef(storage, thumbPath);
+            await uploadBytes(thumbRef, thumb, { cacheControl: IMAGE_CACHE_CONTROL });
+            thumbUrl = await getDownloadURL(thumbRef);
+          }
+        } catch (error) {
+          console.warn('Thumbnail upload failed, using full-size photo:', error);
+          thumbPath = undefined;
+          thumbUrl = undefined;
+        }
+
+        added.push({ url, path, uploadedAt: stamp, ...(thumbUrl && thumbPath ? { thumbUrl, thumbPath } : {}) });
       }
       onSetImages(id, [...(task?.images ?? []), ...added]);
       playConfirm();
@@ -3727,6 +3753,7 @@ function TaskManager({
   };
   const removeImage = (task: Task, img: TaskImage) => {
     deleteObject(storageRef(storage, img.path)).catch(() => {});
+    if (img.thumbPath) deleteObject(storageRef(storage, img.thumbPath)).catch(() => {});
     onSetImages(task.id, (task.images ?? []).filter((i) => i.path !== img.path));
   };
 
@@ -4108,10 +4135,15 @@ function TaskManager({
               <div key={img.path} className="group/img relative h-20 w-20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={img.url}
+                  // The 320px thumbnail, not the full photo: painting a
+                  // 1600px bitmap into an 80px box is what was costing the
+                  // frame budget while scrolling. Older photos have no
+                  // thumbnail and still use the full image.
+                  src={img.thumbUrl ?? img.url}
                   alt="Task attachment"
                   loading="lazy"
                   decoding="async"
+                  draggable={false}
                   width={80}
                   height={80}
                   className="h-20 w-20 cursor-zoom-in rounded-md border border-neutral-400/25 object-cover"
@@ -5406,7 +5438,7 @@ function ComplianceTracker({
       for (const file of files) {
         const path = `compliance/${id}/${Date.now()}-${file.name}`;
         const fileRef = storageRef(storage, path);
-        await uploadBytes(fileRef, await downscaleImage(file));
+        await uploadBytes(fileRef, await downscaleImage(file), { cacheControl: IMAGE_CACHE_CONTROL });
         const url = await getDownloadURL(fileRef);
         onAddAttachment(id, { name: file.name, url, path, uploadedAt: Date.now() });
       }
@@ -6207,8 +6239,11 @@ function InvictusTracker() {
 
   return (
     <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
-      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
+      {/* Soft corner glows. Drawn as radial gradients rather than a blurred
+          circle: a 64px blur filter is a real per-frame cost on a phone, and
+          these sit under the scrolling content. Same look, no filter pass. */}
+      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full [background:radial-gradient(circle,rgba(115,115,115,0.13)_0%,rgba(115,115,115,0.06)_45%,transparent_72%)]" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full [background:radial-gradient(circle,rgba(115,115,115,0.13)_0%,rgba(115,115,115,0.06)_45%,transparent_72%)]" />
       <div
         className="pointer-events-none absolute inset-0 z-40 animate-scanlines opacity-[0.07] mix-blend-screen"
         style={{
