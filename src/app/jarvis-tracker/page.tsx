@@ -3729,7 +3729,10 @@ function TaskManager({
         try {
           const thumb = await makeThumbnail(file);
           if (thumb) {
-            thumbPath = `tasks/${id}/thumbs/${stamp}-${thumb.name}`;
+            // Same folder depth as the photo above, deliberately: whatever
+            // Storage rule already allows task photos then covers thumbnails
+            // too, with no rules change needed.
+            thumbPath = `tasks/${id}/${stamp}-thumb-${thumb.name}`;
             const thumbRef = storageRef(storage, thumbPath);
             await uploadBytes(thumbRef, thumb, { cacheControl: IMAGE_CACHE_CONTROL });
             thumbUrl = await getDownloadURL(thumbRef);
