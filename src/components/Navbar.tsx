@@ -102,6 +102,11 @@ export function Navbar() {
                     <Link href="/master" className="cursor-pointer gap-2"><Crown className="h-4 w-4 text-amber-400" /> {t('nav.masterConsole')}</Link>
                   </DropdownMenuItem>
                 )}
+                {isMaster && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/hotel" className="cursor-pointer gap-2"><BedDouble className="h-4 w-4" /> Hotel hubs</Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={(e) => { e.preventDefault(); setTheme(resolved === 'dark' ? 'light' : 'dark'); }}

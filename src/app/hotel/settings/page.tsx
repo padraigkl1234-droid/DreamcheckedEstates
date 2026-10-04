@@ -123,8 +123,8 @@ function RoomsTab() {
 
 function StaffTab() {
   const { user } = useAuth();
-  const { team, isMaster } = useProfile();
-  const { ctx, teamId, staff, reportError } = useHotel();
+  const { isMaster } = useProfile();
+  const { ctx, teamId, staff, reportError, hotelTeam: team } = useHotel();
   const [members, setMembers] = useState<UserProfile[]>([]);
   const [copied, setCopied] = useState(false);
 

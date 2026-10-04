@@ -10,7 +10,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useToast } from '@/hooks/use-toast';
-import { isCommander, isHotelTeam, profileName } from '@/lib/teams';
+import { isCommander, isHotelTeam, profileName, type Team } from '@/lib/teams';
 import { CLEAN_TYPES, DEFAULT_CHECKLISTS, DEFAULT_SETTINGS } from '@/lib/hotel/constants';
 import { initialiseHotel, queued, staffDocId, type HotelCtx } from '@/lib/hotel/actions';
 import { flushPhotoOutbox } from '@/lib/hotel/photos';
@@ -27,7 +27,13 @@ import type {
 interface HotelContextValue {
   teamId: string | null;
   teamName: string;
+  /** The hotel team being viewed (its doc carries the referral code). */
+  hotelTeam: Team | null;
   isHotel: boolean;
+  /** Master only: every hotel team, and which one to view. The master is
+   * above teams, so they open any hotel's hub without joining it. */
+  hotelTeams: Team[];
+  chooseHotel: (teamId: string | null) => void;
   /** Your effective hotel role (a team commander or the master counts as a
    * manager), or null when a manager hasn't given you one / you're inactive. */
   role: HotelRole | null;
@@ -44,20 +50,60 @@ interface HotelContextValue {
   loading: boolean;
   /** Show a write failure (rules denial etc.) as a toast. */
   reportError: (message: string) => void;
+  /** True when Firestore refused even your own staff record — almost always
+   * means the hotel rules aren't published to this database. */
+  rulesMissing: boolean;
 }
 
 const HotelContext = createContext<HotelContextValue | undefined>(undefined);
+const MASTER_PICK_KEY = 'invictus-master-hotel';
 
 export function HotelProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { profile, team, isMaster } = useProfile();
   const { toast } = useToast();
-  const teamId = profile?.teamId ?? null;
-  const isHotel = isHotelTeam(team);
+
+  // Master: which hotel to view, remembered on this device.
+  const [masterPick, setMasterPick] = useState<string | null>(() => {
+    try {
+      return typeof window === 'undefined' ? null : window.localStorage.getItem(MASTER_PICK_KEY);
+    } catch {
+      return null;
+    }
+  });
+  const [hotelTeams, setHotelTeams] = useState<Team[]>([]);
+  useEffect(() => {
+    if (!isMaster) {
+      setHotelTeams([]);
+      return;
+    }
+    return onSnapshot(
+      query(collection(db, 'teams'), where('module', '==', 'hotel')),
+      (snap) => setHotelTeams(snap.docs.map((d) => ({ ...(d.data() as Omit<Team, 'id'>), id: d.id })).sort((a, b) => a.name.localeCompare(b.name))),
+      (e) => console.error('Hotel teams subscription failed:', e)
+    );
+  }, [isMaster]);
+  const chooseHotel = (id: string | null) => {
+    setMasterPick(id);
+    try {
+      if (id) window.localStorage.setItem(MASTER_PICK_KEY, id);
+      else window.localStorage.removeItem(MASTER_PICK_KEY);
+    } catch {
+      /* per-device convenience only */
+    }
+  };
+
+  // Everyone else views their own team. The master views the hotel they
+  // picked (if it's still a hotel), else their own team if that's a hotel.
+  const picked = isMaster && masterPick ? hotelTeams.find((t) => t.id === masterPick) ?? null : null;
+  const hotelTeam: Team | null = picked ?? (isHotelTeam(team) ? team : null);
+  const teamId = isMaster ? hotelTeam?.id ?? null : profile?.teamId ?? null;
+  const isHotel = isHotelTeam(hotelTeam);
   const overManager = isMaster || isCommander(profile);
 
   const [me, setMe] = useState<HotelStaff | null>(null);
   const [meLoaded, setMeLoaded] = useState(false);
+  const [rulesMissing, setRulesMissing] = useState(false);
   const [staff, setStaff] = useState<HotelStaff[]>([]);
   const [rooms, setRooms] = useState<HotelRoom[]>([]);
   const [roomsLoaded, setRoomsLoaded] = useState(false);
@@ -80,14 +126,19 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
       doc(db, 'hotelStaff', staffDocId(teamId, user.uid)),
       (snap) => {
         setMe(snap.exists() ? ({ ...(snap.data() as Omit<HotelStaff, 'id'>), id: snap.id }) : null);
+        setRulesMissing(false);
         setMeLoaded(true);
       },
       (e) => {
         console.error('Hotel staff (self) subscription failed:', e);
+        // Your own staff doc is always readable under the hotel rules, so a
+        // denial here (for anyone but the master, who isn't on the team)
+        // means the rules haven't been published.
+        if ((e as { code?: string }).code === 'permission-denied' && !isMaster) setRulesMissing(true);
         setMeLoaded(true);
       }
     );
-  }, [user, teamId, isHotel]);
+  }, [user, teamId, isHotel, isMaster]);
 
   // Shared hotel data — only once you hold a role (the rules require one).
   useEffect(() => {
@@ -148,14 +199,15 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
   );
 
   // A manager's first visit writes the default settings and checklists.
-  const initialised = useRef(false);
+  // Keyed by team: the master can switch between hotels in one session.
+  const initialised = useRef<string | null>(null);
   useEffect(() => {
-    if (initialised.current || role !== 'manager' || !ctx || !settingsLoaded || templates === null) return;
+    if (initialised.current === teamId || role !== 'manager' || !ctx || !settingsLoaded || templates === null) return;
     const missing = CLEAN_TYPES.map((c) => c.value).filter((t) => !templates.some((x) => x.cleanType === t));
     if (settings && missing.length === 0) return;
-    initialised.current = true;
+    initialised.current = teamId;
     queued(initialiseHotel(ctx, missing, !settings), reportError);
-  }, [role, ctx, settings, settingsLoaded, templates, reportError]);
+  }, [teamId, role, ctx, settings, settingsLoaded, templates, reportError]);
 
   // Send any photos left in the offline outbox, now and whenever we reconnect.
   useEffect(() => {
@@ -173,8 +225,11 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
     ) as Record<CleanType, ChecklistItem[]>;
     return {
       teamId,
-      teamName: team?.name ?? 'Hotel',
+      teamName: hotelTeam?.name ?? 'Hotel',
+      hotelTeam,
       isHotel,
+      hotelTeams,
+      chooseHotel,
       role,
       isManager: role === 'manager',
       isMaint: role === 'manager' || role === 'maintenance',
@@ -187,8 +242,9 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
       ctx,
       loading: !meLoaded || (hasRole && (!roomsLoaded || !settingsLoaded)),
       reportError,
+      rulesMissing,
     };
-  }, [teamId, team, isHotel, role, me, staff, rooms, settings, templates, ctx, meLoaded, hasRole, roomsLoaded, settingsLoaded, reportError]);
+  }, [teamId, hotelTeam, isHotel, hotelTeams, role, me, staff, rooms, settings, templates, ctx, meLoaded, hasRole, roomsLoaded, settingsLoaded, reportError, rulesMissing]);
 
   return <HotelContext.Provider value={value}>{children}</HotelContext.Provider>;
 }

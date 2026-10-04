@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useHotel } from '@/components/hotel/HotelProvider';
+import { useProfile } from '@/components/ProfileProvider';
 import { ROLE_LABELS } from '@/lib/hotel/constants';
 import { pendingPhotoCount } from '@/lib/hotel/photos';
 import type { HotelRole } from '@/lib/hotel/types';
@@ -91,7 +92,8 @@ function usePendingPhotos() {
 }
 
 export function HotelShell({ children }: { children: React.ReactNode }) {
-  const { role, teamName } = useHotel();
+  const { role, teamName, chooseHotel } = useHotel();
+  const { isMaster } = useProfile();
   const pathname = usePathname();
   const online = useOnline();
   const pendingPhotos = usePendingPhotos();
@@ -108,9 +110,14 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
           <BedDouble className="h-5 w-5 shrink-0 text-neutral-100" />
           <div className="min-w-0">
             <p className="truncate text-sm font-bold tracking-tight text-neutral-100">{teamName}</p>
-            {role && <p className="text-[10px] uppercase tracking-widest text-neutral-500">{ROLE_LABELS[role]}</p>}
+            {role && <p className="text-[10px] uppercase tracking-widest text-neutral-500">{isMaster ? 'Master' : ROLE_LABELS[role]}</p>}
           </div>
         </div>
+        {isMaster && (
+          <button onClick={() => chooseHotel(null)} className="mx-3 mt-3 rounded-md border border-neutral-400/25 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 hover:text-neutral-100">
+            Switch hotel
+          </button>
+        )}
         <nav className="flex flex-col gap-1 p-3">
           {items.map((item) => {
             const Icon = item.icon;
@@ -139,6 +146,14 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
             {!online
               ? "You're offline. Changes are saved on this device and will sync when you're back online."
               : `Sending ${pendingPhotos} photo${pendingPhotos === 1 ? '' : 's'}…`}
+          </div>
+        )}
+        {isMaster && (
+          <div className="flex items-center justify-between border-b border-neutral-400/15 px-4 py-2 text-[11px] text-neutral-500 md:hidden">
+            <span>Viewing {teamName} as master</span>
+            <button onClick={() => chooseHotel(null)} className="font-semibold uppercase tracking-widest text-invictus-crimson-bright">
+              Switch
+            </button>
           </div>
         )}
         {children}
