@@ -122,7 +122,7 @@ async function migrateTaskTeamIds(db: Firestore) {
 // Hotel teams: everyone who joins gets a hotel role straight away, starting
 // as a housekeeper (the lowest-privilege role) until a manager changes it.
 // Existing roles are never overwritten, so re-joining keeps your role.
-async function ensureHotelStaff(db: Firestore, teamId: string, uid: string) {
+async function ensureHotelStaff(db: Firestore, teamId: string, uid: string, fallbackName?: string) {
   const team = (await db.collection('teams').doc(teamId).get()).data();
   if (team?.module !== 'hotel') return;
   const ref = db.collection('hotelStaff').doc(`${teamId}_${uid}`);
@@ -132,7 +132,8 @@ async function ensureHotelStaff(db: Firestore, teamId: string, uid: string) {
   await ref.set({
     teamId,
     uid,
-    name: user.displayName || user.name || user.email || 'Unknown',
+    // The user doc can lag a brand-new sign-in, so fall back to the token's name.
+    name: user.displayName || user.name || fallbackName || user.email || 'Unknown',
     role: 'housekeeper',
     active: true,
     createdAt: Date.now(),
@@ -188,7 +189,7 @@ export async function POST(req: Request) {
       if (match.empty) return NextResponse.json({ error: 'No team found for that code' }, { status: 404 });
       const team = match.docs[0];
       await db.collection('users').doc(decoded.uid).set({ teamId: team.id }, { merge: true });
-      await ensureHotelStaff(db, team.id, decoded.uid);
+      await ensureHotelStaff(db, team.id, decoded.uid, decoded.name || decoded.email);
       return NextResponse.json({ ok: true, teamId: team.id, teamName: team.data().name });
     }
 

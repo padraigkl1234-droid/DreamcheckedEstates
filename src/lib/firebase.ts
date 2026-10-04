@@ -1,7 +1,16 @@
 'use client';
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import {
+  getAuth,
+  connectAuthEmulator,
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+  User,
+} from 'firebase/auth';
 import {
   initializeFirestore,
   connectFirestoreEmulator,
@@ -49,6 +58,12 @@ if (useEmulators) {
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectStorageEmulator(storage, '127.0.0.1', 9199);
+  // Scripted sign-in for local browser testing: the Auth emulator accepts an
+  // unsigned Google ID token. Compiled out unless the emulator flag is set.
+  if (typeof window !== 'undefined') {
+    (window as unknown as Record<string, unknown>).__emulatorGoogleSignIn = (email: string, name: string) =>
+      signInWithCredential(auth, GoogleAuthProvider.credential(JSON.stringify({ sub: email, email, email_verified: true, name })));
+  }
 }
 export const googleProvider = new GoogleAuthProvider();
 
