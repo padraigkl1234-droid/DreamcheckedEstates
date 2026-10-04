@@ -858,7 +858,7 @@ function TemplateBuilder({
         <Link href="/assignments" className="text-invictus-crimson-bright hover:underline">
           Assignments
         </Link>{' '}
-        once it's saved.
+        once it&apos;s saved.
       </p>
 
       {error && <p className="text-xs text-alert">{error}</p>}
