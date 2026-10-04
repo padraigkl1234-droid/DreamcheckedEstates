@@ -46,18 +46,20 @@ service cloud.firestore {
 
     // User profiles. Reading your OWN doc is always allowed (so a brand-new,
     // not-yet-joined user can load their profile on the join screen); reading
-    // the WHOLE roster (the "assign to" pickers, team page, automations)
-    // needs an actual team membership, so a stranger who merely signed in
-    // with a Google account can't browse the staff list and every email
-    // address on it. Rank, team membership and blocked status are
-    // infrastructure set only by the Admin SDK (api/teams, api/admin/users),
-    // which bypasses these rules entirely — a client can never grant itself
-    // any of those fields, and `email` must match the signed-in Google
+    // a roster (the "assign to" pickers, team page) needs an actual team
+    // membership AND is scoped to the caller's own team: a list query must
+    // filter `where('teamId', '==', <my team>)`, so neither a stranger who
+    // merely signed in nor a member of another team can browse the staff
+    // list and every email address on it. Only the master lists everyone.
+    // Rank, team membership and blocked status are infrastructure set only
+    // by the Admin SDK (api/teams, api/admin/users), which bypasses these
+    // rules entirely — a client can never grant itself any of those fields,
+    // and `email` must match the signed-in Google
     // account so nobody can claim a teammate's address (e.g. to hijack Estate
     // Request "Assigned To" routing, which matches by email).
     match /users/{uid} {
       allow get: if request.auth != null && (request.auth.uid == uid || isMasterAdmin() || amTeamMember());
-      allow list: if isMasterAdmin() || amTeamMember();
+      allow list: if isMasterAdmin() || inMyTeam(resource.data.get('teamId', ''));
       allow create: if request.auth != null && request.auth.uid == uid &&
         !('rank' in request.resource.data) &&
         !('teamId' in request.resource.data) &&

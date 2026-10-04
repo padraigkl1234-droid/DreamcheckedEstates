@@ -5809,10 +5809,7 @@ function InvictusTracker() {
   // Team roster: everyone who signs in registers themselves in `users`, and the
   // roster is what populates the "assign to" dropdowns.
   useEffect(() => {
-    if (!user) {
-      setTeam([]);
-      return;
-    }
+    if (!user) return;
     setDoc(
       doc(db, 'users', user.uid),
       {
@@ -5822,8 +5819,18 @@ function InvictusTracker() {
       },
       { merge: true }
     ).catch((error) => console.error('Failed to register user:', error));
+  }, [user]);
+
+  // The master admin sees every user (the Admin page's block/unblock list);
+  // everyone else only their own team's roster, which is all the rules allow.
+  const rosterIsMaster = (user?.email ?? '').toLowerCase() === MASTER_ADMIN_EMAIL;
+  useEffect(() => {
+    if (!user || (!rosterIsMaster && !teamId)) {
+      setTeam([]);
+      return;
+    }
     const unsub = onSnapshot(
-      collection(db, 'users'),
+      rosterIsMaster ? collection(db, 'users') : query(collection(db, 'users'), where('teamId', '==', teamId)),
       (snap) =>
         setTeam(
           snap.docs.map((d) => {
@@ -5841,7 +5848,7 @@ function InvictusTracker() {
       (error) => console.error('Team roster subscription failed:', error)
     );
     return unsub;
-  }, [user]);
+  }, [user, rosterIsMaster, teamId]);
 
   // Tasks are private by default but live in a shared `tasks` collection:
   // you see a task if you're a participant (owner, or you accepted it). A task

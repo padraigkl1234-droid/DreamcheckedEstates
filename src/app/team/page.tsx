@@ -7,7 +7,7 @@
 // member can't self-assign one.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { collection, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import {
   Users,
   Copy,
@@ -62,15 +62,22 @@ export default function TeamPage() {
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Non-masters may only list their own team's users (firestore.rules), so
+  // the query must filter on teamId; the master keeps the unfiltered read.
+  const myTeamId = profile?.teamId ?? null;
   useEffect(() => {
-    if (!user) return;
+    if (!user || profileLoading) return;
+    if (!isMaster && !myTeamId) {
+      setMembers([]);
+      return;
+    }
     const unsub = onSnapshot(
-      collection(db, 'users'),
+      isMaster ? collection(db, 'users') : query(collection(db, 'users'), where('teamId', '==', myTeamId)),
       (snap) => setMembers(snap.docs.map((d) => ({ uid: d.id, ...(d.data() as Omit<UserProfile, 'uid'>) }))),
       (error) => console.error('Team members subscription failed:', error)
     );
     return unsub;
-  }, [user]);
+  }, [user, profileLoading, isMaster, myTeamId]);
 
   const teamMembers = useMemo(
     () => members.filter((m) => m.teamId === profile?.teamId).sort((a, b) => profileName(a).localeCompare(profileName(b))),
