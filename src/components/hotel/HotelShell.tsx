@@ -134,7 +134,7 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
 
       <main className="relative flex-1 overflow-y-auto pb-24 md:pb-0">
         {(!online || pendingPhotos > 0) && (
-          <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs text-amber-300 backdrop-blur-md">
+          <div className="sticky top-16 z-20 flex items-center gap-2 border-b border-amber-400/30 md:top-0 bg-amber-400/10 px-4 py-2 text-xs text-amber-300 backdrop-blur-md">
             <WifiOff className="h-3.5 w-3.5 shrink-0" />
             {!online
               ? "You're offline. Changes are saved on this device and will sync when you're back online."
