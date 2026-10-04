@@ -418,6 +418,36 @@ export function AppMobileNav({ activePage, onNavigate, isAdmin = false, features
 
   const isItemActive = (item: NavItem) => (item.route ? pathname === item.route : activePage === item.key);
 
+  // Groups fold here just as they do on the desktop rail. With every page
+  // listed the menu runs past the bottom of a phone screen, so being able to
+  // shut the groups you're not using is what makes it manageable. Whichever
+  // group holds the current page starts open.
+  const [expandedGroups, setExpandedGroups] = useState<Set<NavGroupKey>>(() => {
+    const initial = new Set<NavGroupKey>();
+    for (const entry of layout) {
+      if (entry.type === 'group' && entry.items.some(isItemActive)) initial.add(entry.key);
+    }
+    return initial;
+  });
+
+  useEffect(() => {
+    for (const entry of layout) {
+      if (entry.type !== 'group') continue;
+      if (entry.items.some(isItemActive)) {
+        setExpandedGroups((prev) => (prev.has(entry.key) ? prev : new Set(prev).add(entry.key)));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePage, pathname]);
+
+  const toggleGroup = (key: NavGroupKey) =>
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   const renderItem = (item: NavItem, indent?: boolean) => {
     const Icon = item.icon;
     const active = isItemActive(item);
@@ -466,12 +496,29 @@ export function AppMobileNav({ activePage, onNavigate, isAdmin = false, features
           {layout.map((entry) => {
             if (entry.type === 'item') return renderItem(entry.item);
             const GroupIcon = entry.icon;
+            const open = expandedGroups.has(entry.key);
             return (
               <React.Fragment key={entry.key}>
-                <DropdownMenuLabel className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-neutral-500">
-                  <GroupIcon className="h-3.5 w-3.5 shrink-0" /> {t(entry.labelKey)}
+                <DropdownMenuLabel className="p-0">
+                  <button
+                    type="button"
+                    // Folds the group without closing the menu — this isn't a
+                    // DropdownMenuItem, so Radix doesn't treat it as a choice.
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleGroup(entry.key);
+                    }}
+                    aria-expanded={open}
+                    className="flex min-h-[44px] w-full items-center gap-2 px-2 text-[10px] uppercase tracking-widest text-neutral-500 transition-colors hover:text-neutral-300"
+                  >
+                    <GroupIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="flex-1 text-left">{t(entry.labelKey)}</span>
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? '' : '-rotate-90'}`}
+                    />
+                  </button>
                 </DropdownMenuLabel>
-                {entry.items.map((item) => renderItem(item, true))}
+                {open && entry.items.map((item) => renderItem(item, true))}
               </React.Fragment>
             );
           })}
