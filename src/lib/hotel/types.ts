@@ -211,6 +211,7 @@ export interface HotelComplianceLog {
   teamId: string;
   checkId: string;
   checkName: string;
+  frequency?: CheckFrequency;
   date: string; // YYYY-MM-DD the check was done
   at: number;
   byUid: string;
