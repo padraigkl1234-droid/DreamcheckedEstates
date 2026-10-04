@@ -26,7 +26,9 @@ import {
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { InvictusSelect } from '@/components/InvictusSelect';
-import { featureEnabled, profileName, TOGGLEABLE_PAGES, type Team, type UserProfile } from '@/lib/teams';
+import { featureEnabled, profileName, rankOf, RANKS, TOGGLEABLE_PAGES, type Rank, type Team, type UserProfile } from '@/lib/teams';
+import { HOTEL_ROLES } from '@/lib/hotel/constants';
+import type { HotelRole } from '@/lib/hotel/types';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { db } from '@/lib/firebase';
 
@@ -56,6 +58,8 @@ type Action =
   | { action: 'regenCode'; teamId: string }
   | { action: 'setFeature'; teamId: string; feature: string; enabled: boolean }
   | { action: 'setModule'; teamId: string; module: 'hotel' | null }
+  | { action: 'setRank'; targetUid: string; rank: Rank }
+  | { action: 'setHotelRole'; targetUid: string; role: HotelRole }
   | { action: 'archiveTeam'; teamId: string; archived: boolean }
   | { action: 'deleteTeam'; teamId: string; deleteData: boolean }
   | { action: 'moveUser'; targetUid: string; teamId: string }
@@ -68,6 +72,7 @@ export default function MasterPage() {
   const { isMaster } = useProfile();
   const [teams, setTeams] = useState<Team[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [hotelRoles, setHotelRoles] = useState<Record<string, { role: HotelRole; active: boolean }>>({});
   const [loading, setLoading] = useState(true);
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -126,6 +131,7 @@ export default function MasterPage() {
       if (data) {
         setTeams((data.teams as Team[]) ?? []);
         setUsers((data.users as UserProfile[]) ?? []);
+        setHotelRoles((data.hotelRoles as Record<string, { role: HotelRole; active: boolean }>) ?? {});
       }
     } catch (e) {
       setMessage(`Failed to load: ${(e as Error).message}`);
@@ -367,6 +373,9 @@ export default function MasterPage() {
                         expanded={expandedUids.has(m.uid)}
                         onToggleExpand={() => toggleExpanded(m.uid)}
                         onMove={(teamId) => run({ action: 'moveUser', targetUid: m.uid, teamId }, m.uid)}
+                        onRank={(rank) => run({ action: 'setRank', targetUid: m.uid, rank }, m.uid)}
+                        hotelRole={team.module === 'hotel' ? hotelRoles[`${team.id}_${m.uid}`]?.role ?? null : undefined}
+                        onHotelRole={(role) => run({ action: 'setHotelRole', targetUid: m.uid, role }, m.uid)}
                         onBlock={() => run({ action: m.blocked ? 'unblock' : 'block', targetUid: m.uid }, m.uid)}
                         onRemoveClick={() => setConfirmRemove(m.uid)}
                         onRemoveConfirm={(deleteData) => run({ action: 'remove', targetUid: m.uid, deleteData }, m.uid)}
@@ -486,6 +495,9 @@ function UserRow({
   expanded,
   onToggleExpand,
   onMove,
+  onRank,
+  hotelRole,
+  onHotelRole,
   onBlock,
   onRemoveClick,
   onRemoveConfirm,
@@ -499,6 +511,11 @@ function UserRow({
   expanded: boolean;
   onToggleExpand: () => void;
   onMove: (teamId: string) => void;
+  /** Absent for people not on a team (rank only means something inside one). */
+  onRank?: (rank: Rank) => void;
+  /** undefined = not a hotel team; null = hotel team, no role yet. */
+  hotelRole?: HotelRole | null;
+  onHotelRole?: (role: HotelRole) => void;
   onBlock: () => void;
   onRemoveClick: () => void;
   onRemoveConfirm: (deleteData: boolean) => void;
@@ -561,6 +578,33 @@ function UserRow({
               </>
             ) : (
               <>
+                {onRank && m.teamId && (
+                  <div className="w-32">
+                    <InvictusSelect
+                      value={rankOf(m)}
+                      onChange={(r) => r !== rankOf(m) && onRank(r as Rank)}
+                      title="Rank in this team"
+                      className="bg-invictus-base/60"
+                      options={RANKS.map((r) => ({ value: r.value, label: r.label }))}
+                    />
+                  </div>
+                )}
+                {hotelRole !== undefined && onHotelRole && rankOf(m) === 'commander' && (
+                  <span className="w-40 text-[10px] uppercase tracking-widest text-neutral-400" title="Commanders are always hotel managers">
+                    Manager (as commander)
+                  </span>
+                )}
+                {hotelRole !== undefined && onHotelRole && rankOf(m) !== 'commander' && (
+                  <div className="w-40">
+                    <InvictusSelect
+                      value={hotelRole ?? ''}
+                      onChange={(r) => r && r !== hotelRole && onHotelRole(r as HotelRole)}
+                      title="Hotel role"
+                      className="bg-invictus-base/60"
+                      options={[...(hotelRole ? [] : [{ value: '', label: 'No hotel role' }]), ...HOTEL_ROLES.map((r) => ({ value: r.value, label: r.label }))]}
+                    />
+                  </div>
+                )}
                 <div className="w-40">
                   <InvictusSelect
                     value={m.teamId ?? ''}

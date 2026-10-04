@@ -29,6 +29,8 @@ export const dynamic = 'force-dynamic';
 //   regenCode {teamId}            — roll a team's referral code
 //   setModule {teamId, module}    — switch a team to the hotel hub ('hotel')
 //                                   or back to the estates app (null)
+//   setHotelRole {targetUid, role, active?} — set a hotel-team member's
+//                                   hotel role (manager/housekeeper/maintenance)
 //   moveUser {targetUid, teamId}  — move a user to another team
 //   block / unblock {targetUid}   — disable / re-enable an account's sign-in
 //   remove {targetUid, deleteData}— strip from shared tasks + delete user doc
@@ -228,13 +230,18 @@ export async function POST(req: Request) {
 
     if (action === 'list') {
       await ensureDreamland(db);
-      const [teamsSnap, usersSnap] = await Promise.all([
+      const [teamsSnap, usersSnap, staffSnap] = await Promise.all([
         db.collection('teams').get(),
         db.collection('users').get(),
+        db.collection('hotelStaff').get(),
       ]);
       const teams = teamsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) }));
       const users = usersSnap.docs.map((d) => ({ uid: d.id, ...(d.data() as Record<string, unknown>) }));
-      return NextResponse.json({ ok: true, teams, users });
+      // Hotel roles keyed `${teamId}_${uid}`, for the master console's pickers.
+      const hotelRoles = Object.fromEntries(
+        staffSnap.docs.map((d) => [d.id, { role: d.data().role, active: d.data().active !== false }])
+      );
+      return NextResponse.json({ ok: true, teams, users, hotelRoles });
     }
 
     if (action === 'createTeam') {
@@ -271,6 +278,36 @@ export async function POST(req: Request) {
         const members = await db.collection('users').where('teamId', '==', teamId).get();
         for (const m of members.docs) await ensureHotelStaff(db, teamId, m.id);
       }
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'setHotelRole') {
+      const targetUid = typeof body.targetUid === 'string' ? body.targetUid : '';
+      const role = typeof body.role === 'string' ? body.role : '';
+      if (!targetUid || !['manager', 'housekeeper', 'maintenance'].includes(role)) {
+        return NextResponse.json({ error: 'Missing targetUid or invalid hotel role' }, { status: 400 });
+      }
+      const target = (await db.collection('users').doc(targetUid).get()).data();
+      const teamId = typeof target?.teamId === 'string' ? target.teamId : '';
+      const team = teamId ? (await db.collection('teams').doc(teamId).get()).data() : undefined;
+      if (team?.module !== 'hotel') {
+        return NextResponse.json({ error: "That person isn't on a hotel team" }, { status: 400 });
+      }
+      const ref = db.collection('hotelStaff').doc(`${teamId}_${targetUid}`);
+      const existing = await ref.get();
+      await ref.set(
+        {
+          teamId,
+          uid: targetUid,
+          name: target?.displayName || target?.name || target?.email || 'Unknown',
+          role,
+          active: body.active === false ? false : true,
+          updatedAt: Date.now(),
+          updatedBy: decoded.uid,
+          ...(existing.exists ? {} : { createdAt: Date.now() }),
+        },
+        { merge: true }
+      );
       return NextResponse.json({ ok: true });
     }
 
