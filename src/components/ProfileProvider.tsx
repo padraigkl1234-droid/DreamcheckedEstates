@@ -11,6 +11,7 @@ interface ProfileContextType {
   profile: UserProfile | null;
   team: Team | null;
   loading: boolean; // true until we know the profile (or there's no user)
+  teamLoading: boolean; // true while the user's team doc hasn't arrived yet
   isMaster: boolean;
   refresh: () => void;
 }
@@ -21,6 +22,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
+  // Which teamId the current `team` value answers for, so "no team doc yet"
+  // can be told apart from "that team doc doesn't exist".
+  const [teamFor, setTeamFor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [bump, setBump] = useState(0);
   const bootstrappedFor = useRef<string | null>(null);
@@ -83,19 +87,33 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     const teamId = profile?.teamId;
     if (!teamId) {
       setTeam(null);
+      setTeamFor(null);
       return;
     }
     const unsub = onSnapshot(
       doc(db, 'teams', teamId),
-      (snap) => setTeam(snap.exists() ? ({ id: snap.id, ...(snap.data() as Omit<Team, 'id'>) }) : null),
-      (error) => console.error('Team subscription failed:', error)
+      (snap) => {
+        setTeam(snap.exists() ? ({ id: snap.id, ...(snap.data() as Omit<Team, 'id'>) }) : null);
+        setTeamFor(teamId);
+      },
+      (error) => {
+        console.error('Team subscription failed:', error);
+        setTeamFor(teamId);
+      }
     );
     return unsub;
   }, [profile?.teamId]);
 
   return (
     <ProfileContext.Provider
-      value={{ profile, team, loading: authLoading || loading, isMaster, refresh: () => setBump((n) => n + 1) }}
+      value={{
+        profile,
+        team,
+        loading: authLoading || loading,
+        teamLoading: !!profile?.teamId && teamFor !== profile.teamId,
+        isMaster,
+        refresh: () => setBump((n) => n + 1),
+      }}
     >
       {children}
     </ProfileContext.Provider>

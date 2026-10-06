@@ -90,6 +90,15 @@ export interface Team {
   createdAt: number;
   features?: TeamFeatures;
   archived?: boolean;
+  /** Which product branch this team runs. Absent = the estates app, as every
+   * team has always had; 'hotel' = the Hotel Operations hub (/hotel). */
+  module?: TeamModule;
+}
+
+export type TeamModule = 'hotel';
+
+export function isHotelTeam(team: Pick<Team, 'module'> | null | undefined): boolean {
+  return team?.module === 'hotel';
 }
 
 export interface UserProfile {

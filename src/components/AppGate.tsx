@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { LogIn, LogOut, Users, Loader2, ArrowRight } from 'lucide-react';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
 import { useT } from '@/components/LanguageProvider';
+import { isHotelTeam } from '@/lib/teams';
 
 // Gates the whole app: signed-out users see a login/signup screen; signed-in
 // users without a team enter a referral code to join theirs; everyone else
@@ -151,9 +153,24 @@ function TeamArchived() {
   );
 }
 
+const isHotelPath = (p: string | null) => !!p && (p === '/hotel' || p.startsWith('/hotel/'));
+
 export function AppGate({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const { profile, team, loading: profileLoading, isMaster } = useProfile();
+  const { profile, team, loading: profileLoading, teamLoading, isMaster } = useProfile();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Hotel teams live entirely under /hotel; every other team never goes
+  // there. Teams without a module see exactly what they always have. The
+  // master is above teams and may go anywhere.
+  const hotel = isHotelTeam(team);
+  const ready = !authLoading && !!user && !profileLoading && !!profile?.teamId && !teamLoading;
+  const redirectTo =
+    !ready || isMaster ? null : hotel && !isHotelPath(pathname) ? '/hotel' : !hotel && isHotelPath(pathname) ? '/' : null;
+  useEffect(() => {
+    if (redirectTo) router.replace(redirectTo);
+  }, [redirectTo, router]);
 
   if (authLoading) return <GateSpinner />;
   if (!user) return <LoginLanding />;
@@ -161,5 +178,8 @@ export function AppGate({ children }: { children: React.ReactNode }) {
   // Master admin is above teams — never gated on team membership.
   if (!isMaster && !profile?.teamId) return <JoinTeam />;
   if (!isMaster && team?.archived) return <TeamArchived />;
+  // Wait for the team doc before rendering either app, so a hotel team never
+  // flashes (or starts loading) the estates dashboard.
+  if (!isMaster && (teamLoading || redirectTo)) return <GateSpinner />;
   return <>{children}</>;
 }

@@ -4796,7 +4796,7 @@ function TaskManager({
         <Panel title={`Task Offers (${offers.length})`} icon={Inbox} refCode="0105-O">
           <p className="mb-3 text-xs text-neutral-500">
             Tasks a teammate has assigned to you. Accept to share the task — it appears on
-            everyone's board who's accepted it, and any one of you completing it completes it for all.
+            everyone&apos;s board who&apos;s accepted it, and any one of you completing it completes it for all.
           </p>
           <div className="space-y-2">
             {offers.map((task) => (

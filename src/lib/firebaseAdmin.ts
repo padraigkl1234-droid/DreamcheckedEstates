@@ -14,6 +14,12 @@ function getAdminApp(): App {
   const existing = getApps();
   if (existing.length) return existing[0];
 
+  // Emulator mode (see src/lib/firebase.ts): the Admin SDK reads the
+  // *_EMULATOR_HOST variables itself and needs no credentials.
+  if (process.env.FIRESTORE_EMULATOR_HOST) {
+    return initializeApp({ projectId: 'demo-invictus' });
+  }
+
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) {
     throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set');

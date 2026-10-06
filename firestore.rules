@@ -234,6 +234,161 @@ service cloud.firestore {
       allow read, write: if isMasterAdmin();
     }
 
+    // ---- Hotel Operations module ----------------------------------------
+    // Only teams switched to the hotel module ever write these (see
+    // src/lib/hotel/types.ts for the model). Every document carries teamId
+    // and every rule requires it to be the caller's own team, so one hotel
+    // can never read or write another's data — tests/hotel-rules.test.ts
+    // proves it against the emulator.
+    //
+    // Hotel roles are separate from the estates rank ladder: they live in
+    // hotelStaff/{teamId}_{uid} and only a hotel manager can set them. A team
+    // commander (and the master) is always treated as a hotel manager so a
+    // freshly-converted team is never locked out of its own settings.
+    function myHotelStaffPath() {
+      return /databases/$(database)/documents/hotelStaff/$(myTeam() + '_' + request.auth.uid);
+    }
+    function hasHotelRole(teamId, roles) {
+      return inMyTeam(teamId) &&
+        exists(myHotelStaffPath()) &&
+        get(myHotelStaffPath()).data.get('active', true) == true &&
+        get(myHotelStaffPath()).data.role in roles;
+    }
+    function isHotelManager(teamId) {
+      return isMasterAdmin() || isCommanderOf(teamId) || hasHotelRole(teamId, ['manager']);
+    }
+    // Manager or maintenance: the fault queue and compliance.
+    function isHotelMaint(teamId) {
+      return isHotelManager(teamId) || hasHotelRole(teamId, ['maintenance']);
+    }
+    // Anyone with a hotel role in this team.
+    function isHotelStaff(teamId) {
+      return isHotelManager(teamId) || hasHotelRole(teamId, ['housekeeper', 'maintenance']);
+    }
+    function teamUnchanged() {
+      return request.resource.data.teamId == resource.data.teamId;
+    }
+
+    match /hotelStaff/{id} {
+      // Your own staff doc is always readable (the hub checks it on load).
+      allow get: if request.auth != null && id == myTeam() + '_' + request.auth.uid;
+      allow read: if isHotelStaff(resource.data.teamId);
+      // A manager sets roles, only for people actually on their team, and
+      // the doc id is pinned to teamId_uid so a role can't be filed twice.
+      allow create, update: if isHotelManager(request.resource.data.teamId) &&
+        id == request.resource.data.teamId + '_' + request.resource.data.uid &&
+        request.resource.data.role in ['manager', 'housekeeper', 'maintenance'] &&
+        get(/databases/$(database)/documents/users/$(request.resource.data.uid)).data.get('teamId', '') == request.resource.data.teamId &&
+        (resource == null || teamUnchanged());
+      allow delete: if false;
+    }
+
+    match /hotelSettings/{teamId} {
+      allow read: if isHotelStaff(teamId);
+      allow create, update: if isHotelManager(teamId) && request.resource.data.teamId == teamId;
+      allow delete: if false;
+    }
+
+    match /hotelRooms/{id} {
+      allow read: if isHotelStaff(resource.data.teamId);
+      allow create: if isHotelManager(request.resource.data.teamId);
+      allow delete: if isHotelManager(resource.data.teamId);
+      // Managers edit anything. Other staff may only move a room's status
+      // (start/finish a clean, mark it out of order, return it to dirty) —
+      // never to "inspected", which is the manager's sign-off.
+      allow update: if teamUnchanged() && (
+        isHotelManager(resource.data.teamId) ||
+        (isHotelStaff(resource.data.teamId) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'statusAt', 'statusBy', 'statusByName', 'lastCleanedAt']) &&
+          request.resource.data.status in ['dirty', 'in_progress', 'clean', 'out_of_order'] &&
+          request.resource.data.statusBy == request.auth.uid)
+      );
+    }
+
+    // Append-only status history.
+    match /hotelRoomEvents/{id} {
+      allow read: if isHotelStaff(resource.data.teamId);
+      allow create: if isHotelStaff(request.resource.data.teamId) && request.resource.data.byUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // A room's job for the day. Housekeepers see and work only their own.
+    match /hotelAssignments/{id} {
+      allow read: if isHotelManager(resource.data.teamId) ||
+        (isHotelStaff(resource.data.teamId) && resource.data.assigneeUid == request.auth.uid);
+      allow create: if isHotelManager(request.resource.data.teamId) &&
+        id == request.resource.data.teamId + '_' + request.resource.data.date + '_' + request.resource.data.roomId;
+      allow delete: if isHotelManager(resource.data.teamId);
+      allow update: if teamUnchanged() && (
+        isHotelManager(resource.data.teamId) ||
+        (isHotelStaff(resource.data.teamId) &&
+          resource.data.assigneeUid == request.auth.uid &&
+          request.resource.data.updatedBy == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['outcome', 'startedAt', 'finishedAt', 'note', 'checklist', 'updatedAt', 'updatedBy', 'updatedByName']))
+      );
+    }
+
+    match /hotelChecklistTemplates/{id} {
+      allow read: if isHotelStaff(resource.data.teamId);
+      allow create, update: if isHotelManager(request.resource.data.teamId) &&
+        id == request.resource.data.teamId + '_' + request.resource.data.cleanType &&
+        (resource == null || teamUnchanged());
+      allow delete: if isHotelManager(resource.data.teamId);
+    }
+
+    // Faults: anyone on staff can report one; the queue belongs to managers
+    // and maintenance. A reporter can still see their own reports and attach
+    // the photos their phone uploads once it's back online.
+    match /hotelFaults/{id} {
+      allow read: if isHotelMaint(resource.data.teamId) ||
+        (isHotelStaff(resource.data.teamId) && resource.data.reportedBy == request.auth.uid);
+      allow create: if isHotelStaff(request.resource.data.teamId) &&
+        request.resource.data.reportedBy == request.auth.uid &&
+        request.resource.data.status == 'open';
+      allow update: if teamUnchanged() && (
+        isHotelMaint(resource.data.teamId) ||
+        (isHotelStaff(resource.data.teamId) &&
+          resource.data.reportedBy == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photos', 'pendingPhotos', 'updatedAt']))
+      );
+      allow delete: if isHotelManager(resource.data.teamId);
+    }
+
+    // Append-only fault log.
+    match /hotelFaultUpdates/{id} {
+      allow read: if isHotelMaint(resource.data.teamId);
+      allow create: if isHotelStaff(request.resource.data.teamId) && request.resource.data.byUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /hotelComplianceChecks/{id} {
+      allow read: if isHotelMaint(resource.data.teamId);
+      allow create: if isHotelManager(request.resource.data.teamId);
+      allow delete: if isHotelManager(resource.data.teamId);
+      // Maintenance completing a check may only roll its due date forward.
+      allow update: if teamUnchanged() && (
+        isHotelManager(resource.data.teamId) ||
+        (isHotelMaint(resource.data.teamId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nextDue', 'lastDoneAt', 'lastResult']))
+      );
+    }
+
+    // Append-only compliance log.
+    match /hotelComplianceLogs/{id} {
+      allow read: if isHotelMaint(resource.data.teamId);
+      allow create: if isHotelMaint(request.resource.data.teamId) && request.resource.data.byUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Append-only settings/staff audit trail.
+    match /hotelAudit/{id} {
+      allow read: if isHotelManager(resource.data.teamId);
+      allow create: if isHotelStaff(request.resource.data.teamId) && request.resource.data.byUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // Connectivity probe.
     match /test/connection {
       allow read: if true;

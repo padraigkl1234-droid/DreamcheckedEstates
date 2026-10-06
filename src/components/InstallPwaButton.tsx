@@ -104,7 +104,7 @@ export function InstallPwaButton() {
             <ol className="space-y-3 text-sm text-foreground">
               <li className="flex items-center gap-3">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">1</span>
-                Tap the <Share className="mx-1 inline h-4 w-4" /> Share button in Safari's toolbar.
+                Tap the <Share className="mx-1 inline h-4 w-4" /> Share button in Safari&apos;s toolbar.
               </li>
               <li className="flex items-center gap-3">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">2</span>
@@ -119,7 +119,7 @@ export function InstallPwaButton() {
             <ol className="space-y-3 text-sm text-foreground">
               <li className="flex items-center gap-3">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">1</span>
-                Open your browser's menu <MoreVertical className="mx-1 inline h-4 w-4" /> (or the address-bar install icon).
+                Open your browser&apos;s menu <MoreVertical className="mx-1 inline h-4 w-4" /> (or the address-bar install icon).
               </li>
               <li className="flex items-center gap-3">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">2</span>

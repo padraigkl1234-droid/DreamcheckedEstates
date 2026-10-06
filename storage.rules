@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// Storage rules for LOCAL EMULATOR use. Production Storage rules are managed
+// in the Firebase console — merge the /hotel block below into them by hand
+// rather than deploying this file over the top.
+//
+// Note: cross-service rules (firestore.get from Storage rules) only reach the
+// (default) Firestore database, and INVICTUS uses a named one, so these rules
+// can't look up the caller's team. Hotel photos are therefore limited to
+// signed-in users, images only, under 10 MB, at an unguessable path; reads go
+// through the tokenised download URLs stored on team-scoped Firestore docs.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /hotel/{teamId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+  }
+}
