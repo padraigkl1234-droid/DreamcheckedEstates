@@ -28,6 +28,7 @@ import {
   ClipboardList,
   ListChecks,
   Map as MapIcon,
+  Ban,
   SearchCheck,
   ShieldCheck,
   Archive,
@@ -69,6 +70,7 @@ export type PageKey =
   | 'assignments'
   | 'tasks'
   | 'sitemap'
+  | 'siteStatus'
   | 'team'
   | 'compliance'
   | 'archive'
@@ -98,6 +100,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'assignments', label: 'Assignments', icon: UserCheck, feature: 'assignments', route: '/assignments' },
   { key: 'tasks', label: 'Task Manager', icon: ListChecks, feature: 'taskManager' },
   { key: 'sitemap', label: 'Site Map', icon: MapIcon, feature: 'siteMap' },
+  { key: 'siteStatus', label: 'Site Status', icon: Ban, feature: 'siteStatus', route: '/site-status' },
   { key: 'team', label: 'Team', icon: Users, feature: 'team', route: '/team' },
   { key: 'compliance', label: 'Compliance', icon: ShieldCheck, feature: 'compliance' },
   { key: 'archive', label: 'Archive', icon: Archive, feature: 'archive' },
@@ -121,6 +124,7 @@ export const NAV_LABEL_KEYS: Record<PageKey, string> = {
   assignments: 'nav.assignments',
   tasks: 'nav.taskManager',
   sitemap: 'nav.siteMap',
+  siteStatus: 'nav.siteStatus',
   team: 'nav.team',
   compliance: 'nav.compliance',
   archive: 'nav.archive',
@@ -159,6 +163,7 @@ const NAV_LAYOUT: { key: PageKey | NavGroupKey; gapBefore?: boolean }[] = [
   { key: 'actions' },
   { key: 'tasks' },
   { key: 'sitemap' },
+  { key: 'siteStatus' },
   { key: 'team' },
   { key: 'archive', gapBefore: true },
   { key: 'reports' },

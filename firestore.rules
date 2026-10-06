@@ -195,6 +195,26 @@ service cloud.firestore {
       allow read: if isMasterAdmin() || teamId == myTeam();
     }
 
+    // Areas marked out of use for a day or a date range, drawn on the Site
+    // Status board (/site-status). Read by the whole team — the entire point
+    // is that everyone on site can see what's shut — but only a commander of
+    // that team (or master) may close an area or reopen it. `createdBy` is
+    // pinned to the caller so a closure can always be traced back to whoever
+    // set it. The client query filters on teamId, mirroring the read rule.
+    match /siteClosures/{id} {
+      allow read: if isMasterAdmin() || inMyTeam(resource.data.teamId);
+      allow create: if isMasterAdmin() ||
+        (isCommanderOf(request.resource.data.teamId) &&
+          request.resource.data.createdBy == request.auth.uid);
+      // Reopening is a delete. An update may not move a closure to another
+      // team or disown it.
+      allow update: if isMasterAdmin() ||
+        (isCommanderOf(resource.data.teamId) &&
+          request.resource.data.teamId == resource.data.teamId &&
+          request.resource.data.createdBy == resource.data.createdBy);
+      allow delete: if isMasterAdmin() || isCommanderOf(resource.data.teamId);
+    }
+
     // Assigning a piece of work (see /assignments) to a specific person, for
     // a date or a repeating schedule, with an explicit accept/decline —
     // private to the two parties, like a task, not team-wide visible.
