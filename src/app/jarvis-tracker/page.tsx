@@ -4920,6 +4920,294 @@ function TaskManager({
 // Task Archive
 // ---------------------------------------------------------------------------
 
+// How long a task was open, in words. Anything under an hour reads in
+// minutes; a job that ran for months shouldn't print as 2,400 hours.
+function formatDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '—';
+  if (ms < 60_000) return 'Under a minute'; // beats printing "0 mins"
+  const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`;
+  const mins = Math.round(ms / 60_000);
+  if (mins < 60) return plural(mins, 'min');
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) {
+    const rest = mins % 60;
+    return rest ? `${plural(hours, 'hr')} ${rest} min` : plural(hours, 'hr');
+  }
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  return rest ? `${plural(days, 'day')} ${plural(rest, 'hr')}` : plural(days, 'day');
+}
+
+// Whether the job landed on time, measured in whole days so a task finished
+// at 9am on its due date doesn't read as "late".
+function dueDateVerdict(task: Task): string | null {
+  if (!task.dueDate || !task.completedAt) return null;
+  const done = toDateInputValue(new Date(task.completedAt));
+  if (done === task.dueDate) return 'On the due date';
+  const dayMs = 86_400_000;
+  const diff = Math.round(
+    (new Date(`${done}T12:00:00Z`).getTime() - new Date(`${task.dueDate}T12:00:00Z`).getTime()) / dayMs
+  );
+  if (!Number.isFinite(diff)) return null;
+  const n = Math.abs(diff);
+  return diff < 0
+    ? `${n} day${n === 1 ? '' : 's'} early`
+    : `${n} day${n === 1 ? '' : 's'} late`;
+}
+
+// Pull a task photo back down as a data URL so it can be embedded. Returns
+// null on anything jsPDF can't place — a failed fetch (the bucket's CORS
+// rules, an offline phone) or a format it doesn't decode. A missing photo
+// must never cost you the whole report.
+async function fetchPhotoForPdf(url: string): Promise<{ dataUrl: string; format: 'JPEG' | 'PNG' } | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const format = blob.type === 'image/png' ? 'PNG' : blob.type === 'image/jpeg' ? 'JPEG' : null;
+    if (!format) return null;
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+    return { dataUrl, format };
+  } catch {
+    return null;
+  }
+}
+
+// The full record of one archived task as a PDF: what it was, where, who had
+// it, every timing, the whole update log, the materials and their cost, and
+// the photos. The archive list itself only shows a name and a date, so this
+// is where the detail of a finished job actually gets read.
+async function exportArchivedTaskToPdf(task: Task) {
+  const { jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
+
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  // Same accent the other exports use, so a task report sits alongside an
+  // event report without looking like it came from somewhere else.
+  const accent: [number, number, number] = [37, 99, 235];
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const left = 40;
+  const right = pageW - 40;
+  const contentW = right - left;
+  const bottomLimit = pageH - 60;
+  const generatedAt = new Date();
+
+  // Fetch the photos up front, before a single mark is on the page: whatever
+  // comes back gets embedded and whatever doesn't is counted and noted.
+  const photos: { dataUrl: string; format: 'JPEG' | 'PNG'; w: number; h: number }[] = [];
+  let photosMissing = 0;
+  for (const img of task.images ?? []) {
+    const got = await fetchPhotoForPdf(img.url);
+    if (!got) {
+      photosMissing++;
+      continue;
+    }
+    try {
+      const props = doc.getImageProperties(got.dataUrl);
+      photos.push({ ...got, w: props.width, h: props.height });
+    } catch {
+      photosMissing++;
+    }
+  }
+
+  const stamp = (at: number | undefined) => (at ? formatUpdateStamp(at) : '—');
+
+  drawInvictusCorner(doc, right, 46);
+  const markBottom = drawDreamlandWordmark(doc, left, 50);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...accent);
+  doc.text('Task Report', left, markBottom + 30);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(30, 30, 30);
+  const titleLines = doc.splitTextToSize(task.name, contentW);
+  let y = markBottom + 50;
+  for (const line of titleLines) {
+    doc.text(line, left, y);
+    y += 15;
+  }
+  y += 14;
+
+  const heading = (label: string) => {
+    if (y + 34 > bottomLimit) {
+      doc.addPage();
+      y = 56;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(...accent);
+    doc.text(label.toUpperCase(), left, y);
+    doc.setDrawColor(220, 220, 220);
+    doc.line(left, y + 5, right, y + 5);
+    y += 20;
+  };
+
+  const table = (
+    head: string[],
+    body: string[][],
+    columnStyles?: Record<number, { cellWidth?: number; halign?: 'left' | 'right'; fontStyle?: 'bold' }>
+  ) => {
+    autoTable(doc, {
+      startY: y,
+      head: [head],
+      body,
+      headStyles: { fillColor: accent, textColor: 255, fontSize: 8.5 },
+      bodyStyles: { fontSize: 8.5, textColor: [40, 40, 40], valign: 'top' },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      columnStyles,
+      margin: { left, right: 40, bottom: 56 },
+    });
+    y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 24;
+  };
+
+  const paragraph = (text: string, muted = false) => {
+    doc.setFont('helvetica', muted ? 'italic' : 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(muted ? 130 : 60, muted ? 130 : 60, muted ? 130 : 60);
+    for (const line of doc.splitTextToSize(text, contentW)) {
+      if (y > bottomLimit) {
+        doc.addPage();
+        y = 56;
+      }
+      doc.text(line, left, y);
+      y += 13;
+    }
+    y += 14;
+  };
+
+  // ---- Detail ----
+  const sharedWith = (task.participants ?? [])
+    .filter((uid) => uid !== task.ownerUid)
+    .map((uid) => task.participantNames?.[uid] ?? uid);
+
+  heading('Detail');
+  table(
+    ['Field', 'Value'],
+    [
+      ['Category', task.category?.trim() || 'Uncategorized'],
+      ['Location', task.area || 'Not pinned to the site map'],
+      ['Priority', task.priority],
+      ['Final status', task.status],
+      ['Raised by', task.ownerName || '—'],
+      ['Shared with', sharedWith.length ? sharedWith.join(', ') : 'Nobody — private to the owner'],
+      ['Origin', task.source === 'estateRequest' ? 'Estate request (intake webhook)' : 'Added in INVICTUS'],
+    ],
+    { 0: { cellWidth: 130, fontStyle: 'bold' } }
+  );
+
+  // ---- Timings ----
+  heading('Timings');
+  const timings: string[][] = [
+    ['Created', stamp(task.createdAt)],
+    ['Due', task.dueDate ? formatDisplayDate(task.dueDate) : '—'],
+    ['Completed', stamp(task.completedAt)],
+    ['Archived', stamp(task.archivedAt)],
+  ];
+  if (task.createdAt && task.completedAt) {
+    timings.push(['Time open', formatDuration(task.completedAt - task.createdAt)]);
+  }
+  const verdict = dueDateVerdict(task);
+  if (verdict) timings.push(['Against due date', verdict]);
+  table(['Field', 'Value'], timings, { 0: { cellWidth: 130, fontStyle: 'bold' } });
+
+  // ---- Description ----
+  heading('Description');
+  if (task.notes?.trim()) paragraph(task.notes.trim());
+  else paragraph('No description was recorded.', true);
+
+  // ---- Updates ----
+  const updates = [...(task.updates ?? [])].sort((a, b) => a.at - b.at);
+  heading(`Update log (${updates.length})`);
+  if (updates.length) {
+    table(
+      ['When', 'By', 'Update'],
+      updates.map((u) => [formatUpdateStamp(u.at), u.byName || '—', u.text]),
+      { 0: { cellWidth: 100 }, 1: { cellWidth: 90 } }
+    );
+  } else {
+    paragraph('Nothing was added to this task after it was raised.', true);
+  }
+
+  // ---- Materials ----
+  const materials = task.materials ?? [];
+  heading(`Materials (${materials.length})`);
+  if (materials.length) {
+    const total = materialsTotal(materials);
+    table(
+      ['Item', 'Qty', 'Unit price', 'Line total'],
+      [
+        ...materials.map((m) => [
+          m.url ? `${m.name}\n${m.url}` : m.name,
+          String(m.quantity || 1),
+          m.price === undefined ? '—' : formatMoney(m.price),
+          m.price === undefined ? '—' : formatMoney(m.price * (m.quantity || 1)),
+        ]),
+        ['Total', '', '', formatMoney(total)],
+      ],
+      {
+        1: { cellWidth: 44, halign: 'right' },
+        2: { cellWidth: 70, halign: 'right' },
+        3: { cellWidth: 70, halign: 'right' },
+      }
+    );
+  } else {
+    paragraph('No materials were logged against this task.', true);
+  }
+
+  // ---- Photos ----
+  if (photos.length || photosMissing) {
+    heading(`Photos (${photos.length})`);
+    const gap = 12;
+    const colW = (contentW - gap) / 2;
+    const maxH = 180;
+    // Two to a row, page-broken on the taller of each pair so an image can
+    // never be clipped by the page edge.
+    for (let i = 0; i < photos.length; i += 2) {
+      const sized = photos.slice(i, i + 2).map((p) => {
+        const scale = Math.min(colW / p.w, maxH / p.h);
+        return { ...p, dw: p.w * scale, dh: p.h * scale };
+      });
+      const rowH = Math.max(...sized.map((s) => s.dh));
+      if (y + rowH > bottomLimit) {
+        doc.addPage();
+        y = 56;
+      }
+      sized.forEach((s, k) => doc.addImage(s.dataUrl, s.format, left + k * (colW + gap), y, s.dw, s.dh));
+      y += rowH + gap;
+    }
+    if (photosMissing) {
+      y += 6;
+      paragraph(
+        `${photosMissing} photo${photosMissing === 1 ? '' : 's'} could not be downloaded for this export and ${
+          photosMissing === 1 ? 'is' : 'are'
+        } missing from the report. The ${photosMissing === 1 ? 'photo is' : 'photos are'} still attached to the task.`,
+        true
+      );
+    }
+  }
+
+  // One footer per page, stamped at the end — simpler than hooking every
+  // table's page break, and it can't double up or miss a page.
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    drawInvictusFooter(doc, left, right, pageH - 30, generatedAt);
+  }
+
+  const slug = task.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'task';
+  const when = toDateInputValue(new Date(task.archivedAt ?? task.completedAt ?? Date.now()));
+  doc.save(`invictus-task-report-${slug}-${when}.pdf`);
+}
+
 function TaskArchive({
   archivedTasks,
   onRestore,
@@ -4937,6 +5225,23 @@ function TaskArchive({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  // Which row's report is being built. Photos are fetched over the network,
+  // so a task with a dozen of them takes a moment — the row spins meanwhile.
+  const [pdfBusyId, setPdfBusyId] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  const downloadReport = async (task: Task) => {
+    setPdfBusyId(task.id);
+    setPdfError(null);
+    try {
+      await exportArchivedTaskToPdf(task);
+    } catch (e) {
+      console.error('Failed to export task report:', e);
+      setPdfError('Could not build that report — try again.');
+    } finally {
+      setPdfBusyId(null);
+    }
+  };
 
   const areas = useMemo(
     () => Array.from(new Set(archivedTasks.map((t) => t.area).filter((a): a is string => Boolean(a)))).sort(),
@@ -5085,6 +5390,10 @@ function TaskArchive({
           </div>
         )}
 
+        {pdfError && (
+          <p className="mb-3 rounded-md border border-alert/40 bg-alert/10 px-3 py-2 text-xs text-alert">{pdfError}</p>
+        )}
+
         {groups.length === 0 && (
           <p className="py-8 text-center text-xs text-neutral-600">
             {archivedTasks.length === 0
@@ -5143,6 +5452,21 @@ function TaskArchive({
                           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_STYLES[task.priority]}`}>
                             {task.priority}
                           </span>
+                          {/* The row can't show the update log, materials or
+                              photos — this is how you read them. */}
+                          <button
+                            onClick={() => downloadReport(task)}
+                            disabled={pdfBusyId === task.id}
+                            className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright disabled:opacity-50"
+                            title="Download the full task report as a PDF"
+                          >
+                            {pdfBusyId === task.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <FileDown className="h-3.5 w-3.5" />
+                            )}
+                            Report
+                          </button>
                           <button
                             onClick={() => onRestore(task.id)}
                             className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
