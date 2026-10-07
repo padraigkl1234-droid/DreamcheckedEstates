@@ -2,17 +2,39 @@
 // the Site Status board (/site-status), which is meant to be thrown up on a
 // screen so everyone working on site can see at a glance what's shut.
 //
-// A closure names a place by its SITE_ZONES label, the same string a task's
-// `area` holds. That means it needs no separate list of locations, and it
-// also means a label drawn on the map in more than one piece (Scenic
-// Railway, Peppermint Bar) lights up in all of them — which is what you
-// want: it's one place, however many boxes it takes to draw.
+// A closure comes in two shapes.
+//
+// A ZONE closure names a place by its SITE_ZONES label, the same string a
+// task's `area` holds. It needs no separate list of locations, and a label
+// drawn on the map in more than one piece (Scenic Railway, Peppermint Bar)
+// lights up in all of them — which is what you want: it's one place, however
+// many boxes it takes to draw.
+//
+// A DRAWN closure is a box dragged straight onto the map. Real estate work
+// doesn't respect zone boundaries — a scaffold run can take half the food
+// court and a slice of the walkway beside it — so the shut area is whatever
+// was dragged, and the names of the zones it covers are recorded alongside
+// it purely so the closure reads sensibly in a list.
+
+import { SITE_ZONES } from '@/lib/siteMapData';
+
+export interface SiteClosureRect {
+  /** Map units, matching the SVG viewBox (MAP_W x MAP_H). */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 export interface SiteClosure {
   id: string;
   teamId: string;
-  /** A SITE_ZONES label. */
-  area: string;
+  /** A SITE_ZONES label — set on zone closures, absent on drawn ones. */
+  area?: string;
+  /** The dragged box — set on drawn closures, absent on zone ones. */
+  rect?: SiteClosureRect;
+  /** For a drawn closure, the zones it covers, for display only. */
+  label?: string;
   /** Why it's shut, e.g. "Resurfacing — scaffold up". Optional. */
   reason?: string;
   /** First day out of use, inclusive. YYYY-MM-DD. */
@@ -22,6 +44,12 @@ export interface SiteClosure {
   createdAt: number;
   /** Who set it. Stored for the rules and for chasing it up; not shown on the board. */
   createdBy: string;
+}
+
+/** What to call a closure in a list: the zone it names, or the zones the
+ *  drawn box happens to sit over. */
+export function closureTitle(c: SiteClosure): string {
+  return c.area || c.label || 'Marked area';
 }
 
 /** Local calendar date as YYYY-MM-DD. */
@@ -56,14 +84,47 @@ export function closureActiveOn(c: SiteClosure, iso: string): boolean {
   return !c.endDate || iso <= c.endDate;
 }
 
-/** The closures covering a day, soonest-set first. */
+/** The closures covering a day, in name order. */
 export function closuresOn(closures: SiteClosure[], iso: string): SiteClosure[] {
-  return closures.filter((c) => closureActiveOn(c, iso)).sort((a, b) => a.area.localeCompare(b.area));
+  return closures
+    .filter((c) => closureActiveOn(c, iso))
+    .sort((a, b) => closureTitle(a).localeCompare(closureTitle(b)));
 }
 
-/** Just the area labels shut on a day — what the map colours by. */
+/** Just the named zones shut on a day — what the map colours whole zones by.
+ *  Drawn closures are deliberately absent: their box is the highlight, so
+ *  filling the zones under it as well would double up. */
 export function closedAreasOn(closures: SiteClosure[], iso: string): Set<string> {
-  return new Set(closuresOn(closures, iso).map((c) => c.area));
+  return new Set(
+    closuresOn(closures, iso)
+      .map((c) => c.area)
+      .filter((a): a is string => Boolean(a))
+  );
+}
+
+/** The drawn boxes shut on a day, with the text to print inside each. */
+export function closedRectsOn(
+  closures: SiteClosure[],
+  iso: string
+): { id: string; rect: SiteClosureRect; text: string }[] {
+  return closuresOn(closures, iso)
+    .filter((c): c is SiteClosure & { rect: SiteClosureRect } => Boolean(c.rect))
+    .map((c) => ({ id: c.id, rect: c.rect, text: c.reason?.trim() || closureTitle(c) }));
+}
+
+/** The named zones whose centre falls inside a drawn box. Used to give a
+ *  dragged closure a readable name — "Food Court, Peppermint Bar" — without
+ *  making the box itself snap to anything. */
+export function zonesUnderRect(rect: SiteClosureRect): string[] {
+  const names: string[] = [];
+  for (const z of SITE_ZONES) {
+    const cx = z.x + z.w / 2;
+    const cy = z.y + z.h / 2;
+    if (cx >= rect.x && cx <= rect.x + rect.w && cy >= rect.y && cy <= rect.y + rect.h) {
+      if (!names.includes(z.label)) names.push(z.label);
+    }
+  }
+  return names;
 }
 
 /** How long a closure runs, for the list beside the map. */

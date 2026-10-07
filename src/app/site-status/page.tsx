@@ -26,6 +26,7 @@ import {
   Minimize2,
   Plus,
   SlidersHorizontal,
+  SquareDashedMousePointer,
   Trash2,
   X,
 } from 'lucide-react';
@@ -40,13 +41,17 @@ import { siteSections } from '@/lib/siteSections';
 import {
   canManageClosures,
   closedAreasOn,
+  closedRectsOn,
   closureIsPast,
+  closureTitle,
   closureWindowLabel,
   closuresOn,
   formatLongDate,
   shiftISO,
   todayISO,
+  zonesUnderRect,
   type SiteClosure,
+  type SiteClosureRect,
 } from '@/lib/siteClosures';
 
 const genId = () => `cls-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -100,6 +105,97 @@ export default function SiteStatusPage() {
     () => (shownDate ? closuresOn(closures, shownDate) : []),
     [closures, shownDate]
   );
+  const shownRects = useMemo(
+    () => (shownDate ? closedRectsOn(closures, shownDate) : []),
+    [closures, shownDate]
+  );
+
+  // ---- Drawing a box straight onto the map ----
+  const [drawMode, setDrawMode] = useState(false);
+  const [pendingRect, setPendingRect] = useState<SiteClosureRect | null>(null);
+  const [drawReason, setDrawReason] = useState('');
+  const [drawHowLong, setDrawHowLong] = useState<'today' | 'until' | 'open'>('open');
+  const [drawEndDate, setDrawEndDate] = useState('');
+  const [drawSaving, setDrawSaving] = useState(false);
+  const [drawError, setDrawError] = useState<string | null>(null);
+
+  const closeDrawDialog = () => {
+    setPendingRect(null);
+    setDrawReason('');
+    setDrawHowLong('open');
+    setDrawEndDate('');
+    setDrawError(null);
+  };
+
+  // Escape backs out of the dialog, and out of draw mode if it's not open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (pendingRect) closeDrawDialog();
+      else setDrawMode(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pendingRect]);
+
+  // The zones the drawn box happens to sit over — what the closure gets
+  // called, so it reads as somewhere rather than as a set of coordinates.
+  const pendingZones = useMemo(() => (pendingRect ? zonesUnderRect(pendingRect) : []), [pendingRect]);
+
+  // The box being described is shown on the map as it would look once saved,
+  // text and all, so you can see whether the words fit before committing.
+  const previewRects = useMemo(() => {
+    if (!pendingRect) return shownRects;
+    return [
+      ...shownRects,
+      {
+        id: '__pending__',
+        rect: pendingRect,
+        text: drawReason.trim() || pendingZones.join(', ') || 'Out of use',
+      },
+    ];
+  }, [shownRects, pendingRect, drawReason, pendingZones]);
+
+  const saveDrawnClosure = async () => {
+    if (!user || !teamId || !pendingRect || !shownDate) return;
+    if (drawHowLong === 'until' && !drawEndDate) {
+      setDrawError('Pick the day it reopens.');
+      return;
+    }
+    if (drawHowLong === 'until' && drawEndDate < shownDate) {
+      setDrawError('That end date is before the start date.');
+      return;
+    }
+    setDrawSaving(true);
+    setDrawError(null);
+    try {
+      const id = genId();
+      const payload: Omit<SiteClosure, 'id'> = {
+        teamId,
+        rect: {
+          // Rounded so the stored box is tidy and two drags of the same area
+          // don't differ by a fraction of a pixel.
+          x: Math.round(pendingRect.x),
+          y: Math.round(pendingRect.y),
+          w: Math.round(pendingRect.w),
+          h: Math.round(pendingRect.h),
+        },
+        startDate: shownDate,
+        endDate: drawHowLong === 'today' ? shownDate : drawHowLong === 'until' ? drawEndDate : null,
+        createdAt: Date.now(),
+        createdBy: user.uid,
+        ...(pendingZones.length ? { label: pendingZones.join(', ') } : {}),
+        ...(drawReason.trim() ? { reason: drawReason.trim() } : {}),
+      };
+      await setDoc(doc(db, 'siteClosures', id), payload);
+      closeDrawDialog();
+    } catch (e) {
+      console.error('Failed to save the drawn closure:', e);
+      setDrawError('Could not save — only commanders can close an area.');
+    } finally {
+      setDrawSaving(false);
+    }
+  };
 
   // ---- Display (fullscreen) mode ----
   const boardRef = useRef<HTMLDivElement>(null);
@@ -109,6 +205,13 @@ export default function SiteStatusPage() {
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
+  useEffect(() => {
+    if (isFullscreen) {
+      setDrawMode(false);
+      setPendingRect(null);
+    }
+  }, [isFullscreen]);
+
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
@@ -266,6 +369,22 @@ export default function SiteStatusPage() {
 
           {canManage && !isFullscreen && (
             <button
+              onClick={() => {
+                setDrawMode((d) => !d);
+                closeDrawDialog();
+              }}
+              className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-[10px] font-semibold uppercase tracking-widest transition-colors ${
+                drawMode
+                  ? 'border-alert/60 bg-alert/15 text-alert'
+                  : 'border-neutral-400/30 text-neutral-300 hover:border-alert/40 hover:text-alert'
+              }`}
+            >
+              <SquareDashedMousePointer className="h-3.5 w-3.5" />
+              {drawMode ? 'Drawing' : 'Mark an area'}
+            </button>
+          )}
+          {canManage && !isFullscreen && (
+            <button
               onClick={() => setManageOpen((o) => !o)}
               className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-[10px] font-semibold uppercase tracking-widest transition-colors ${
                 manageOpen
@@ -288,8 +407,25 @@ export default function SiteStatusPage() {
       </div>
 
       <div className={`grid min-h-0 flex-1 gap-4 ${isFullscreen ? 'lg:grid-cols-[1fr_22rem]' : 'lg:grid-cols-[1fr_18rem]'}`}>
-        <div className="flex min-h-0 items-center justify-center overflow-hidden rounded-xl border border-neutral-400/20 bg-invictus-surface/40 p-3">
-          <SiteStatusMap closedAreas={closedToday} className={isFullscreen ? 'h-full' : 'h-auto'} />
+        <div className="relative flex min-h-0 items-center justify-center overflow-hidden rounded-xl border border-neutral-400/20 bg-invictus-surface/40 p-3">
+          {drawMode && !pendingRect && (
+            <p className="pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2 rounded-md border border-alert/40 bg-invictus-base/90 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-alert backdrop-blur">
+              Drag a box over the area that&apos;s out of use
+            </p>
+          )}
+          <SiteStatusMap
+            closedAreas={closedToday}
+            rects={previewRects}
+            drawMode={drawMode && !pendingRect && !isFullscreen}
+            onRectDrawn={(rect) => {
+              setPendingRect(rect);
+              setDrawReason('');
+              setDrawHowLong('open');
+              setDrawEndDate('');
+              setDrawError(null);
+            }}
+            className={isFullscreen ? 'h-full' : 'h-auto'}
+          />
         </div>
 
         <div className="flex min-h-0 flex-col gap-3">
@@ -317,7 +453,7 @@ export default function SiteStatusPage() {
                         isFullscreen ? 'text-xl' : 'text-sm'
                       }`}
                     >
-                      {c.area}
+                      {closureTitle(c)}
                     </p>
                     {c.reason && (
                       <p className={`mt-0.5 text-neutral-300 ${isFullscreen ? 'text-base' : 'text-xs'}`}>{c.reason}</p>
@@ -422,7 +558,7 @@ export default function SiteStatusPage() {
               ) : (
                 <ul className="max-h-80 space-y-2 overflow-y-auto">
                   {[...closures]
-                    .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.area.localeCompare(b.area))
+                    .sort((a, b) => a.startDate.localeCompare(b.startDate) || closureTitle(a).localeCompare(closureTitle(b)))
                     .map((c) => {
                       const past = today ? closureIsPast(c, today) : false;
                       return (
@@ -433,7 +569,7 @@ export default function SiteStatusPage() {
                           }`}
                         >
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-neutral-100">{c.area}</p>
+                            <p className="text-sm font-semibold text-neutral-100">{closureTitle(c)}</p>
                             {c.reason && <p className="text-xs text-neutral-400">{c.reason}</p>}
                             <p className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-neutral-500">
                               <CalendarDays className="h-3 w-3" />
@@ -453,6 +589,100 @@ export default function SiteStatusPage() {
                     })}
                 </ul>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dropped as soon as a box is let go of: what it's for, and how long.
+          The box itself stays on the map behind this, updating as you type. */}
+      {pendingRect && !isFullscreen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border border-alert/40 bg-invictus-surface p-5 shadow-glow-strong">
+            <div className="mb-4 flex items-start justify-between gap-2">
+              <div>
+                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-alert">
+                  <Ban className="h-4 w-4" /> Mark out of use
+                </h2>
+                <p className="mt-1 text-xs text-neutral-400">
+                  {pendingZones.length ? `Over ${pendingZones.join(', ')}` : 'Over an unnamed part of the site'}
+                </p>
+              </div>
+              <button
+                onClick={closeDrawDialog}
+                className="rounded-md p-1 text-neutral-500 transition-colors hover:text-neutral-200"
+                title="Discard this box"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="block text-[10px] uppercase tracking-widest text-neutral-500">What for?</label>
+                <input
+                  autoFocus
+                  value={drawReason}
+                  onChange={(e) => setDrawReason(e.target.value)}
+                  placeholder="e.g. Resurfacing — scaffold up"
+                  className={inputClass}
+                />
+                <p className="text-[10px] text-neutral-600">This is the text printed across the area on the board.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[10px] uppercase tracking-widest text-neutral-500">How long?</label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    ['today', 'Today only'],
+                    ['until', 'Until a date'],
+                    ['open', 'Until reopened'],
+                  ] as const).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => setDrawHowLong(key)}
+                      className={`rounded-md border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest transition-colors ${
+                        drawHowLong === key
+                          ? 'border-alert/60 bg-alert/15 text-alert'
+                          : 'border-neutral-400/30 text-neutral-400 hover:text-neutral-200'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {drawHowLong === 'until' && (
+                  <input
+                    type="date"
+                    value={drawEndDate}
+                    min={shownDate ?? undefined}
+                    onChange={(e) => setDrawEndDate(e.target.value)}
+                    className={`${inputClass} mt-1.5`}
+                  />
+                )}
+                <p className="pt-1 text-[10px] text-neutral-600">
+                  Starts {shownDate ? formatLongDate(shownDate) : 'today'}.
+                </p>
+              </div>
+
+              {drawError && <p className="text-xs text-alert">{drawError}</p>}
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={saveDrawnClosure}
+                  disabled={drawSaving}
+                  className="flex items-center gap-1.5 rounded-md border border-alert/40 bg-alert/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-alert transition-colors hover:bg-alert/20 disabled:opacity-50"
+                >
+                  {drawSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  Mark out of use
+                </button>
+                <button
+                  onClick={closeDrawDialog}
+                  className="rounded-md border border-neutral-400/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 transition-colors hover:text-neutral-200"
+                >
+                  Redraw
+                </button>
+              </div>
             </div>
           </div>
         </div>

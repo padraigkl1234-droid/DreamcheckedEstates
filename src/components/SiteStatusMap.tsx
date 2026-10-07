@@ -6,7 +6,8 @@
 // isn't out of use is deliberately knocked back so the closures are the
 // only thing with any colour in them.
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import type { SiteClosureRect } from '@/lib/siteClosures';
 import {
   CAR_PARK_POLY,
   CLUSTER_POLY,
@@ -35,6 +36,40 @@ const OPEN = {
   text: 'hsl(var(--muted-foreground))',
 };
 
+/** The smallest a dragged box may be, in map units — below this it's a stray
+ *  click rather than a deliberate drag. */
+const MIN_DRAW = 12;
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/** Greedy word wrap for SVG text, which has no wrapping of its own. Helvetica
+ *  averages a little over half the font size per character, which is close
+ *  enough to fit a label inside a box without measuring every glyph. */
+function wrapLabel(text: string, maxWidth: number, fontSize: number, maxLines: number): string[] {
+  const maxChars = Math.max(4, Math.floor(maxWidth / (fontSize * 0.56)));
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = '';
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (next.length <= maxChars) {
+      line = next;
+      continue;
+    }
+    if (line) lines.push(line);
+    line = word.length > maxChars ? `${word.slice(0, Math.max(1, maxChars - 1))}…` : word;
+    if (lines.length === maxLines) break;
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  // Ran out of room with words left over — mark the last line as cut short.
+  const used = lines.join(' ').replace(/…$/, '');
+  if (used.split(/\s+/).filter(Boolean).length < words.length && lines.length) {
+    const last = lines[lines.length - 1];
+    lines[lines.length - 1] = last.endsWith('…') ? last : `${last}…`;
+  }
+  return lines;
+}
+
 function zoneShape(z: SiteZone, i: number, closed: boolean, keyPrefix: string) {
   const cx = z.x + z.w / 2;
   const cy = z.y + z.h / 2;
@@ -55,12 +90,69 @@ function zoneShape(z: SiteZone, i: number, closed: boolean, keyPrefix: string) {
 
 export function SiteStatusMap({
   closedAreas,
+  rects = [],
+  drawMode = false,
+  onRectDrawn,
   className,
 }: {
   /** SITE_ZONES labels that are out of use on the day being shown. */
   closedAreas: Set<string>;
+  /** Free-form boxes dragged onto the map, with the text to print inside. */
+  rects?: { id: string; rect: SiteClosureRect; text: string }[];
+  /** Lets a commander drag a new box out. Off for everyone else. */
+  drawMode?: boolean;
+  onRectDrawn?: (rect: SiteClosureRect) => void;
   className?: string;
 }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const startRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const [draft, setDraft] = useState<SiteClosureRect | null>(null);
+
+  // Screen coordinates to map units. Going through the SVG's own transform
+  // matrix rather than the bounding box means this stays correct when the map
+  // is letterboxed in display mode, where width and height scale differently.
+  const toMapPoint = (clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    const ctm = svg?.getScreenCTM();
+    if (!svg || !ctm) return null;
+    const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
+    return { x: clamp(p.x, 0, MAP_W), y: clamp(p.y, 0, MAP_H) };
+  };
+
+  const rectBetween = (a: { x: number; y: number }, b: { x: number; y: number }): SiteClosureRect => ({
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    w: Math.abs(b.x - a.x),
+    h: Math.abs(b.y - a.y),
+  });
+
+  const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!drawMode) return;
+    const p = toMapPoint(e.clientX, e.clientY);
+    if (!p) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    startRef.current = { ...p, pointerId: e.pointerId };
+    setDraft({ x: p.x, y: p.y, w: 0, h: 0 });
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const start = startRef.current;
+    if (!start) return;
+    const p = toMapPoint(e.clientX, e.clientY);
+    if (p) setDraft(rectBetween(start, p));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    const start = startRef.current;
+    startRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    const box = draft;
+    setDraft(null);
+    // A tap or a sliver of a drag is almost always a misfire, not an intent
+    // to shut four pixels of the site.
+    if (start && box && box.w >= MIN_DRAW && box.h >= MIN_DRAW) onRectDrawn?.(box);
+  };
+
   // Enclosing areas first so the units standing inside one (the food-court
   // outlets) aren't painted over by it — same ordering trick as the Site Map.
   const ordered = [...SITE_ZONES.entries()].sort(
@@ -69,11 +161,18 @@ export function SiteStatusMap({
 
   return (
     <svg
+      ref={svgRef}
       viewBox={`0 0 ${MAP_W} ${MAP_H}`}
       // The caller sets the height: h-auto when the page scrolls, h-full in
       // display mode so a 16:9 screen letterboxes the map (preserveAspectRatio
       // defaults to xMidYMid meet) instead of cropping the east of the site.
-      className={`w-full select-none ${className ?? 'h-auto'}`}
+      className={`w-full select-none ${drawMode ? 'cursor-crosshair' : ''} ${className ?? 'h-auto'}`}
+      // Without this a touch drag scrolls the page instead of drawing a box.
+      style={{ touchAction: drawMode ? 'none' : undefined }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       role="img"
       aria-label="Site status map — areas out of use are marked in red"
     >
@@ -168,6 +267,54 @@ export function SiteStatusMap({
           );
         })}
       </g>
+
+      {/* Boxes dragged straight onto the map, drawn last so they sit over the
+          zones and their labels rather than under them. */}
+      {rects.map(({ id, rect, text }) => {
+        const pad = 6;
+        const fs = clamp(Math.min(rect.w / 9, rect.h / 3.2), 7, 18);
+        const maxLines = Math.max(1, Math.floor((rect.h - pad * 2) / (fs * 1.2)));
+        const lines = wrapLabel(text, rect.w - pad * 2, fs, maxLines);
+        const cx = rect.x + rect.w / 2;
+        const top = rect.y + rect.h / 2 - ((lines.length - 1) * fs * 1.2) / 2 + fs * 0.35;
+        return (
+          <g key={`drawn-${id}`}>
+            <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={3} fill={CLOSED.fill} stroke={CLOSED.stroke} strokeWidth={2.4} />
+            <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={3} fill="url(#closed-hatch)" stroke="none" />
+            <text
+              x={cx}
+              y={top}
+              fontFamily="inherit"
+              textAnchor="middle"
+              fontSize={fs}
+              fontWeight={800}
+              fill={CLOSED.text}
+              style={{ textTransform: 'uppercase' }}
+            >
+              {lines.map((line, li) => (
+                <tspan key={li} x={cx} dy={li === 0 ? 0 : fs * 1.2}>
+                  {line}
+                </tspan>
+              ))}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* The box currently being dragged out. */}
+      {draft && draft.w > 0 && draft.h > 0 && (
+        <rect
+          x={draft.x}
+          y={draft.y}
+          width={draft.w}
+          height={draft.h}
+          rx={3}
+          fill={CLOSED.fill}
+          stroke={CLOSED.stroke}
+          strokeWidth={2}
+          strokeDasharray="8 5"
+        />
+      )}
     </svg>
   );
 }
