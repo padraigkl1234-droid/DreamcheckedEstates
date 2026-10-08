@@ -26,6 +26,9 @@ import {
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
   GitBranch,
   ImagePlus,
   ListChecks,
@@ -107,6 +110,9 @@ export default function ProjectBoardPage() {
   const [search, setSearch] = useState('');
   const [colourFilter, setColourFilter] = useState<BoardColour | ''>('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Photo viewer for the open note. Held as an index rather than a URL so the
+  // arrows can step through that note's photos.
+  const [lightbox, setLightbox] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Dragging only makes sense with a pointer and room to drag in.
@@ -179,6 +185,33 @@ export default function ProjectBoardPage() {
   useEffect(() => {
     if (selectedId && !posts.some((p) => p.id === selectedId)) setSelectedId(null);
   }, [selectedId, posts]);
+
+  const lightboxPhotos = selected?.photos ?? [];
+  // Opening a different note, or deleting the photo being looked at, must not
+  // leave the viewer pointing at something that isn't there.
+  useEffect(() => setLightbox(null), [selectedId]);
+  useEffect(() => {
+    if (lightbox !== null && lightbox >= lightboxPhotos.length) setLightbox(null);
+  }, [lightbox, lightboxPhotos.length]);
+
+  const stepPhoto = useCallback(
+    (by: number) =>
+      setLightbox((i) => (i === null || lightboxPhotos.length === 0 ? null : (i + by + lightboxPhotos.length) % lightboxPhotos.length)),
+    [lightboxPhotos.length]
+  );
+
+  // Escape closes the viewer, arrows walk through the note's photos. Bound
+  // only while it's open so Escape still belongs to the note underneath.
+  useEffect(() => {
+    if (lightbox === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightbox(null);
+      else if (e.key === 'ArrowRight') stepPhoto(1);
+      else if (e.key === 'ArrowLeft') stepPhoto(-1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox, stepPhoto]);
 
   const displayName = user?.displayName || user?.email || 'Unknown';
 
@@ -893,18 +926,26 @@ export default function ProjectBoardPage() {
                 </div>
                 {(selected.photos?.length ?? 0) > 0 && (
                   <div className="flex flex-wrap gap-2">
-                    {selected.photos!.map((photo) => (
+                    {selected.photos!.map((photo, i) => (
                       <div key={photo.path} className="group/img relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={photo.thumbUrl ?? photo.url}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          width={80}
-                          height={80}
-                          className="h-20 w-20 rounded-md border border-neutral-400/25 object-cover"
-                        />
+                        {/* The thumbnail is what's shown; tapping it opens the
+                            full-size photo in the viewer below. */}
+                        <button
+                          onClick={() => setLightbox(i)}
+                          className="block cursor-zoom-in"
+                          title="Open this photo"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photo.thumbUrl ?? photo.url}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            width={80}
+                            height={80}
+                            className="h-20 w-20 rounded-md border border-neutral-400/25 object-cover transition-opacity hover:opacity-80"
+                          />
+                        </button>
                         <button
                           onClick={() => removePhoto(selected, photo)}
                           className="absolute right-0.5 top-0.5 rounded bg-black/60 p-0.5 text-neutral-300 opacity-0 transition-opacity hover:text-alert group-hover/img:opacity-100"
@@ -1063,6 +1104,71 @@ export default function ProjectBoardPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Photo viewer. Sits above the open note, which stays behind it, so
+          closing it returns you to the note rather than to the board. */}
+      {selected && lightbox !== null && lightboxPhotos[lightbox] && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-6 backdrop-blur-sm"
+          onClick={() => setLightbox(null)}
+        >
+          {/* The full-size photo, not the thumbnail. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxPhotos[lightbox].url}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-full max-w-full rounded-md object-contain shadow-glow-strong"
+          />
+
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute right-5 top-5 rounded-md border border-neutral-400/30 bg-invictus-base/70 p-2 text-neutral-300 transition-colors hover:text-invictus-crimson-bright"
+            title="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          <a
+            href={lightboxPhotos[lightbox].url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="absolute left-5 top-5 flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/70 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:text-invictus-crimson-bright"
+            title="Open the original in a new tab"
+          >
+            <ExternalLink className="h-3.5 w-3.5" /> Full size
+          </a>
+
+          {lightboxPhotos.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  stepPhoto(-1);
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 rounded-md border border-neutral-400/30 bg-invictus-base/70 p-2 text-neutral-300 transition-colors hover:text-invictus-crimson-bright"
+                title="Previous photo"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  stepPhoto(1);
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-md border border-neutral-400/30 bg-invictus-base/70 p-2 text-neutral-300 transition-colors hover:text-invictus-crimson-bright"
+                title="Next photo"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+              <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-md border border-neutral-400/25 bg-invictus-base/70 px-3 py-1 font-mono text-[11px] text-neutral-400">
+                {lightbox + 1} / {lightboxPhotos.length}
+              </span>
+            </>
+          )}
         </div>
       )}
     </>
