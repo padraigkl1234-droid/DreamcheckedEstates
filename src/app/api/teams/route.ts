@@ -188,9 +188,65 @@ export async function POST(req: Request) {
       const match = await db.collection('teams').where('referralCode', '==', code).limit(1).get();
       if (match.empty) return NextResponse.json({ error: 'No team found for that code' }, { status: 404 });
       const team = match.docs[0];
-      await db.collection('users').doc(decoded.uid).set({ teamId: team.id }, { merge: true });
+      // `teamIds` is the list of teams this person has actually joined, which
+      // is what the team switcher is allowed to move them between. `teamId`
+      // remains the one they're currently in.
+      await db.collection('users').doc(decoded.uid).set(
+        { teamId: team.id, teamIds: FieldValue.arrayUnion(team.id) },
+        { merge: true }
+      );
       await ensureHotelStaff(db, team.id, decoded.uid, decoded.name || decoded.email);
       return NextResponse.json({ ok: true, teamId: team.id, teamName: team.data().name });
+    }
+
+    // --- Team switching -------------------------------------------------
+    // Moving between teams changes nothing but `users/{uid}.teamId`. Team
+    // data (board notes, closures, shows, reports, rooms) is stored against
+    // the team and stays with it; your tasks, archive and compliance are
+    // stored against your uid and come with you. Nothing is deleted either
+    // way, so this is safe to do as often as you like.
+
+    if (action === 'myTeams') {
+      const me = (await db.collection('users').doc(decoded.uid).get()).data() ?? {};
+      // Master can enter any team. Everyone else only the ones they joined,
+      // plus wherever they are now (so an older account isn't stranded).
+      let ids: string[];
+      if (isMaster) {
+        await ensureDreamland(db);
+        ids = (await db.collection('teams').get()).docs.map((d) => d.id);
+      } else {
+        ids = Array.from(
+          new Set([...(Array.isArray(me.teamIds) ? (me.teamIds as string[]) : []), ...(me.teamId ? [me.teamId as string] : [])])
+        );
+      }
+      const docs = await Promise.all(ids.map((id) => db.collection('teams').doc(id).get()));
+      const teams = docs
+        .filter((d) => d.exists && !d.data()?.archived)
+        .map((d) => ({ id: d.id, name: (d.data()?.name as string) ?? 'Team', module: (d.data()?.module as string) ?? null }));
+      return NextResponse.json({ ok: true, teams, current: me.teamId ?? null });
+    }
+
+    if (action === 'switchTeam') {
+      const teamId = typeof body.teamId === 'string' ? body.teamId : '';
+      if (!teamId) return NextResponse.json({ error: 'Missing teamId' }, { status: 400 });
+      const teamDoc = await db.collection('teams').doc(teamId).get();
+      if (!teamDoc.exists || teamDoc.data()?.archived) {
+        return NextResponse.json({ error: 'That team no longer exists' }, { status: 404 });
+      }
+      const me = (await db.collection('users').doc(decoded.uid).get()).data() ?? {};
+      const joined = Array.isArray(me.teamIds) ? (me.teamIds as string[]) : [];
+      // Without this check the switcher would be a way into any team without
+      // its referral code.
+      if (!isMaster && !joined.includes(teamId) && me.teamId !== teamId) {
+        return NextResponse.json({ error: 'You have not joined that team' }, { status: 403 });
+      }
+      if (me.blocked === true) return NextResponse.json({ error: 'Your access has been suspended' }, { status: 403 });
+      await db.collection('users').doc(decoded.uid).set(
+        { teamId, teamIds: FieldValue.arrayUnion(teamId) },
+        { merge: true }
+      );
+      await ensureHotelStaff(db, teamId, decoded.uid, decoded.name || decoded.email);
+      return NextResponse.json({ ok: true, teamId, module: teamDoc.data()?.module ?? null });
     }
 
     // --- Rank management (master, or a commander managing their own team) ---
@@ -329,7 +385,8 @@ export async function POST(req: Request) {
     if (action === 'moveUser') {
       const teamId = typeof body.teamId === 'string' ? body.teamId : '';
       if (!teamId) return NextResponse.json({ error: 'Missing teamId' }, { status: 400 });
-      await targetRef.set({ teamId }, { merge: true });
+      // Recorded in teamIds too, so the person can switch back themselves.
+      await targetRef.set({ teamId, teamIds: FieldValue.arrayUnion(teamId) }, { merge: true });
       await ensureHotelStaff(db, teamId, targetUid);
       return NextResponse.json({ ok: true });
     }

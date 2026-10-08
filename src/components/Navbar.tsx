@@ -26,6 +26,7 @@ import { useTheme } from '@/components/ThemeProvider';
 import { useT } from '@/components/LanguageProvider';
 import { isHotelTeam, profileName } from '@/lib/teams';
 import { useSound } from '@/components/SoundProvider';
+import { TeamSwitcher } from '@/components/TeamSwitcher';
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -102,6 +103,7 @@ export function Navbar() {
                     <Link href="/master" className="cursor-pointer gap-2"><Crown className="h-4 w-4 text-amber-400" /> {t('nav.masterConsole')}</Link>
                   </DropdownMenuItem>
                 )}
+                <TeamSwitcher />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={(e) => { e.preventDefault(); setTheme(resolved === 'dark' ? 'light' : 'dark'); }}

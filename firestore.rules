@@ -49,7 +49,11 @@ service cloud.firestore {
     // the WHOLE roster (the "assign to" pickers, team page, automations)
     // needs an actual team membership, so a stranger who merely signed in
     // with a Google account can't browse the staff list and every email
-    // address on it. Rank, team membership and blocked status are
+    // address on it. `teamIds` is the list of teams you have actually joined,
+    // and the only set the team switcher will move you between — so it's
+    // locked exactly like teamId: a client able to append to it could walk
+    // into any team without its referral code.
+    // Rank, team membership and blocked status are
     // infrastructure set only by the Admin SDK (api/teams, api/admin/users),
     // which bypasses these rules entirely — a client can never grant itself
     // any of those fields, and `email` must match the signed-in Google
@@ -61,6 +65,7 @@ service cloud.firestore {
       allow create: if request.auth != null && request.auth.uid == uid &&
         !('rank' in request.resource.data) &&
         !('teamId' in request.resource.data) &&
+        !('teamIds' in request.resource.data) &&
         !('blocked' in request.resource.data) &&
         !('fireMarshal' in request.resource.data) &&
         !('firstAider' in request.resource.data) &&
@@ -71,6 +76,7 @@ service cloud.firestore {
       allow update: if request.auth != null && request.auth.uid == uid &&
         request.resource.data.get('rank', null) == resource.data.get('rank', null) &&
         request.resource.data.get('teamId', null) == resource.data.get('teamId', null) &&
+        request.resource.data.get('teamIds', []) == resource.data.get('teamIds', []) &&
         request.resource.data.get('blocked', false) == resource.data.get('blocked', false) &&
         request.resource.data.get('fireMarshal', false) == resource.data.get('fireMarshal', false) &&
         request.resource.data.get('firstAider', false) == resource.data.get('firstAider', false) &&
