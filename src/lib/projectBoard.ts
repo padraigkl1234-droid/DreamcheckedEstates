@@ -31,6 +31,12 @@ export interface BoardPost {
   y: number;
   /** Stacking order. A note picked up comes to the front. */
   z: number;
+  /** Card size in pixels. Absent means the default — a note is only stored
+   *  with a size once someone has actually resized it. */
+  w?: number;
+  h?: number;
+  /** The note this one branched off, if any. Draws a line back to it. */
+  parentId?: string;
   photos?: BoardPhoto[];
   /** uids of everyone backing this one. */
   votes?: string[];
@@ -71,13 +77,65 @@ export interface BoardComment {
 const LEGACY_BOARD_W = 2400;
 const LEGACY_BOARD_H = 1600;
 
-/** A note's width on screen, in pixels. Fixed so the text stays readable
- *  whatever size the board is. */
+/** The default card size in pixels — what a note is until it's resized. */
 export const NOTE_W = 210;
-/** Nominal card height, used only to keep a note's box inside the board. */
 export const NOTE_H = 200;
+/** How far a note can be stretched or shrunk. The lower bound keeps the
+ *  heading and the footer readable; the upper stops one note swallowing a
+ *  small board. */
+export const NOTE_MIN_W = 150;
+export const NOTE_MIN_H = 120;
+export const NOTE_MAX_W = 560;
+export const NOTE_MAX_H = 620;
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+/** A note's size: whatever it was resized to, or the default. */
+export function noteSize(post: Pick<BoardPost, 'w' | 'h'>): { w: number; h: number } {
+  return { w: post.w ?? NOTE_W, h: post.h ?? NOTE_H };
+}
+
+/** Hold a resize inside the allowed range, and inside the board itself —
+ *  there's no sense in a note wider than the board it's pinned to. */
+export function clampSize(w: number, h: number, area?: { w: number; h: number }): { w: number; h: number } {
+  const maxW = Math.min(NOTE_MAX_W, area?.w ? Math.max(NOTE_MIN_W, area.w - 16) : NOTE_MAX_W);
+  const maxH = Math.min(NOTE_MAX_H, area?.h ? Math.max(NOTE_MIN_H, area.h - 16) : NOTE_MAX_H);
+  return {
+    w: Math.round(Math.max(NOTE_MIN_W, Math.min(maxW, w))),
+    h: Math.round(Math.max(NOTE_MIN_H, Math.min(maxH, h))),
+  };
+}
+
+/** The notes that branched off this one. */
+export function childrenOf(posts: BoardPost[], id: string): BoardPost[] {
+  return posts.filter((p) => p.parentId === id);
+}
+
+/** Parent-to-child lines to draw behind the notes. Only drawn where both
+ *  ends are actually on the board — a branch whose parent was taken down
+ *  simply loses its line rather than pointing at nothing. */
+export function branchLines(
+  posts: BoardPost[],
+  area: { w: number; h: number }
+): { id: string; x1: number; y1: number; x2: number; y2: number }[] {
+  const byId = new Map(posts.map((p) => [p.id, p]));
+  const lines: { id: string; x1: number; y1: number; x2: number; y2: number }[] = [];
+  for (const child of posts) {
+    if (!child.parentId) continue;
+    const parent = byId.get(child.parentId);
+    if (!parent) continue;
+    const c = centreOf(child, area);
+    const p = centreOf(parent, area);
+    lines.push({ id: child.id, x1: p.x, y1: p.y, x2: c.x, y2: c.y });
+  }
+  return lines;
+}
+
+function centreOf(post: BoardPost, area: { w: number; h: number }) {
+  const size = noteSize(post);
+  const { left, top } = toPixels(post, area, size);
+  return { x: left + size.w / 2, y: top + size.h / 2 };
+}
 
 /** Where a note sits, as fractions, whichever way it was stored. */
 export function postFraction(post: Pick<BoardPost, 'x' | 'y'>): { fx: number; fy: number } {
@@ -89,21 +147,33 @@ export function postFraction(post: Pick<BoardPost, 'x' | 'y'>): { fx: number; fy
   };
 }
 
-/** The travel a note actually has, once its own size is accounted for. */
-export function travel(area: { w: number; h: number }): { w: number; h: number } {
-  return { w: Math.max(1, area.w - NOTE_W), h: Math.max(1, area.h - NOTE_H) };
+/** The travel a note actually has, once its own size is accounted for. A
+ *  note that's been stretched has less room to move, which is what keeps a
+ *  big note from hanging off the edge of the board. */
+export function travel(area: { w: number; h: number }, size?: { w: number; h: number }): { w: number; h: number } {
+  const s = size ?? { w: NOTE_W, h: NOTE_H };
+  return { w: Math.max(1, area.w - s.w), h: Math.max(1, area.h - s.h) };
 }
 
 /** Fractions to a pixel offset inside a board of this size. */
-export function toPixels(post: Pick<BoardPost, 'x' | 'y'>, area: { w: number; h: number }) {
+export function toPixels(
+  post: Pick<BoardPost, 'x' | 'y'>,
+  area: { w: number; h: number },
+  size?: { w: number; h: number }
+) {
   const { fx, fy } = postFraction(post);
-  const t = travel(area);
+  const t = travel(area, size);
   return { left: Math.round(fx * t.w), top: Math.round(fy * t.h) };
 }
 
 /** A pixel offset back to fractions, clamped so a note can't leave the board. */
-export function toFraction(left: number, top: number, area: { w: number; h: number }) {
-  const t = travel(area);
+export function toFraction(
+  left: number,
+  top: number,
+  area: { w: number; h: number },
+  size?: { w: number; h: number }
+) {
+  const t = travel(area, size);
   return { fx: clamp01(left / t.w), fy: clamp01(top / t.h) };
 }
 

@@ -26,6 +26,7 @@ import {
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import {
   Check,
+  GitBranch,
   ImagePlus,
   ListChecks,
   Loader2,
@@ -50,17 +51,45 @@ import {
   BOARD_COLOURS,
   BOARD_COLOUR_KEYS,
   boardColour,
+  branchLines,
   canEditPost,
+  childrenOf,
+  clampSize,
   filterPosts,
   hasVoted,
   newNoteSpot,
   nextZ,
+  noteSize,
   timeAgo,
   type BoardColour,
   type BoardComment,
   type BoardPhoto,
   type BoardPost,
 } from '@/lib/projectBoard';
+
+// Firebase errors carry a code that says exactly which service refused and
+// why. Showing "could not attach that photo" throws that away and leaves you
+// guessing, so the code is translated into something actionable instead.
+function describeFirebaseError(e: unknown, doing: string): string {
+  const code = (e as { code?: string })?.code ?? '';
+  if (code.startsWith('storage/')) {
+    if (code === 'storage/unauthorized') {
+      return `Firebase Storage refused the upload (${code}). The bucket's rules don't allow writing to the projectBoard/ folder — see storage.rules in the repo.`;
+    }
+    if (code === 'storage/unauthenticated') return 'Your sign-in expired mid-upload. Refresh and try again.';
+    if (code === 'storage/quota-exceeded') return 'The storage bucket is full.';
+    if (code === 'storage/retry-limit-exceeded' || code === 'storage/canceled') {
+      return 'The upload timed out — check the connection and try again.';
+    }
+    return `Storage refused the upload (${code}).`;
+  }
+  if (code === 'permission-denied') {
+    return `The database refused that change (${doing}). The firestore.rules boardPosts block may need republishing.`;
+  }
+  if (code === 'unavailable') return 'No connection to the database — it will retry when you are back online.';
+  const message = e instanceof Error ? e.message : String(e);
+  return `${doing} failed: ${code || message}`;
+}
 
 const genId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -166,6 +195,13 @@ export default function ProjectBoardPage() {
     []
   );
 
+  const resizePost = useCallback((post: BoardPost, w: number, h: number) => {
+    updateDoc(doc(db, 'boardPosts', post.id), clampSize(w, h)).catch((e) => {
+      console.error('Failed to resize note:', e);
+      setError(describeFirebaseError(e, 'resizing a note'));
+    });
+  }, []);
+
   const bringToFront = useCallback(
     (post: BoardPost) => {
       const top = nextZ(posts);
@@ -194,6 +230,8 @@ export default function ProjectBoardPage() {
   const [draftTag, setDraftTag] = useState('');
   const [draftColour, setDraftColour] = useState<BoardColour>('yellow');
   const [draftFiles, setDraftFiles] = useState<File[]>([]);
+  /** Set when the new note is branching off an existing one. */
+  const [draftParentId, setDraftParentId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const composeFileRef = useRef<HTMLInputElement>(null);
 
@@ -202,7 +240,8 @@ export default function ProjectBoardPage() {
   const draftPreviews = useMemo(() => draftFiles.map((f) => URL.createObjectURL(f)), [draftFiles]);
   useEffect(() => () => draftPreviews.forEach((u) => URL.revokeObjectURL(u)), [draftPreviews]);
 
-  const openCompose = () => {
+  const openCompose = (parentId: string | null = null) => {
+    setDraftParentId(parentId);
     setDraftTitle('');
     setDraftBody('');
     setDraftTag('');
@@ -222,7 +261,12 @@ export default function ProjectBoardPage() {
     setSaving(true);
     setError(null);
     try {
-      const spot = newNoteSpot(posts);
+      const parent = draftParentId ? posts.find((p) => p.id === draftParentId) ?? null : null;
+      // A branch lands just below and right of its parent, so the line
+      // between them reads as a branch rather than crossing the whole board.
+      const spot = parent
+        ? { x: Math.min(1, (parent.x > 1 ? parent.x / 2400 : parent.x) + 0.1), y: Math.min(1, (parent.y > 1 ? parent.y / 1600 : parent.y) + 0.16) }
+        : newNoteSpot(posts);
       const id = genId('note');
       const payload: Omit<BoardPost, 'id'> = {
         teamId,
@@ -237,6 +281,7 @@ export default function ProjectBoardPage() {
         ownerName: displayName,
         ...(draftBody.trim() ? { body: draftBody.trim() } : {}),
         ...(draftTag.trim() ? { tag: draftTag.trim() } : {}),
+        ...(draftParentId ? { parentId: draftParentId } : {}),
       };
       await setDoc(doc(db, 'boardPosts', id), payload);
       // Photos need the note's id for their storage path, so they go up once
@@ -244,11 +289,12 @@ export default function ProjectBoardPage() {
       // costs you the picture, not the note.
       if (draftFiles.length) await addPhotos({ ...payload, id }, draftFiles);
       setDraftFiles([]);
+      setDraftParentId(null);
       setComposeOpen(false);
       setSelectedId(id);
     } catch (e) {
       console.error('Failed to pin that note:', e);
-      setError('Could not pin that note.');
+      setError(describeFirebaseError(e, 'pinning a note'));
     } finally {
       setSaving(false);
     }
@@ -348,7 +394,7 @@ export default function ProjectBoardPage() {
       await updateDoc(doc(db, 'boardPosts', post.id), { photos: [...(post.photos ?? []), ...added] });
     } catch (e) {
       console.error('Failed to attach that photo:', e);
-      setError('Could not attach that photo.');
+      setError(describeFirebaseError(e, 'attaching a photo'));
     } finally {
       setUploading(false);
     }
@@ -453,6 +499,8 @@ export default function ProjectBoardPage() {
 
   const selectedComments = selected ? commentsByPost.get(selected.id) ?? [] : [];
   const canEditSelected = selected ? canEditPost(selected, user.uid, isMaster, profile?.rank) : false;
+  const selectedParent = selected?.parentId ? posts.find((p) => p.id === selected.parentId) ?? null : null;
+  const selectedChildren = selected ? childrenOf(posts, selected.id) : [];
 
   return chrome(
     <>
@@ -497,7 +545,7 @@ export default function ProjectBoardPage() {
             ))}
           </div>
           <button
-            onClick={openCompose}
+            onClick={() => openCompose()}
             className="flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20"
           >
             <Plus className="h-3.5 w-3.5" /> Pin a note
@@ -530,6 +578,24 @@ export default function ProjectBoardPage() {
               backgroundSize: '28px 28px',
             }}
           >
+            {/* Branch lines, behind the notes. Drawn from the filtered set so
+                a colour filter never leaves a line hanging off to nowhere. */}
+            {area.w > 0 && (
+              <svg className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 0 }}>
+                {branchLines(visible, area).map((l) => (
+                  <line
+                    key={l.id}
+                    x1={l.x1}
+                    y1={l.y1}
+                    x2={l.x2}
+                    y2={l.y2}
+                    stroke="rgb(var(--invictus-crimson-bright) / 0.45)"
+                    strokeWidth={2}
+                    strokeDasharray="5 4"
+                  />
+                ))}
+              </svg>
+            )}
             {area.w > 0 &&
               visible.map((post) => (
                 <BoardNote
@@ -537,11 +603,14 @@ export default function ProjectBoardPage() {
                   post={post}
                   area={area}
                   commentCount={(commentsByPost.get(post.id) ?? []).length}
+                  branchCount={childrenOf(posts, post.id).length}
                   voted={hasVoted(post, user.uid)}
                   draggable
+                  resizable={canEditPost(post, user.uid, isMaster, profile?.rank)}
                   onOpen={() => setSelectedId(post.id)}
                   onPickUp={() => bringToFront(post)}
                   onMoved={(fx, fy) => movePost(post, fx, fy)}
+                  onResized={(w, h) => resizePost(post, w, h)}
                 />
               ))}
           </div>
@@ -557,11 +626,14 @@ export default function ProjectBoardPage() {
                 post={post}
                 area={area}
                 commentCount={(commentsByPost.get(post.id) ?? []).length}
+                branchCount={childrenOf(posts, post.id).length}
                 voted={hasVoted(post, user.uid)}
                 draggable={false}
+                resizable={false}
                 onOpen={() => setSelectedId(post.id)}
                 onPickUp={() => {}}
                 onMoved={() => {}}
+                onResized={() => {}}
               />
             ))}
         </div>
@@ -573,7 +645,8 @@ export default function ProjectBoardPage() {
           <div className="w-full max-w-md rounded-xl border border-neutral-400/25 bg-invictus-surface p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-neutral-200">
-                <Pin className="h-4 w-4 text-invictus-crimson-bright" /> Pin a note
+                <Pin className="h-4 w-4 text-invictus-crimson-bright" />
+                {draftParentId ? 'Branch off a note' : 'Pin a note'}
               </h2>
               <button onClick={() => setComposeOpen(false)} className="rounded-md p-1 text-neutral-500 hover:text-neutral-200">
                 <X className="h-4 w-4" />
@@ -749,6 +822,40 @@ export default function ProjectBoardPage() {
                 </>
               )}
 
+              {/* Where this note sits in a branch. */}
+              {(selectedParent || selectedChildren.length > 0) && (
+                <div className="space-y-1.5 rounded-md border border-neutral-400/20 bg-invictus-base/40 p-3">
+                  {selectedParent && (
+                    <button
+                      onClick={() => setSelectedId(selectedParent.id)}
+                      className="flex items-center gap-1.5 text-xs text-neutral-400 transition-colors hover:text-invictus-crimson-bright"
+                    >
+                      <GitBranch className="h-3 w-3 rotate-180" /> Branched off{' '}
+                      <span className="font-semibold">{selectedParent.title}</span>
+                    </button>
+                  )}
+                  {selectedChildren.length > 0 && (
+                    <div>
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+                        Branches ({selectedChildren.length})
+                      </p>
+                      <ul className="space-y-1">
+                        {selectedChildren.map((child) => (
+                          <li key={child.id}>
+                            <button
+                              onClick={() => setSelectedId(child.id)}
+                              className="flex items-center gap-1.5 text-xs text-neutral-400 transition-colors hover:text-invictus-crimson-bright"
+                            >
+                              <GitBranch className="h-3 w-3" /> {child.title}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Photos */}
               <div>
                 <div className="mb-2 flex items-center justify-between">
@@ -831,6 +938,17 @@ export default function ProjectBoardPage() {
                   </button>
                 )}
 
+                <button
+                  onClick={() => {
+                    const parent = selected.id;
+                    setSelectedId(null);
+                    openCompose(parent);
+                  }}
+                  className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                >
+                  <GitBranch className="h-3.5 w-3.5" /> Branch off
+                </button>
+
                 {canEditSelected && !editing && (
                   <>
                     <button
@@ -839,6 +957,29 @@ export default function ProjectBoardPage() {
                     >
                       <Pencil className="h-3.5 w-3.5" /> Edit
                     </button>
+                    <div className="flex items-center gap-1 rounded-md border border-neutral-400/30 px-1.5 py-1">
+                      <span className="pr-1 text-[9px] uppercase tracking-widest text-neutral-600">Size</span>
+                      {([
+                        ['S', 170, 150],
+                        ['M', 210, 200],
+                        ['L', 300, 300],
+                        ['XL', 400, 420],
+                      ] as const).map(([label, w, h]) => {
+                        const current = noteSize(selected);
+                        const on = current.w === w && current.h === h;
+                        return (
+                          <button
+                            key={label}
+                            onClick={() => resizePost(selected, w, h)}
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
+                              on ? 'bg-invictus-crimson-bright/20 text-invictus-crimson-bright' : 'text-neutral-500 hover:text-neutral-200'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
                     {confirmDelete ? (
                       <>
                         <button

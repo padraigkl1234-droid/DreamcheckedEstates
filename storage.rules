@@ -1,21 +1,85 @@
 rules_version = '2';
 
-// Storage rules for LOCAL EMULATOR use. Production Storage rules are managed
-// in the Firebase console — merge the /hotel block below into them by hand
-// rather than deploying this file over the top.
+// Firebase Storage rules for INVICTUS.
 //
-// Note: cross-service rules (firestore.get from Storage rules) only reach the
-// (default) Firestore database, and INVICTUS uses a named one, so these rules
-// can't look up the caller's team. Hotel photos are therefore limited to
-// signed-in users, images only, under 10 MB, at an unguessable path; reads go
-// through the tokenised download URLs stored on team-scoped Firestore docs.
+// These are NOT deployed from the repo — like firestore.rules they're pasted
+// into the Firebase Console (Storage -> Rules). This file exists so there's a
+// written record of what the app actually needs, which there wasn't before:
+// every upload path below is one the code really writes to, and a folder
+// missing from the live rules fails at upload time with storage/unauthorized.
+//
+// The model is simple on purpose. Storage holds photo attachments whose
+// visibility is already governed by the Firestore document that references
+// them — a task photo is only discoverable through a task you can read. So
+// the bar here is "signed in", plus a size cap so a stray upload can't fill
+// the bucket. The sensitive decisions stay in firestore.rules.
+
 service firebase.storage {
   match /b/{bucket}/o {
-    match /hotel/{teamId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-        request.resource.size < 10 * 1024 * 1024 &&
-        request.resource.contentType.matches('image/.*');
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    // Photos are downscaled to 1600px before upload, which lands well under
+    // this. The cap is a backstop against something pathological.
+    function withinSizeCap() {
+      return request.resource.size < 20 * 1024 * 1024;
+    }
+
+    // Task photos (Task Manager) — and their 320px thumbnails, which sit in
+    // the same folder so this one rule covers both.
+    match /tasks/{taskId}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && withinSizeCap();
+      allow delete: if signedIn();
+    }
+
+    // Project Board note photos, and their thumbnails.
+    match /projectBoard/{postId}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && withinSizeCap();
+      allow delete: if signedIn();
+    }
+
+    // Incident / near-miss report attachments.
+    match /incidentReports/{reportId}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && withinSizeCap();
+      allow delete: if signedIn();
+    }
+
+    // Authored report attachments.
+    match /reports/{reportId}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && withinSizeCap();
+      allow delete: if signedIn();
+    }
+
+    // Inspection evidence photos.
+    match /compliance/{itemId}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && withinSizeCap();
+      allow delete: if signedIn();
+    }
+
+    // Profile pictures.
+    match /profiles/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && withinSizeCap();
+      allow delete: if signedIn();
+    }
+
+    // Hotel module photos — one level deeper than the rest.
+    match /hotel/{teamId}/{kind}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && withinSizeCap();
+      allow delete: if signedIn();
+    }
+
+    // Nothing else is writable. A new upload path needs a rule here and in
+    // the Console, or it fails with storage/unauthorized.
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }
