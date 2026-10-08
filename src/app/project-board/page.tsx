@@ -169,6 +169,11 @@ export default function ProjectBoardPage() {
   }, [user, teamId]);
 
   const visible = useMemo(() => filterPosts(posts, search, colourFilter), [posts, search, colourFilter]);
+  const filtersActive = Boolean(colourFilter || search.trim());
+  const clearFilters = useCallback(() => {
+    setColourFilter('');
+    setSearch('');
+  }, []);
   const commentsByPost = useMemo(() => {
     const map = new Map<string, BoardComment[]>();
     for (const c of comments) {
@@ -317,6 +322,9 @@ export default function ProjectBoardPage() {
         ...(draftParentId ? { parentId: draftParentId } : {}),
       };
       await setDoc(doc(db, 'boardPosts', id), payload);
+      // A filter that would hide the note just pinned makes it look like the
+      // pin failed. Drop the filters rather than let that happen.
+      if (filtersActive && !filterPosts([{ ...payload, id }], search, colourFilter).length) clearFilters();
       // Photos need the note's id for their storage path, so they go up once
       // it exists. The note is already pinned either way — a failed upload
       // costs you the picture, not the note.
@@ -559,7 +567,7 @@ export default function ProjectBoardPage() {
           </div>
           <div className="flex items-center gap-1 rounded-md border border-neutral-400/25 p-1">
             <button
-              onClick={() => setColourFilter('')}
+              onClick={clearFilters}
               className={`rounded px-2 py-1 text-[10px] font-semibold uppercase tracking-widest transition-colors ${
                 colourFilter === '' ? 'text-invictus-crimson-bright' : 'text-neutral-500 hover:text-neutral-300'
               }`}
@@ -570,13 +578,28 @@ export default function ProjectBoardPage() {
               <button
                 key={key}
                 onClick={() => setColourFilter(colourFilter === key ? '' : key)}
-                title={BOARD_COLOURS[key].label}
+                title={`Show only ${BOARD_COLOURS[key].label.toLowerCase()} notes`}
                 className={`h-5 w-5 rounded-full border border-neutral-900/20 transition-all ${BOARD_COLOURS[key].swatch} ${
-                  colourFilter === key ? 'ring-2 ring-invictus-crimson-bright' : 'opacity-60 hover:opacity-100'
+                  colourFilter === key ? 'ring-2 ring-invictus-crimson-bright' : 'opacity-50 hover:opacity-100'
                 }`}
               />
             ))}
           </div>
+
+          {/* A filter is easy to set by accident and near-invisible as a ring
+              on a swatch, so say plainly that one is on and how many notes it
+              is holding back. */}
+          {filtersActive && (
+            <button
+              onClick={clearFilters}
+              className="flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20"
+              title="Clear the filters and show every note"
+            >
+              <X className="h-3.5 w-3.5" />
+              {colourFilter ? BOARD_COLOURS[colourFilter].label : 'Search'} only
+              {posts.length - visible.length > 0 && ` · ${posts.length - visible.length} hidden`}
+            </button>
+          )}
           <button
             onClick={() => openCompose()}
             className="flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20"
@@ -600,11 +623,32 @@ export default function ProjectBoardPage() {
       )}
 
       {visible.length === 0 && (
-        <p className="px-4 py-10 text-center text-xs text-neutral-600">
-          {posts.length === 0
-            ? 'Nothing pinned yet — put the first note up.'
-            : 'Nothing on the board matches that.'}
-        </p>
+        <div className="px-4 py-10 text-center">
+          {posts.length === 0 ? (
+            <p className="text-xs text-neutral-600">Nothing pinned yet — put the first note up.</p>
+          ) : (
+            // Everything is filtered out. Say so in those words, and give a
+            // way back — a note vanishing behind a filter you forgot you set
+            // looks exactly like a note that failed to save.
+            <>
+              <p className="text-sm text-neutral-300">
+                {posts.length} note{posts.length === 1 ? ' is' : 's are'} pinned, but{' '}
+                {colourFilter && search.trim()
+                  ? 'the colour filter and search are'
+                  : colourFilter
+                    ? `the ${BOARD_COLOURS[colourFilter].label.toLowerCase()} filter is`
+                    : 'the search is'}{' '}
+                hiding {posts.length === 1 ? 'it' : 'them'}.
+              </p>
+              <button
+                onClick={clearFilters}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/40 bg-invictus-crimson-bright/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20"
+              >
+                <X className="h-3.5 w-3.5" /> Show all notes
+              </button>
+            </>
+          )}
+        </div>
       )}
 
       {isWide ? (
