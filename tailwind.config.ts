@@ -6,6 +6,11 @@ export default {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    // src/lib is scanned too: several modules there hold the class strings for
+    // a status pill or a colour swatch (incidents, assignments, inspections,
+    // reports, the project board). Leaving it out meant any class used ONLY in
+    // one of those files was never generated, so it silently did nothing.
+    './src/lib/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {

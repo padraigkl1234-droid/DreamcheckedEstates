@@ -49,8 +49,6 @@ import { featureEnabled } from '@/lib/teams';
 import {
   BOARD_COLOURS,
   BOARD_COLOUR_KEYS,
-  BOARD_H,
-  BOARD_W,
   boardColour,
   canEditPost,
   filterPosts,
@@ -92,7 +90,21 @@ export default function ProjectBoardPage() {
     return () => mq.removeEventListener('change', apply);
   }, []);
 
+  // The board fills the space it's given rather than being a fixed canvas
+  // you scroll around, so everything is on screen at once. Note positions are
+  // fractions, so they hold their arrangement as that space changes.
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [area, setArea] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setArea({ w: Math.round(width), h: Math.round(height) });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isWide]);
 
   useEffect(() => {
     if (!user || !teamId) {
@@ -143,8 +155,10 @@ export default function ProjectBoardPage() {
 
   // ---- Writes ----
   const movePost = useCallback(
-    (post: BoardPost, x: number, y: number) => {
-      updateDoc(doc(db, 'boardPosts', post.id), { x, y }).catch((e) => {
+    (post: BoardPost, fx: number, fy: number) => {
+      // Stored to three decimals: enough to land a note exactly where it was
+      // dropped on a 4K screen, without writing a twelve-digit float.
+      updateDoc(doc(db, 'boardPosts', post.id), { x: +fx.toFixed(4), y: +fy.toFixed(4) }).catch((e) => {
         console.error('Failed to move note:', e);
         setError('Could not move that note.');
       });
@@ -179,13 +193,21 @@ export default function ProjectBoardPage() {
   const [draftBody, setDraftBody] = useState('');
   const [draftTag, setDraftTag] = useState('');
   const [draftColour, setDraftColour] = useState<BoardColour>('yellow');
+  const [draftFiles, setDraftFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+  const composeFileRef = useRef<HTMLInputElement>(null);
+
+  // Previews for photos picked before the note exists. Object URLs are
+  // revoked when the list changes so a long compose session doesn't leak.
+  const draftPreviews = useMemo(() => draftFiles.map((f) => URL.createObjectURL(f)), [draftFiles]);
+  useEffect(() => () => draftPreviews.forEach((u) => URL.revokeObjectURL(u)), [draftPreviews]);
 
   const openCompose = () => {
     setDraftTitle('');
     setDraftBody('');
     setDraftTag('');
     setDraftColour('yellow');
+    setDraftFiles([]);
     setError(null);
     setComposeOpen(true);
   };
@@ -200,7 +222,7 @@ export default function ProjectBoardPage() {
     setSaving(true);
     setError(null);
     try {
-      const spot = newNoteSpot(posts, canvasRef.current?.scrollLeft ?? 0, canvasRef.current?.scrollTop ?? 0);
+      const spot = newNoteSpot(posts);
       const id = genId('note');
       const payload: Omit<BoardPost, 'id'> = {
         teamId,
@@ -217,6 +239,11 @@ export default function ProjectBoardPage() {
         ...(draftTag.trim() ? { tag: draftTag.trim() } : {}),
       };
       await setDoc(doc(db, 'boardPosts', id), payload);
+      // Photos need the note's id for their storage path, so they go up once
+      // it exists. The note is already pinned either way — a failed upload
+      // costs you the picture, not the note.
+      if (draftFiles.length) await addPhotos({ ...payload, id }, draftFiles);
+      setDraftFiles([]);
       setComposeOpen(false);
       setSelectedId(id);
     } catch (e) {
@@ -463,7 +490,7 @@ export default function ProjectBoardPage() {
                 key={key}
                 onClick={() => setColourFilter(colourFilter === key ? '' : key)}
                 title={BOARD_COLOURS[key].label}
-                className={`h-4 w-4 rounded-full ring-offset-1 ring-offset-invictus-base transition-all ${BOARD_COLOURS[key].swatch} ${
+                className={`h-5 w-5 rounded-full border border-neutral-900/20 transition-all ${BOARD_COLOURS[key].swatch} ${
                   colourFilter === key ? 'ring-2 ring-invictus-crimson-bright' : 'opacity-60 hover:opacity-100'
                 }`}
               />
@@ -491,31 +518,32 @@ export default function ProjectBoardPage() {
       )}
 
       {isWide ? (
-        // The board proper. Scrolls in both directions; notes sit wherever
-        // they were dropped, and the arrangement is shared.
-        <div ref={canvasRef} className="min-h-0 flex-1 overflow-auto p-4">
+        // The board proper: one screenful, no scrolling. Notes sit wherever
+        // they were dropped and the arrangement is shared.
+        <div className="min-h-0 flex-1 p-4">
           <div
-            className="relative rounded-lg border border-neutral-400/15 bg-invictus-surface/30"
+            ref={canvasRef}
+            className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-400/15 bg-invictus-surface/30"
             style={{
-              width: BOARD_W,
-              height: BOARD_H,
               backgroundImage:
                 'radial-gradient(circle, rgb(var(--invictus-crimson-bright) / 0.07) 1px, transparent 1px)',
               backgroundSize: '28px 28px',
             }}
           >
-            {visible.map((post) => (
-              <BoardNote
-                key={post.id}
-                post={post}
-                commentCount={(commentsByPost.get(post.id) ?? []).length}
-                voted={hasVoted(post, user.uid)}
-                draggable
-                onOpen={() => setSelectedId(post.id)}
-                onPickUp={() => bringToFront(post)}
-                onMoved={(x, y) => movePost(post, x, y)}
-              />
-            ))}
+            {area.w > 0 &&
+              visible.map((post) => (
+                <BoardNote
+                  key={post.id}
+                  post={post}
+                  area={area}
+                  commentCount={(commentsByPost.get(post.id) ?? []).length}
+                  voted={hasVoted(post, user.uid)}
+                  draggable
+                  onOpen={() => setSelectedId(post.id)}
+                  onPickUp={() => bringToFront(post)}
+                  onMoved={(fx, fy) => movePost(post, fx, fy)}
+                />
+              ))}
           </div>
         </div>
       ) : (
@@ -527,6 +555,7 @@ export default function ProjectBoardPage() {
               <BoardNote
                 key={post.id}
                 post={post}
+                area={area}
                 commentCount={(commentsByPost.get(post.id) ?? []).length}
                 voted={hasVoted(post, user.uid)}
                 draggable={false}
@@ -571,18 +600,64 @@ export default function ProjectBoardPage() {
                 placeholder="Label (optional) — e.g. Capex, Winter shutdown"
                 className={inputClass}
               />
-              <div className="flex items-center gap-2">
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-widest text-neutral-500">
+                    Photos {draftFiles.length > 0 && `(${draftFiles.length})`}
+                  </span>
+                  <button
+                    onClick={() => composeFileRef.current?.click()}
+                    className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                  >
+                    <ImagePlus className="h-3 w-3" /> Attach
+                  </button>
+                  <input
+                    ref={composeFileRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    hidden
+                    onChange={(e) => {
+                      const picked = Array.from(e.target.files ?? []);
+                      e.target.value = '';
+                      setDraftFiles((prev) => [...prev, ...picked]);
+                    }}
+                  />
+                </div>
+                {draftPreviews.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {draftPreviews.map((url, i) => (
+                      <div key={url} className="group/img relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="h-16 w-16 rounded-md border border-neutral-400/25 object-cover" />
+                        <button
+                          onClick={() => setDraftFiles((prev) => prev.filter((_, n) => n !== i))}
+                          className="absolute right-0.5 top-0.5 rounded bg-black/60 p-0.5 text-neutral-300 opacity-0 transition-opacity hover:text-alert group-hover/img:opacity-100"
+                          title="Remove"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] uppercase tracking-widest text-neutral-500">Colour</span>
                 {BOARD_COLOUR_KEYS.map((key) => (
                   <button
                     key={key}
                     onClick={() => setDraftColour(key)}
                     title={BOARD_COLOURS[key].label}
-                    className={`h-5 w-5 rounded-full transition-all ${BOARD_COLOURS[key].swatch} ${
-                      draftColour === key ? 'ring-2 ring-invictus-crimson-bright ring-offset-2 ring-offset-invictus-surface' : 'opacity-60'
+                    className={`h-7 w-7 rounded-full border-2 transition-all ${BOARD_COLOURS[key].swatch} ${
+                      draftColour === key
+                        ? 'border-invictus-crimson-bright ring-2 ring-invictus-crimson-bright/40'
+                        : 'border-neutral-900/20 opacity-70 hover:opacity-100'
                     }`}
                   />
                 ))}
+                <span className="text-[10px] text-neutral-500">{BOARD_COLOURS[draftColour].label}</span>
               </div>
               {error && <p className="text-xs text-alert">{error}</p>}
               <button
@@ -636,8 +711,11 @@ export default function ProjectBoardPage() {
                       <button
                         key={key}
                         onClick={() => setEditColour(key)}
-                        className={`h-5 w-5 rounded-full ${BOARD_COLOURS[key].swatch} ${
-                          editColour === key ? 'ring-2 ring-invictus-crimson-bright ring-offset-2 ring-offset-invictus-surface' : 'opacity-60'
+                        title={BOARD_COLOURS[key].label}
+                        className={`h-7 w-7 rounded-full border-2 transition-all ${BOARD_COLOURS[key].swatch} ${
+                          editColour === key
+                            ? 'border-invictus-crimson-bright ring-2 ring-invictus-crimson-bright/40'
+                            : 'border-neutral-900/20 opacity-70 hover:opacity-100'
                         }`}
                       />
                     ))}

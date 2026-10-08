@@ -55,14 +55,57 @@ export interface BoardComment {
   byName: string;
 }
 
-/** The pinnable area, in board units (1 unit = 1px at 100%). Big enough to
- *  spread a few dozen notes out without them piling up, small enough that
- *  you aren't hunting across an endless plain for one. */
-export const BOARD_W = 2400;
-export const BOARD_H = 1600;
-export const NOTE_W = 240;
-/** Only used to keep a note's top-left inside the board; cards grow to fit. */
-export const NOTE_H = 170;
+// ---------------------------------------------------------------------------
+// Positions
+//
+// A note's x/y are FRACTIONS of the board (0 = hard left/top, 1 = hard
+// right/bottom), not pixels. That's what lets the board be whatever size the
+// screen is: it fills the space available and the arrangement holds its shape
+// on a laptop, a monitor and a split window alike, with nothing to scroll to.
+//
+// The first version stored pixels on a fixed 2400x1600 canvas. Anything
+// bigger than 1 is therefore a leftover from that, and is converted on read —
+// no migration to run, and those notes land roughly where they were left.
+// ---------------------------------------------------------------------------
+
+const LEGACY_BOARD_W = 2400;
+const LEGACY_BOARD_H = 1600;
+
+/** A note's width on screen, in pixels. Fixed so the text stays readable
+ *  whatever size the board is. */
+export const NOTE_W = 210;
+/** Nominal card height, used only to keep a note's box inside the board. */
+export const NOTE_H = 200;
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+/** Where a note sits, as fractions, whichever way it was stored. */
+export function postFraction(post: Pick<BoardPost, 'x' | 'y'>): { fx: number; fy: number } {
+  const x = post.x ?? 0;
+  const y = post.y ?? 0;
+  return {
+    fx: clamp01(x > 1 ? x / LEGACY_BOARD_W : x),
+    fy: clamp01(y > 1 ? y / LEGACY_BOARD_H : y),
+  };
+}
+
+/** The travel a note actually has, once its own size is accounted for. */
+export function travel(area: { w: number; h: number }): { w: number; h: number } {
+  return { w: Math.max(1, area.w - NOTE_W), h: Math.max(1, area.h - NOTE_H) };
+}
+
+/** Fractions to a pixel offset inside a board of this size. */
+export function toPixels(post: Pick<BoardPost, 'x' | 'y'>, area: { w: number; h: number }) {
+  const { fx, fy } = postFraction(post);
+  const t = travel(area);
+  return { left: Math.round(fx * t.w), top: Math.round(fy * t.h) };
+}
+
+/** A pixel offset back to fractions, clamped so a note can't leave the board. */
+export function toFraction(left: number, top: number, area: { w: number; h: number }) {
+  const t = travel(area);
+  return { fx: clamp01(left / t.w), fy: clamp01(top / t.h) };
+}
 
 export const BOARD_COLOUR_KEYS: BoardColour[] = ['yellow', 'pink', 'blue', 'green', 'purple', 'grey'];
 
@@ -82,33 +125,33 @@ export function boardColour(colour: string | undefined) {
   return BOARD_COLOURS[(colour as BoardColour) ?? 'yellow'] ?? BOARD_COLOURS.yellow;
 }
 
-/** Keep a note's top-left corner on the board however far the drag went. */
-export function clampToBoard(x: number, y: number): { x: number; y: number } {
-  return {
-    x: Math.round(Math.max(0, Math.min(BOARD_W - NOTE_W, x))),
-    y: Math.round(Math.max(0, Math.min(BOARD_H - NOTE_H, y))),
-  };
-}
-
 /** One above the highest note, so whatever you pick up lands on top. */
 export function nextZ(posts: BoardPost[]): number {
   return posts.reduce((max, p) => Math.max(max, p.z ?? 0), 0) + 1;
 }
 
-/** Where to drop a new note: just inside the top-left of what the person is
- *  currently looking at, nudged along so a run of new notes fans out rather
- *  than landing in a single pile. */
-export function newNoteSpot(posts: BoardPost[], scrollX: number, scrollY: number): { x: number; y: number } {
-  const base = { x: scrollX + 40, y: scrollY + 40 };
-  let { x, y } = base;
-  // Step diagonally until the spot isn't already taken by another note.
-  for (let i = 0; i < 40; i++) {
-    const taken = posts.some((p) => Math.abs(p.x - x) < 28 && Math.abs(p.y - y) < 28);
+/** Where to drop a new note: near the top-left, stepped diagonally past
+ *  anything already there so a run of new notes fans out instead of landing
+ *  in a single pile. */
+export function newNoteSpot(posts: BoardPost[]): { x: number; y: number } {
+  const step = 0.045;
+  let fx = 0.02;
+  let fy = 0.03;
+  for (let i = 0; i < 20; i++) {
+    const taken = posts.some((p) => {
+      const f = postFraction(p);
+      return Math.abs(f.fx - fx) < step * 0.8 && Math.abs(f.fy - fy) < step * 0.8;
+    });
     if (!taken) break;
-    x += 28;
-    y += 28;
+    fx = clamp01(fx + step);
+    fy = clamp01(fy + step);
+    // Ran into the bottom-right corner — start a fresh diagonal.
+    if (fx >= 1 || fy >= 1) {
+      fx = 0.02 + ((i % 5) + 1) * 0.08;
+      fy = 0.03;
+    }
   }
-  return clampToBoard(x, y);
+  return { x: clamp01(fx), y: clamp01(fy) };
 }
 
 /** Whether this person may edit or remove the note (its owner, a commander,
