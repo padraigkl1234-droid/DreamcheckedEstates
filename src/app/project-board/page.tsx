@@ -554,7 +554,16 @@ export default function ProjectBoardPage() {
       </div>
 
       {error && (
-        <p className="mx-4 mt-3 rounded-md border border-alert/40 bg-alert/10 px-3 py-2 text-xs text-alert">{error}</p>
+        <div className="mx-4 mt-3 flex items-start gap-3 rounded-md border border-alert/40 bg-alert/10 px-3 py-2">
+          <p className="min-w-0 flex-1 text-xs text-alert">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="shrink-0 rounded p-0.5 text-alert/70 transition-colors hover:text-alert"
+            title="Dismiss"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       )}
 
       {visible.length === 0 && (
