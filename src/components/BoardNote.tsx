@@ -7,7 +7,7 @@
 // a plain list and turns both off — dragging a sticky note around a canvas
 // with your thumb is miserable.
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { GitBranch, ImageIcon, ListChecks, MessageSquare, ThumbsUp } from 'lucide-react';
 import {
   boardColour,
@@ -52,13 +52,47 @@ export function BoardNote({
   const tone = boardColour(post.colour);
   const size = noteSize(post);
 
-  const [drag, setDrag] = useState<{ left: number; top: number } | null>(null);
+  // The note is moved by a transform rather than by left/top: a transform is
+  // composited, so following the pointer costs no layout work per frame.
+  //
+  // The offset deliberately OUTLIVES the drag. Clearing it on release would
+  // snap the note back to its stored position for the frame or two before
+  // the write comes round, which reads as the note flicking back to where it
+  // started and then jumping forward again. It's held until the saved
+  // position catches up instead, so the handover is invisible.
+  const [offset, setOffset] = useState<{ dx: number; dy: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [resize, setResize] = useState<{ w: number; h: number } | null>(null);
   const dragRef = useRef<{ px: number; py: number; left: number; top: number; moved: boolean } | null>(null);
   const resizeRef = useRef<{ px: number; py: number; w: number; h: number } | null>(null);
+  const settleRef = useRef<number | null>(null);
 
   const shown = resize ?? size;
   const resting = toPixels(post, area, shown);
+
+  // useLayoutEffect, not useEffect: this runs before the browser paints, so
+  // there's never a frame showing the new stored position AND the old offset
+  // on top of it — which would be a visible double-jump.
+  useLayoutEffect(() => {
+    setOffset(null);
+  }, [post.x, post.y]);
+  useLayoutEffect(() => {
+    setResize(null);
+  }, [post.w, post.h]);
+
+  // If the write fails, or lands on the same rounded value it already had,
+  // nothing above ever fires — so drop the local offset after a moment
+  // rather than leaving the note looking moved when it isn't.
+  const armSettle = () => {
+    if (settleRef.current) window.clearTimeout(settleRef.current);
+    settleRef.current = window.setTimeout(() => {
+      setOffset(null);
+      setResize(null);
+    }, 2500);
+  };
+  useEffect(() => () => {
+    if (settleRef.current) window.clearTimeout(settleRef.current);
+  }, []);
 
   // ---- Move ----
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -76,25 +110,30 @@ export function BoardNote({
     const dy = e.clientY - o.py;
     // Ignore the shake in a click: below this it's a tap to open, not a drag.
     if (!o.moved && Math.hypot(dx, dy) < 4) return;
-    o.moved = true;
+    if (!o.moved) {
+      o.moved = true;
+      setDragging(true);
+    }
     const t = travel(area, shown);
-    setDrag({
-      left: Math.max(0, Math.min(t.w, o.left + dx)),
-      top: Math.max(0, Math.min(t.h, o.top + dy)),
-    });
+    // Clamp in absolute terms, then express the result as a displacement
+    // from where the note is actually pinned.
+    const left = Math.max(0, Math.min(t.w, o.left + dx));
+    const top = Math.max(0, Math.min(t.h, o.top + dy));
+    setOffset({ dx: left - resting.left, dy: top - resting.top });
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     const o = dragRef.current;
     dragRef.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-    const landed = drag;
-    setDrag(null);
+    setDragging(false);
     if (!o) return;
-    if (o.moved && landed) {
-      const f = toFraction(landed.left, landed.top, area, shown);
+    if (o.moved && offset) {
+      const f = toFraction(resting.left + offset.dx, resting.top + offset.dy, area, shown);
       onMoved(f.fx, f.fy);
+      armSettle();
     } else {
+      setOffset(null);
       onOpen(); // never moved — treat it as opening the note
     }
   };
@@ -117,11 +156,16 @@ export function BoardNote({
     resizeRef.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     const landed = resize;
-    setResize(null);
-    if (o && landed && (landed.w !== o.w || landed.h !== o.h)) onResized(landed.w, landed.h);
+    // Same handover as a move: hold the new size until the write comes back,
+    // rather than snapping to the old one for a frame.
+    if (o && landed && (landed.w !== o.w || landed.h !== o.h)) {
+      onResized(landed.w, landed.h);
+      armSettle();
+    } else {
+      setResize(null);
+    }
   };
 
-  const pos = drag ?? resting;
   const photoCount = post.photos?.length ?? 0;
   const cover = post.photos?.[0];
   const voteCount = post.votes?.length ?? 0;
@@ -146,21 +190,29 @@ export function BoardNote({
       onClick={() => {
         if (!draggable) onOpen();
       }}
+      // The browser's own drag-and-drop would otherwise lift a translucent
+      // copy of the card and follow the cursor with it — a second, ghostly
+      // note alongside the real one.
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       style={
         draggable
           ? {
               position: 'absolute',
-              left: pos.left,
-              top: pos.top,
+              left: resting.left,
+              top: resting.top,
               width: shown.w,
               height: shown.h,
-              zIndex: drag || resize ? 9999 : post.z ?? 1,
+              transform: offset
+                ? `translate3d(${offset.dx}px, ${offset.dy}px, 0)${dragging ? ' rotate(1.2deg)' : ''}`
+                : undefined,
+              zIndex: dragging || resize ? 9999 : post.z ?? 1,
             }
           : undefined
       }
-      className={`group/note relative flex select-none flex-col overflow-hidden rounded-sm p-2.5 shadow-lg ring-1 ring-black/10 transition-shadow ${tone.card} ${
+      className={`group/note relative flex select-none flex-col overflow-hidden rounded-sm p-2.5 shadow-lg ring-1 ring-black/10 ${tone.card} ${
         draggable ? 'cursor-grab active:cursor-grabbing' : 'w-full cursor-pointer'
-      } ${drag ? 'rotate-1 shadow-2xl' : ''}`}
+      } ${dragging ? 'shadow-2xl' : 'transition-shadow'}`}
     >
       {/* The pin. */}
       <div className="mx-auto mb-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-neutral-900/30 shadow-inner" />
