@@ -215,6 +215,45 @@ service cloud.firestore {
       allow delete: if isMasterAdmin() || isCommanderOf(resource.data.teamId);
     }
 
+    // The Project Board (/project-board) — a team-wide pin board of
+    // reminders, project notes and Capex ideas. Everyone on the team reads
+    // it. A note belongs to whoever pinned it: only they (or a commander)
+    // may change its words or take it down. Everyone else may move it, back
+    // it, attach a photo and mark it as having become a task — and nothing
+    // else, which the field list below enforces rather than trusting the UI.
+    match /boardPosts/{id} {
+      allow read: if isMasterAdmin() || inMyTeam(resource.data.teamId);
+      allow create: if (isMasterAdmin() || inMyTeam(request.resource.data.teamId)) &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.title is string;
+      // The owner (or a commander / master) may edit the note itself, but
+      // can't hand it to someone else or move it to another team.
+      allow update: if (isMasterAdmin() || isCommanderOf(resource.data.teamId) ||
+          (inMyTeam(resource.data.teamId) && resource.data.ownerUid == request.auth.uid)) &&
+        request.resource.data.teamId == resource.data.teamId &&
+        request.resource.data.ownerUid == resource.data.ownerUid;
+      // Anyone on the team: the shared, collaborative bits only.
+      allow update: if inMyTeam(resource.data.teamId) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['x', 'y', 'z', 'votes', 'photos', 'taskId', 'taskByName', 'taskAt', 'updatedAt']);
+      allow delete: if isMasterAdmin() || isCommanderOf(resource.data.teamId) ||
+        (inMyTeam(resource.data.teamId) && resource.data.ownerUid == request.auth.uid);
+    }
+
+    // Comments on a board note. Team-wide readable, never edited after the
+    // fact — a thread people can rewrite isn't a record of the discussion.
+    // Deleting is for the author, a commander, or master (who also tidies up
+    // a thread when its note comes down).
+    match /boardComments/{id} {
+      allow read: if isMasterAdmin() || inMyTeam(resource.data.teamId);
+      allow create: if inMyTeam(request.resource.data.teamId) &&
+        request.resource.data.byUid == request.auth.uid &&
+        request.resource.data.text is string;
+      allow update: if false;
+      allow delete: if isMasterAdmin() || isCommanderOf(resource.data.teamId) ||
+        (inMyTeam(resource.data.teamId) && resource.data.byUid == request.auth.uid);
+    }
+
     // Assigning a piece of work (see /assignments) to a specific person, for
     // a date or a repeating schedule, with an explicit accept/decline —
     // private to the two parties, like a task, not team-wide visible.

@@ -23,6 +23,7 @@ export const TOGGLEABLE_PAGES: { key: string; label: string }[] = [
   { key: 'eventMode', label: 'Event Mode' },
   { key: 'siteMap', label: 'Site Map' },
   { key: 'siteStatus', label: 'Site Status' },
+  { key: 'projectBoard', label: 'Project Board' },
   { key: 'team', label: 'Team' },
   { key: 'taskManager', label: 'Task Manager' },
   { key: 'compliance', label: 'Compliance' },
