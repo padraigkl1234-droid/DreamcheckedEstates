@@ -288,26 +288,26 @@ const CARD_REVEAL_STEP_MS = 90;
 const CARD_REVEAL_DURATION_MS = 420;
 
 const PRIORITY_STYLES: Record<Priority, string> = {
-  High: 'text-alert border-alert/30 bg-alert/10',
-  Medium: 'text-amber-300 border-amber-400/25 bg-amber-400/10',
-  Low: 'text-neutral-400 border-neutral-400/25 bg-neutral-400/10',
+  High: 'text-danger-deep border-transparent bg-danger-tint',
+  Medium: 'text-sun-ink border-transparent bg-sun-soft',
+  Low: 'text-ink-muted border-transparent bg-line-fill',
 };
 
 const PRIORITY_RANK: Record<Priority, number> = { High: 0, Medium: 1, Low: 2 };
 
 const STATUS_STYLES: Record<TaskStatus, string> = {
-  'Not Started': 'text-neutral-400 border-neutral-500/40 bg-neutral-500/10',
-  'In Progress': 'text-amber-300 border-amber-400/40 bg-amber-400/10',
-  Completed: 'text-emerald-300 border-emerald-400/40 bg-emerald-400/10',
+  'Not Started': 'text-brand border-transparent bg-brand-tint',
+  'In Progress': 'text-sun-ink border-transparent bg-sun-soft',
+  Completed: 'text-ok-darker border-transparent bg-ok-tint',
 };
 
 // Order in which task status groups are shown in the Active Tasks list.
 const STATUS_ORDER: TaskStatus[] = ['Not Started', 'In Progress', 'Completed'];
 
 const URGENCY_STYLES: Record<ComplianceUrgency, string> = {
-  red: 'text-alert border-alert/30 bg-alert/10',
-  amber: 'text-amber-300 border-amber-400/25 bg-amber-400/10',
-  green: 'text-emerald-300 border-emerald-400/25 bg-emerald-400/10',
+  red: 'text-danger-deep border-transparent bg-danger-tint',
+  amber: 'text-sun-ink border-transparent bg-sun-soft',
+  green: 'text-ok-darker border-transparent bg-ok-tint',
 };
 
 function formatDueIn(daysUntilDue: number): string {
@@ -4110,7 +4110,10 @@ function TaskManager({
 
     const overdue = isOverdue(task);
     return (
-      <div key={task.id} className="flex flex-col gap-3 px-5 py-4">
+      <div
+        key={task.id}
+        className={`flex flex-col gap-3 py-[18px] pr-[22px] ${overdue ? 'border-l-4 border-danger pl-[18px]' : 'pl-[22px]'}`}
+      >
         {/* The action cluster (badges, status, Photos/Materials/Updates/Edit/
             Report) runs to roughly 840px once its labels are showing, so it
             only sits beside the title where there's genuinely room for both.
@@ -4125,17 +4128,17 @@ function TaskManager({
               onUpdateStatus(task.id, task.status === 'Completed' ? 'Not Started' : 'Completed');
             }}
             className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-              task.status === 'Completed' ? 'border-emerald-400 bg-emerald-400/20 text-emerald-300' : 'border-neutral-500 hover:border-neutral-300'
+              task.status === 'Completed' ? 'border-ok-deep bg-ok-tint text-ok-deep' : 'border-line-check hover:border-brand'
             }`}
             title={task.status === 'Completed' ? 'Mark as not started' : 'Mark as done'}
           >
             {task.status === 'Completed' && <Check className="h-3 w-3" />}
           </button>
           <div className="min-w-0 flex-1">
-            <p className={`text-sm font-semibold ${task.status === 'Completed' ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>
+            <p className={`text-base font-extrabold leading-snug ${task.status === 'Completed' ? 'text-ink-dim line-through' : 'text-ink'}`}>
               {task.name}
             </p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-500">
+            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[13px] font-semibold text-ink-dim">
               <span>Due {task.dueDate || '—'}</span>
               {task.category && <span>· {task.category}</span>}
               {task.area && (
@@ -4147,7 +4150,7 @@ function TaskManager({
             {/* pre-wrap so multi-line descriptions (e.g. an intake form's
                 Location/Department lines) keep their line breaks. */}
             {task.notes && (
-              <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-neutral-400">{task.notes}</p>
+              <p className="mt-1.5 whitespace-pre-wrap text-sm font-medium leading-relaxed text-ink-soft">{task.notes}</p>
             )}
             {(task.updates?.length ?? 0) > 0 && timelineOpenFor !== task.id && (
               <button
@@ -4188,18 +4191,18 @@ function TaskManager({
           </div>
           <div className="flex flex-wrap items-center gap-2 pl-8 2xl:shrink-0 2xl:justify-end 2xl:pl-0">
             {overdue && (
-              <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${URGENCY_STYLES.red}`}>
+              <span className="rounded-full bg-danger px-2.5 py-1 text-xs font-extrabold text-white">
                 {formatDueIn(daysFromToday(task.dueDate, todayStr))}
               </span>
             )}
-            <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[task.priority]}`}>
-              {task.priority}
-            </span>
             {task.category && (
-              <span className="flex items-center gap-1 rounded-full border border-neutral-400/25 bg-invictus-raised px-2.5 py-1 text-xs font-medium text-neutral-400">
+              <span className="flex items-center gap-1 rounded-lg border border-line bg-white px-3 py-[7px] text-xs font-bold text-ink-muted">
                 <Tag className="h-3 w-3" /> {task.category}
               </span>
             )}
+            <span className={`rounded-lg border px-3 py-[7px] text-xs font-extrabold ${PRIORITY_STYLES[task.priority]}`}>
+              {task.priority}
+            </span>
             <InvictusSelect
               value={task.status}
               onChange={(v) => {
@@ -4214,54 +4217,54 @@ function TaskManager({
                 { value: 'Completed', label: 'Completed' },
               ]}
             />
-            <button
-              onClick={() => pickImages(task.id)}
-              disabled={uploadingImageFor === task.id}
-              className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright disabled:opacity-50"
-              title="Add photos"
-            >
-              {uploadingImageFor === task.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
-              <span className="text-xs font-medium">Photos</span>
-            </button>
-            <button
-              onClick={() => openMaterials(task.id)}
-              className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 transition-all ${
-                materialsOpenFor === task.id || (task.materials?.length ?? 0) > 0
-                  ? 'border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 text-invictus-crimson-bright'
-                  : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright'
-              }`}
-              title="Materials needed for this task"
-            >
-              <Package className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium">
+            {/* One joined control, per the design: a single outer border
+                with dividers between the four actions. */}
+            <div className="flex items-stretch overflow-hidden rounded-lg border border-line bg-white divide-x divide-line">
+              <button
+                onClick={() => pickImages(task.id)}
+                disabled={uploadingImageFor === task.id}
+                className="flex items-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink disabled:opacity-50"
+                title="Add photos"
+              >
+                {uploadingImageFor === task.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                Photos
+              </button>
+              <button
+                onClick={() => openMaterials(task.id)}
+                className={`flex items-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold transition-colors duration-[120ms] ${
+                  materialsOpenFor === task.id || (task.materials?.length ?? 0) > 0
+                    ? 'bg-brand-tint text-brand'
+                    : 'text-ink-muted hover:bg-line-row hover:text-ink'
+                }`}
+                title="Materials needed for this task"
+              >
+                <Package className="h-3.5 w-3.5" />
                 Materials{(task.materials?.length ?? 0) > 0 ? ` (${task.materials!.length})` : ''}
-              </span>
-            </button>
-            <button
-              onClick={() => openTimeline(task.id)}
-              className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 transition-all ${
-                timelineOpenFor === task.id || (task.updates?.length ?? 0) > 0
-                  ? 'border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 text-invictus-crimson-bright'
-                  : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-300 hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright'
-              }`}
-              title="Add an update — every addition is timestamped"
-            >
-              <MessageSquarePlus className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium">
+              </button>
+              <button
+                onClick={() => openTimeline(task.id)}
+                className={`flex items-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold transition-colors duration-[120ms] ${
+                  timelineOpenFor === task.id || (task.updates?.length ?? 0) > 0
+                    ? 'bg-brand-tint text-brand'
+                    : 'text-ink-muted hover:bg-line-row hover:text-ink'
+                }`}
+                title="Add an update — every addition is timestamped"
+              >
+                <MessageSquarePlus className="h-3.5 w-3.5" />
                 Updates{(task.updates?.length ?? 0) > 0 ? ` (${task.updates!.length})` : ''}
-              </span>
-            </button>
-            <button
-              onClick={() => startEdit(task)}
-              className="flex items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-2 py-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
-              title="Edit task"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium">Edit</span>
-            </button>
+              </button>
+              <button
+                onClick={() => startEdit(task)}
+                className="flex items-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink"
+                title="Edit task"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </button>
+            </div>
             <button
               onClick={() => onFileReport(task)}
-              className="flex items-center gap-1.5 rounded-md border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-3 py-1.5 text-xs font-bold text-invictus-crimson-bright transition-all hover:bg-invictus-crimson-bright/20"
+              className="flex items-center gap-1.5 rounded-lg bg-ink px-3 py-[7px] text-[13px] font-extrabold text-white transition-opacity duration-[120ms] hover:opacity-90"
               title="File a report for this task"
             >
               <FileText className="h-3.5 w-3.5" />
@@ -4270,7 +4273,7 @@ function TaskManager({
             {task.status === 'Completed' && (
               <button
                 onClick={() => onArchive(task.id)}
-                className="rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-300 transition-all hover:border-invictus-crimson-bright/40 hover:bg-invictus-crimson-bright/10 hover:text-invictus-crimson-bright"
+                className="rounded-lg border border-line bg-white p-2 text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink"
                 title="Archive task"
               >
                 <Archive className="h-3.5 w-3.5" />
@@ -4278,7 +4281,7 @@ function TaskManager({
             )}
             <button
               onClick={() => onDelete(task.id)}
-              className="rounded-md border border-alert/30 bg-alert/10 p-1.5 text-alert transition-all hover:bg-alert/20"
+              className="rounded-lg bg-danger-tint p-2 text-danger transition-colors duration-[120ms] hover:bg-danger hover:text-white"
               title="Delete task"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -4660,18 +4663,18 @@ function TaskManager({
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-100">Task Manager</h1>
-          <p className="mt-1 text-sm text-neutral-500">
+          <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[28px]">Task Manager</h1>
+          <p className="mt-1 text-[15px] font-semibold text-ink-muted">
             {groupFilter
               ? `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} in ${groupFilter}`
               : `${tasks.length} active task${tasks.length === 1 ? '' : 's'} across the estate`}
           </p>
         </div>
-        <div className="flex shrink-0 gap-1 rounded-xl border border-neutral-400/20 bg-invictus-surface p-1">
+        <div className="flex shrink-0 gap-1 rounded-[10px] border border-line bg-white p-1">
           <button
             onClick={() => setViewMode('list')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              viewMode === 'list' ? 'bg-invictus-raised text-neutral-100' : 'text-neutral-500 hover:text-neutral-300'
+            className={`flex items-center gap-1.5 rounded-[7px] px-4 py-2 text-sm font-bold transition-colors duration-[120ms] ${
+              viewMode === 'list' ? 'bg-ink text-white' : 'text-ink-dim hover:text-ink'
             }`}
           >
             <ListChecks className="h-3.5 w-3.5" /> List
@@ -4679,8 +4682,8 @@ function TaskManager({
           <button
             onClick={() => setViewMode('board')}
             title="Board view is coming soon"
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              viewMode === 'board' ? 'bg-invictus-raised text-neutral-100' : 'text-neutral-500 hover:text-neutral-300'
+            className={`flex items-center gap-1.5 rounded-[7px] px-4 py-2 text-sm font-bold transition-colors duration-[120ms] ${
+              viewMode === 'board' ? 'bg-ink text-white' : 'text-ink-dim hover:text-ink'
             }`}
           >
             <LayoutDashboard className="h-3.5 w-3.5" /> Board
@@ -4688,8 +4691,8 @@ function TaskManager({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-3 rounded-2xl border border-neutral-400/20 bg-invictus-surface px-4 py-3">
-        <Plus className="h-4 w-4 shrink-0 text-neutral-500" />
+      <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2.5 rounded-[14px] border-2 border-brand bg-white py-2.5 pl-5 pr-2.5">
+        <Plus className="h-5 w-5 shrink-0 text-brand" strokeWidth={3} />
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -4698,14 +4701,14 @@ function TaskManager({
           // that can shrink, so once the option buttons wrap it collapses to a
           // few characters wide. Below this width the buttons wrap under it
           // instead.
-          className="min-w-[14rem] flex-1 bg-transparent text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
+          className="min-w-[14rem] flex-1 bg-transparent text-[15px] font-semibold text-ink placeholder:font-semibold placeholder:text-ink-placeholder focus:outline-none"
         />
         <input
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
           title="Due date"
-          className="w-auto shrink-0 rounded-md border border-neutral-400/20 bg-invictus-raised px-2 py-1 text-[11px] font-semibold text-neutral-300 focus:outline-none"
+          className="w-auto shrink-0 rounded-lg border-0 bg-invictus-base px-3 py-2 text-[13px] font-bold text-ink-muted focus:outline-none"
         />
         <InvictusSelect
           value={priority}
@@ -4722,10 +4725,10 @@ function TaskManager({
           type="button"
           onClick={() => setShowQuickAssign((v) => !v)}
           title="Assign to teammates (optional)"
-          className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+          className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-[13px] font-bold transition-colors duration-[120ms] ${
             showQuickAssign || quickAssigneeUids.length > 0
-              ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
-              : 'border-neutral-400/20 bg-invictus-raised text-neutral-400 hover:text-neutral-200'
+              ? 'border-transparent bg-brand-tint text-brand'
+              : 'border-transparent bg-invictus-base text-ink-muted hover:bg-line-fill'
           }`}
         >
           <UserPlus className="h-3.5 w-3.5" />
@@ -4735,10 +4738,10 @@ function TaskManager({
           type="button"
           onClick={() => setShowQuickGroup((v) => !v)}
           title="Put this task in a group (optional)"
-          className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+          className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-[13px] font-bold transition-colors duration-[120ms] ${
             showQuickGroup || quickCategory.trim()
-              ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
-              : 'border-neutral-400/20 bg-invictus-raised text-neutral-400 hover:text-neutral-200'
+              ? 'border-transparent bg-brand-tint text-brand'
+              : 'border-transparent bg-invictus-base text-ink-muted hover:bg-line-fill'
           }`}
         >
           <Tag className="h-3.5 w-3.5" />
@@ -4748,10 +4751,10 @@ function TaskManager({
           type="button"
           onClick={() => setShowQuickArea((v) => !v)}
           title="Pin this task to a place on the site map (optional)"
-          className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+          className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-[13px] font-bold transition-colors duration-[120ms] ${
             showQuickArea || quickArea
-              ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
-              : 'border-neutral-400/20 bg-invictus-raised text-neutral-400 hover:text-neutral-200'
+              ? 'border-transparent bg-brand-tint text-brand'
+              : 'border-transparent bg-invictus-base text-ink-muted hover:bg-line-fill'
           }`}
         >
           <MapPin className="h-3.5 w-3.5" />
@@ -4761,10 +4764,10 @@ function TaskManager({
           type="button"
           onClick={() => setShowQuickNotes((v) => !v)}
           title="Add a description (optional)"
-          className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+          className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-[13px] font-bold transition-colors duration-[120ms] ${
             showQuickNotes || quickNotes.trim()
-              ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
-              : 'border-neutral-400/20 bg-invictus-raised text-neutral-400 hover:text-neutral-200'
+              ? 'border-transparent bg-brand-tint text-brand'
+              : 'border-transparent bg-invictus-base text-ink-muted hover:bg-line-fill'
           }`}
         >
           <FileText className="h-3.5 w-3.5" />
@@ -4772,7 +4775,7 @@ function TaskManager({
         </button>
         <button
           type="submit"
-          className="shrink-0 rounded-xl bg-invictus-crimson-bright px-4 py-2 text-sm font-bold text-invictus-base transition-opacity hover:opacity-90"
+          className="shrink-0 rounded-[10px] bg-brand px-5 py-3 text-sm font-extrabold text-white transition-colors duration-[120ms] hover:bg-brand-hover"
         >
           Add task
         </button>
@@ -4859,15 +4862,15 @@ function TaskManager({
             <button
               key={tab.key}
               onClick={() => setFilter(tab.key)}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition-colors duration-[120ms] ${
                 active
-                  ? 'border-neutral-400/30 bg-invictus-raised text-neutral-100'
-                  : 'border-neutral-400/20 bg-invictus-surface text-neutral-500 hover:text-neutral-300'
+                  ? 'bg-ink text-white'
+                  : `bg-white hover:bg-line-row ${tab.key === 'overdue' ? 'text-danger' : 'text-ink-muted'}`
               }`}
             >
-              {tab.key === 'overdue' && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-alert" />}
+              {tab.key === 'overdue' && <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${active ? 'bg-white' : 'bg-danger'}`} />}
               {tab.label}
-              <span className={active ? 'text-neutral-400' : 'text-neutral-600'}>{tab.count}</span>
+              <span className={active ? 'text-white/70' : 'text-ink-placeholder'}>{tab.count}</span>
             </button>
           );
         })}
@@ -4875,15 +4878,13 @@ function TaskManager({
 
       {categories.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1 text-xs text-neutral-500">
-            <Tag className="h-3.5 w-3.5" /> Groups:
+          <span className="flex items-center gap-1 text-[13px] font-bold text-ink-dim">
+            <Tag className="h-3.5 w-3.5" /> Groups
           </span>
           <button
             onClick={() => setGroupFilter(null)}
-            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-              !groupFilter
-                ? 'border-neutral-400/30 bg-invictus-raised text-neutral-100'
-                : 'border-neutral-400/20 bg-invictus-surface text-neutral-500 hover:text-neutral-300'
+            className={`rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors duration-[120ms] ${
+              !groupFilter ? 'bg-brand-tint text-brand' : 'bg-white text-ink-muted hover:bg-line-row'
             }`}
           >
             All
@@ -4892,10 +4893,8 @@ function TaskManager({
             <button
               key={c}
               onClick={() => setGroupFilter((prev) => (prev === c ? null : c))}
-              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                groupFilter === c
-                  ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/15 text-invictus-crimson-bright'
-                  : 'border-neutral-400/20 bg-invictus-surface text-neutral-500 hover:text-neutral-300'
+              className={`rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors duration-[120ms] ${
+                groupFilter === c ? 'bg-brand-tint text-brand' : 'bg-white text-ink-muted hover:bg-line-row'
               }`}
             >
               {c}
@@ -5012,8 +5011,8 @@ function TaskManager({
       )}
 
       {tasks.length === 0 && (
-        <div className="rounded-2xl border border-neutral-400/20 bg-invictus-surface p-10 text-center">
-          <p className="text-sm text-neutral-500">No tasks in queue.</p>
+        <div className="rounded-2xl bg-white p-10 text-center">
+          <p className="text-[15px] font-semibold text-ink-dim">No tasks in queue.</p>
         </div>
       )}
 
@@ -5021,29 +5020,29 @@ function TaskManager({
         <>
           {overdueTasks.length > 0 && (
             <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-neutral-500">
-                Overdue · {overdueTasks.length}
+              <p className="mb-2.5 flex items-center gap-2 text-[13px] font-extrabold uppercase tracking-[0.08em] text-danger">
+                Overdue
+                <span className="rounded-full bg-danger-tint px-2 py-0.5 text-[11px] text-danger-deep">{overdueTasks.length}</span>
               </p>
-              <div className="divide-y divide-neutral-400/15 rounded-2xl border border-l-4 border-neutral-400/20 border-l-alert bg-invictus-surface">
+              <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-white">
                 {overdueTasks.map(renderTaskRow)}
               </div>
             </div>
           )}
           {groupedTasksExcludingOverdue.map((group) => (
             <div key={group.status}>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-neutral-500">
-                {group.status} · {group.items.length}
+              <p className="mb-2.5 flex items-center gap-2 text-[13px] font-extrabold uppercase tracking-[0.08em] text-ink-muted">
+                {group.status}
+                <span className="rounded-full bg-line-fill px-2 py-0.5 text-[11px] text-ink-muted">{group.items.length}</span>
               </p>
-              <div className="divide-y divide-neutral-400/15 rounded-2xl border border-neutral-400/20 bg-invictus-surface">
+              <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-white">
                 {group.items.map(renderTaskRow)}
               </div>
             </div>
           ))}
         </>
       ) : (
-        <div className={`divide-y divide-neutral-400/15 rounded-2xl border bg-invictus-surface ${
-          filter === 'overdue' ? 'border-l-4 border-neutral-400/20 border-l-alert' : 'border-neutral-400/20'
-        }`}>
+        <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-white">
           {(filter === 'overdue' ? overdueTasks : filteredFlatTasks).length === 0 ? (
             <p className="py-8 text-center text-xs text-neutral-600">No tasks in this view.</p>
           ) : (
@@ -6743,7 +6742,7 @@ function InvictusTracker() {
         <div className="relative flex h-full flex-col md:flex-row">
           <AppMobileNav activePage={activePage} onNavigate={setActivePage} isAdmin={isAdmin} features={myTeam?.features} isMaster={isMaster} />
           <AppSidebar activePage={activePage} onNavigate={setActivePage} user={user} syncStatus={syncStatus} syncError={syncError} isAdmin={isAdmin} features={myTeam?.features} isMaster={isMaster} />
-          <main className="flex-1 overflow-y-auto p-5 max-md:p-3">
+          <main className="flex-1 overflow-y-auto bg-invictus-base px-9 py-[30px] max-md:px-4 max-md:py-5">
             {activePage === 'dashboard' && (
               <Dashboard
                 tasks={tasks}
