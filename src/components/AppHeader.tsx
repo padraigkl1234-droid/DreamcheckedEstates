@@ -15,7 +15,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { ChevronDown, LogOut, Moon, Settings as SettingsIcon, Sun, Volume2, VolumeX, X } from 'lucide-react';
+import { BedDouble, ChevronDown, LogOut, Moon, Settings as SettingsIcon, Sun, Volume2, VolumeX, X } from 'lucide-react';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import { InstallPwaButton } from '@/components/InstallPwaButton';
 import { TeamSwitcher } from '@/components/TeamSwitcher';
@@ -67,11 +67,20 @@ export function AppHeader() {
   const page = searchParams.get('page');
 
   const isAdmin = isMaster || profile?.rank === 'commander';
-  // A hotel team's navigation lives in the hub's own bar (HotelShell), so the
-  // header carries only the brand and the account menu for them — one shell,
-  // not two competing sets of links.
-  const items = isHotelTeam(team) ? [] : getVisibleNavItems(isAdmin, team?.features, isMaster);
-  const byKey = (keys: PageKey[]) => keys.map((k) => items.find((i) => i.key === k)).filter((i): i is NavItem => !!i);
+  const hotelTeam = isHotelTeam(team);
+
+  // Everything this person can reach. The phone menu always offers the lot:
+  // it is the only way around on a phone, and the hub's own bars only exist
+  // on /hotel pages, so suppressing it stranded hotel-team users anywhere
+  // else in the app.
+  const allItems = getVisibleNavItems(isAdmin, team?.features, isMaster);
+  // The desktop bar does step aside on a hotel team, because the hub's bar
+  // sits directly beneath it and would otherwise duplicate the navigation.
+  const items = hotelTeam ? [] : allItems;
+
+  const pick = (from: NavItem[], keys: PageKey[]) =>
+    keys.map((k) => from.find((i) => i.key === k)).filter((i): i is NavItem => !!i);
+  const byKey = (keys: PageKey[]) => pick(items, keys);
 
   // Which nav entry the current URL is on.
   const isCurrent = (item: NavItem) =>
@@ -80,6 +89,12 @@ export function AppHeader() {
   const groups = NAV_GROUPS.map((g) => ({ ...g, items: byKey(g.items) })).filter((g) => g.items.length > 0);
   const primary = byKey(PRIMARY);
   const more = byKey(MORE);
+
+  // The phone sheet's own lists, built from everything rather than the
+  // desktop-suppressed set.
+  const mobilePrimary = pick(allItems, PRIMARY);
+  const mobileGroups = NAV_GROUPS.map((g) => ({ ...g, items: pick(allItems, g.items) })).filter((g) => g.items.length > 0);
+  const mobileMore = pick(allItems, MORE);
   // The group whose child is open — its items become the sub-nav bar.
   const openGroup = groups.find((g) => g.items.some(isCurrent)) ?? null;
 
@@ -99,7 +114,7 @@ export function AppHeader() {
   // team's navigation), so neither More nor the phone Menu has anything to
   // show. Rendering either would open an empty panel.
   const moreHasContent = overflow.length > 0 || (narrow && groups.length > 0);
-  const hasNav = items.length > 0;
+  const hasNav = allItems.length > 0 || hotelTeam;
 
   // Publish whether the sub-nav is showing, so --chrome-h (and therefore
   // every page's height) accounts for its 50px.
@@ -319,7 +334,19 @@ export function AppHeader() {
             </button>
           </div>
           <nav className="flex-1 overflow-y-auto px-4 pb-10">
-            {primary.map((item) => (
+            {hotelTeam && (
+              <Link
+                href="/hotel"
+                onClick={() => setMobileMenu(false)}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3.5 text-base font-bold transition-colors ${
+                  pathname.startsWith('/hotel') ? 'bg-brand text-white' : 'text-header-text hover:bg-white/[0.06] hover:text-white'
+                }`}
+              >
+                <BedDouble className="h-[18px] w-[18px] shrink-0" />
+                Hotel hub
+              </Link>
+            )}
+            {mobilePrimary.map((item) => (
               <Link
                 key={item.key}
                 href={navHref(item)}
@@ -332,7 +359,7 @@ export function AppHeader() {
                 {item.label}
               </Link>
             ))}
-            {groups.map((group) => (
+            {mobileGroups.map((group) => (
               <div key={group.key} className="mt-4">
                 <p className="px-4 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-header-dim">
                   {t(group.labelKey)}
@@ -352,10 +379,10 @@ export function AppHeader() {
                 ))}
               </div>
             ))}
-            {more.length > 0 && (
+            {mobileMore.length > 0 && (
               <div className="mt-4">
                 <p className="px-4 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-header-dim">More</p>
-                {more.map((item) => (
+                {mobileMore.map((item) => (
                   <Link
                     key={item.key}
                     href={navHref(item)}
