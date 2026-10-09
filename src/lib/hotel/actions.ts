@@ -168,6 +168,40 @@ export function deleteRoom(ctx: HotelCtx, room: HotelRoom) {
   return batch.commit();
 }
 
+/** Clear out a whole list of rooms, keeping any that have been used.
+ *  Returns what went and what was kept, so the caller can say so rather than
+ *  silently doing less than was asked. The history checks run a few at a
+ *  time: a hundred rooms is three hundred reads, and firing them all at once
+ *  is how you get throttled. */
+export async function deleteRoomsWithoutHistory(
+  ctx: HotelCtx,
+  rooms: HotelRoom[]
+): Promise<{ deleted: HotelRoom[]; kept: HotelRoom[] }> {
+  const deleted: HotelRoom[] = [];
+  const kept: HotelRoom[] = [];
+  const BATCH = 8;
+  for (let i = 0; i < rooms.length; i += BATCH) {
+    const slice = rooms.slice(i, i + BATCH);
+    const used = await Promise.all(slice.map((r) => roomHasHistory(ctx, r)));
+    slice.forEach((r, n) => (used[n] ? kept : deleted).push(r));
+  }
+  // A write batch takes 500 operations, and the audit entry needs one of
+  // them, so the rooms go 400 at a time with room to spare.
+  const CHUNK = 400;
+  for (let i = 0; i < deleted.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    for (const r of deleted.slice(i, i + CHUNK)) batch.delete(doc(db, 'hotelRooms', r.id));
+    addAudit(
+      batch,
+      ctx,
+      'rooms.deleteAll',
+      `Deleted ${deleted.slice(i, i + CHUNK).length} unused room(s)${kept.length ? `; kept ${kept.length} with history` : ''}`
+    );
+    await batch.commit();
+  }
+  return { deleted, kept };
+}
+
 export function updateRoom(ctx: HotelCtx, room: HotelRoom, patch: Partial<RoomInput> & { active?: boolean }) {
   const batch = writeBatch(db);
   batch.update(doc(db, 'hotelRooms', room.id), patch);

@@ -15,7 +15,7 @@ import { useHotel } from '@/components/hotel/HotelProvider';
 import { Empty, Label, PageHeader, Pill, RoleGate, SectionTitle, ghostButton, inputClass, primaryButton } from '@/components/hotel/ui';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { CLEAN_TYPES, HOTEL_ROLES, ROLE_LABELS, ROOM_TYPES, statusMeta } from '@/lib/hotel/constants';
-import { createRooms, deleteRoom, queued, roomHasHistory, saveSettings, saveTemplate, setStaffRole, updateRoom, type RoomInput } from '@/lib/hotel/actions';
+import { createRooms, deleteRoom, deleteRoomsWithoutHistory, queued, roomHasHistory, saveSettings, saveTemplate, setStaffRole, updateRoom, type RoomInput } from '@/lib/hotel/actions';
 import { isCommander, profileName, type UserProfile } from '@/lib/teams';
 import type { ChecklistItem, CleanType, HotelRole, HotelRoom } from '@/lib/hotel/types';
 
@@ -31,6 +31,44 @@ function RoomsTab() {
   // the history check runs before anything is removed.
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [confirmWipe, setConfirmWipe] = useState(false);
+  const [wiping, setWiping] = useState(false);
+
+  // Clearing the lot — for a hotel set up with the wrong numbering. Rooms
+  // that have been used are kept and named, so this can't quietly take the
+  // history with it.
+  const removeAllRooms = async () => {
+    if (!ctx) return;
+    if (!confirmWipe) {
+      setConfirmWipe(true);
+      setMsg(null);
+      return;
+    }
+    setConfirmWipe(false);
+    setWiping(true);
+    setMsg(`Checking ${rooms.length} room${rooms.length === 1 ? '' : 's'}…`);
+    try {
+      const { deleted, kept } = await deleteRoomsWithoutHistory(ctx, rooms);
+      setMsg(
+        [
+          deleted.length ? `Deleted ${deleted.length} room${deleted.length === 1 ? '' : 's'}.` : 'Nothing was deleted.',
+          kept.length
+            ? `Kept ${kept.length} that ${kept.length === 1 ? 'has' : 'have'} been used (${kept
+                .slice(0, 6)
+                .map((r) => r.number)
+                .join(', ')}${kept.length > 6 ? '…' : ''}) — retire ${kept.length === 1 ? 'it' : 'those'} instead.`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      );
+    } catch (e) {
+      reportError((e as Error).message || 'Could not clear the rooms.');
+      setMsg(null);
+    } finally {
+      setWiping(false);
+    }
+  };
 
   const removeRoom = async (room: HotelRoom) => {
     if (!ctx) return;
@@ -110,6 +148,25 @@ function RoomsTab() {
       </div>
       {msg && (
         <p className="rounded-lg bg-sun-panel px-3 py-2 text-[13px] font-semibold text-sun-ink">{msg}</p>
+      )}
+
+      {rooms.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[13px] font-semibold text-ink-dim">
+            {rooms.length} room{rooms.length === 1 ? '' : 's'}
+          </p>
+          <button
+            onClick={removeAllRooms}
+            onMouseLeave={() => setConfirmWipe(false)}
+            disabled={wiping}
+            title="Delete every room that has never been used"
+            className={`rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors duration-[120ms] disabled:opacity-50 ${
+              confirmWipe ? 'bg-danger text-white' : 'text-danger hover:bg-danger-tint'
+            }`}
+          >
+            {wiping ? 'Clearing…' : confirmWipe ? `Delete all ${rooms.length}?` : 'Delete all rooms'}
+          </button>
+        </div>
       )}
 
       {rooms.length === 0 ? (

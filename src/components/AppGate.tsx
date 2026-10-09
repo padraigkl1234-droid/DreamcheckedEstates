@@ -162,12 +162,27 @@ export function AppGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   // Hotel teams live entirely under /hotel; every other team never goes
-  // there. Teams without a module see exactly what they always have. The
-  // master is above teams and may go anywhere.
+  // there. Teams without a module see exactly what they always have.
+  //
+  // The master is above teams and may go anywhere, so they are never bounced
+  // off a page they asked for — but opening the app on a hotel team used to
+  // drop them on the estates tracker, which reads as the wrong team's app.
+  // So for the master the hotel redirect applies at the root only: land on
+  // the hub, then go wherever you like from the menu.
   const hotel = isHotelTeam(team);
   const ready = !authLoading && !!user && !profileLoading && !!profile?.teamId && !teamLoading;
-  const redirectTo =
-    !ready || isMaster ? null : hotel && !isHotelPath(pathname) ? '/hotel' : !hotel && isHotelPath(pathname) ? '/' : null;
+  const atRoot = pathname === '/';
+  const redirectTo = !ready
+    ? null
+    : isMaster
+      ? hotel && atRoot
+        ? '/hotel'
+        : null
+      : hotel && !isHotelPath(pathname)
+        ? '/hotel'
+        : !hotel && isHotelPath(pathname)
+          ? '/'
+          : null;
   useEffect(() => {
     if (redirectTo) router.replace(redirectTo);
   }, [redirectTo, router]);
