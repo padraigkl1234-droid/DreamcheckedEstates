@@ -334,7 +334,7 @@ interface TimelinePoint {
   compliance: number;
 }
 
-const TIMELINE_DAYS = 14;
+const TIMELINE_DAYS = 30;
 
 // Buckets completions into a rolling N-day window for the dashboard chart.
 // Tasks use their completedAt timestamp (active and archived alike, since
@@ -991,7 +991,7 @@ function Reveal({ index, animate, children }: { index: number; animate: boolean;
 function KpiCard({
   label,
   value,
-  valueClassName = 'text-neutral-100',
+  valueClassName = 'text-ink',
   caption,
 }: {
   label: string;
@@ -1000,10 +1000,10 @@ function KpiCard({
   caption: string;
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-400/20 bg-invictus-surface p-5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-neutral-500">{label}</p>
-      <p className={`mt-2 text-[34px] font-extrabold leading-none tracking-tight ${valueClassName}`}>{value}</p>
-      <p className="mt-1.5 text-xs text-neutral-500">{caption}</p>
+    <div className="rounded-2xl bg-white px-6 py-[22px]">
+      <p className="text-[13px] font-bold text-ink-dim">{label}</p>
+      <p className={`mt-1 text-[52px] font-extrabold leading-none tracking-[-0.04em] max-md:text-[38px] ${valueClassName}`}>{value}</p>
+      <p className="mt-1 text-[13px] font-semibold text-ink-dim">{caption}</p>
     </div>
   );
 }
@@ -1191,11 +1191,13 @@ function Dashboard({
   onCardsRevealed?: () => void;
   onToggleMeeting: (id: string, date: string) => void;
 }) {
+  const { user } = useAuth();
+
   // Tell the parent once the staggered reveal has finished so re-mounting
   // this component later in the same session (switching tabs and back) won't replay it.
   useEffect(() => {
     if (!animateCardsIn) return;
-    const cardCount = 6; // greeting + KPI strip + 4 panels
+    const cardCount = 6;
     const totalMs = (cardCount - 1) * CARD_REVEAL_STEP_MS + CARD_REVEAL_DURATION_MS;
     const timeout = setTimeout(() => onCardsRevealed?.(), totalMs);
     return () => clearTimeout(timeout);
@@ -1224,131 +1226,287 @@ function Dashboard({
   const todayStr = useMemo(() => toDateInputValue(new Date()), []);
   const todaysMeetings = events
     .filter((ev) => getOccurrencesInRange(ev, todayStr, todayStr).length > 0)
-    // Earliest time first (untimed last), then higher priority as a tiebreak.
     .sort((a, b) => {
       const byTime = (a.time || '99:99').localeCompare(b.time || '99:99');
       if (byTime !== 0) return byTime;
       return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
     });
 
+  // "FRIDAY 9 OCTOBER" / "Good afternoon, Padraig" — rendered after mount so
+  // the server and the browser can't disagree about the hour.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => setNow(new Date()), []);
+  const firstName = (user?.displayName || user?.email || '').split(/[\s@]/)[0];
+  const partOfDay = !now ? '' : now.getHours() < 12 ? 'morning' : now.getHours() < 18 ? 'afternoon' : 'evening';
+
+  const allClear = outstandingCompliances.length === 0;
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-[18px]">
       <EventModeBanner />
 
+      {/* Header row */}
       <Reveal index={0} animate={animateCardsIn}>
-        <InvictusGreeting compliances={compliances} />
-      </Reveal>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-ink-dim">
+              {now ? now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : '\u00a0'}
+            </p>
+            <h1 className="mt-1 text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[28px]">
+              {partOfDay ? `Good ${partOfDay}${firstName ? `, ${firstName}` : ''}` : 'Dashboard'}
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2.5">
+              <span
+                className={`rounded-full px-2.5 py-[3px] text-[13px] font-bold ${
+                  allClear ? 'bg-sun-soft text-sun-ink' : 'bg-danger-tint text-danger-deep'
+                }`}
+              >
+                {allClear ? 'All systems nominal' : 'Attention needed'}
+              </span>
+              <span className="text-[15px] font-semibold text-ink-muted">
+                {allClear
+                  ? 'nothing outstanding'
+                  : `${outstandingCompliances.length} compliance item${outstandingCompliances.length === 1 ? '' : 's'} outstanding`}
+              </span>
+            </div>
+          </div>
 
-      {/* KPI strip — 2 columns from the base breakpoint up (true mobile
-          <640px), 4 across from sm; tablet/desktop behaviour is unchanged. */}
-      <Reveal index={1} animate={animateCardsIn}>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <KpiCard label="Completion" value={`${completionPct}%`} caption="of all tasks done" />
-          <KpiCard label="Completed" value={String(completedItems)} valueClassName="text-emerald-300" caption="tasks completed" />
-          <KpiCard label="Outstanding" value={String(outstandingItems)} caption="still open" />
-          <KpiCard label="Overdue" value={String(overdueComplianceCount)} valueClassName="text-alert" caption="compliance items" />
+          <div className="flex shrink-0 items-center gap-2.5">
+            <Link
+              href="/jarvis-tracker?page=calendar"
+              className="rounded-[10px] border border-line bg-white px-[18px] py-3 text-sm font-bold text-ink transition-colors duration-[120ms] hover:bg-line-row"
+            >
+              Open calendar
+            </Link>
+            <Link
+              href="/jarvis-tracker?page=tasks"
+              className="rounded-[10px] bg-brand px-5 py-3 text-sm font-extrabold text-white transition-colors duration-[120ms] hover:bg-brand-hover"
+            >
+              + New task
+            </Link>
+          </div>
         </div>
       </Reveal>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Reveal index={2} animate={animateCardsIn}>
-          <TaskCompletionPanel
-            completionPct={completionPct}
-            completedItems={completedItems}
-            outstandingItems={outstandingItems}
-            timeline={timeline}
-          />
-        </Reveal>
-
-        <Reveal index={3} animate={animateCardsIn}>
-          <Panel title="Compliance countdown" icon={ShieldCheck} refCode="0030-C" tier="primary">
-            <div className="flex flex-col divide-y divide-neutral-400/15">
-              {upcomingCompliances.length === 0 && (
-                <p className="py-6 text-center text-xs text-neutral-600">No outstanding compliance items.</p>
-              )}
-              {upcomingCompliances.map(({ item, daysUntilDue, urgency }) => (
-                <div key={item.id} className="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-neutral-100">{item.name}</p>
-                    <p className="mt-0.5 text-xs text-neutral-500">Due {item.nextDueDate || '—'}</p>
-                  </div>
-                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${URGENCY_STYLES[urgency]}`}>
-                    {formatDueIn(daysUntilDue)}
-                  </span>
-                </div>
-              ))}
+      {/* KPI row */}
+      <Reveal index={1} animate={animateCardsIn}>
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <div className="rounded-2xl bg-brand px-6 py-[22px] text-white">
+            <p className="text-[13px] font-bold text-[#C9D6FF]">Completion</p>
+            <p className="mt-1 text-[52px] font-extrabold leading-none tracking-[-0.04em] max-md:text-[38px]">{completionPct}%</p>
+            <div className="mt-4 h-2 w-full rounded overflow-hidden bg-white/25">
+              <div className="h-full rounded bg-sun transition-all" style={{ width: `${completionPct}%` }} />
             </div>
-          </Panel>
-        </Reveal>
-      </div>
+          </div>
+          <KpiCard label="Completed" value={String(completedItems)} caption="tasks completed" />
+          <KpiCard label="Outstanding" value={String(outstandingItems)} caption="still open" />
+          <KpiCard label="Overdue" value={String(overdueComplianceCount)} caption="compliance items" valueClassName="text-danger" />
+        </div>
+      </Reveal>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Reveal index={4} animate={animateCardsIn}>
-          <Panel title="Recently added tasks" icon={ListChecks} refCode="0027-T" tier="primary">
-            <div className="flex flex-col divide-y divide-neutral-400/15">
-              {recentTasks.length === 0 && (
-                <p className="py-6 text-center text-xs text-neutral-600">No tasks logged yet.</p>
-              )}
-              {recentTasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-neutral-100">{task.name}</p>
-                    <p className="mt-0.5 text-xs text-neutral-500">Due {task.dueDate || '—'}</p>
-                  </div>
-                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[task.status]}`}>
-                    {task.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Panel>
-        </Reveal>
+      {/* Lower grid */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_1fr]">
+        <div className="flex flex-col gap-4">
+          <Reveal index={2} animate={animateCardsIn}>
+            <CompletionChartCard completed={completedItems} outstanding={outstandingItems} timeline={timeline} />
+          </Reveal>
 
-        <Reveal index={5} animate={animateCardsIn}>
-          <Panel title="Today's meetings" icon={CalendarDays} refCode="0035-M" tier="primary">
-            {todaysMeetings.length === 0 ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-3 py-6 text-center">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-invictus-raised">
-                  <CalendarDays className="h-5 w-5 text-neutral-500" />
-                </div>
-                <p className="text-sm text-neutral-500">No meetings scheduled today.</p>
-              </div>
-            ) : (
-              <div className="flex flex-col divide-y divide-neutral-400/15">
-                {todaysMeetings.map((ev) => {
-                  const done = ev.completedDates?.includes(todayStr) ?? false;
-                  return (
-                    <div key={ev.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-                      <button
-                        onClick={() => onToggleMeeting(ev.id, todayStr)}
-                        className={`mt-0.5 shrink-0 transition-colors ${
-                          done ? 'text-emerald-300' : 'text-neutral-500 hover:text-neutral-300'
-                        }`}
-                        title={done ? 'Mark as not done' : 'Mark as done'}
-                        aria-pressed={done}
-                      >
-                        {done ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <p className={`flex items-center gap-1.5 text-sm ${done ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>
-                          {ev.recurrence && <Repeat className="h-3 w-3 shrink-0 text-neutral-400" />}
-                          {ev.time && <span className="shrink-0 font-mono text-xs text-neutral-500">{formatDisplayTime(ev.time)}</span>}
-                          <span className="truncate">{ev.title}</span>
-                        </p>
-                        {ev.notes && <p className="mt-0.5 text-xs text-neutral-500">{ev.notes}</p>}
-                      </div>
-                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[ev.priority]}`}>
-                        {ev.priority}
+          <Reveal index={4} animate={animateCardsIn}>
+            <Card
+              title="Recently added tasks"
+              right={
+                <Link href="/jarvis-tracker?page=tasks" className="text-[13px] font-bold text-brand hover:text-brand-hover">
+                  View all
+                </Link>
+              }
+            >
+              {recentTasks.length === 0 ? (
+                <p className="py-6 text-center text-sm text-ink-dim">No tasks logged yet.</p>
+              ) : (
+                <div className="-mx-[26px] -mb-[22px] mt-1">
+                  {recentTasks.map((task, i) => (
+                    <div
+                      key={task.id}
+                      className={`flex items-center gap-3 px-[26px] py-[18px] ${i > 0 ? 'border-t border-line-row' : ''}`}
+                    >
+                      <span className="h-[18px] w-[18px] shrink-0 rounded-[5px] border-2 border-line-check" />
+                      <p className="min-w-0 flex-1 truncate text-[15px] font-bold text-ink">{task.name}</p>
+                      <span className="shrink-0 text-[13px] font-semibold text-ink-dim max-sm:hidden">{task.dueDate || '—'}</span>
+                      <span className="shrink-0 rounded-full bg-brand-tint px-3 py-[5px] text-xs font-bold text-brand">
+                        {task.status}
                       </span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </Panel>
-        </Reveal>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </Reveal>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <Reveal index={3} animate={animateCardsIn}>
+            <Card title="Compliance countdown">
+              {upcomingCompliances.length === 0 ? (
+                <div className="flex items-center gap-4 py-2">
+                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-ok-tint text-[26px] font-extrabold text-ok-deep">
+                    0
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[17px] font-extrabold text-ink">You&apos;re all clear</p>
+                    <p className="text-sm font-semibold text-ink-dim">No outstanding compliance items.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="-mx-[26px] -mb-[22px] mt-1">
+                  {upcomingCompliances.map(({ item, daysUntilDue, urgency }, i) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center justify-between gap-3 px-[26px] py-[18px] ${i > 0 ? 'border-t border-line-row' : ''}`}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-bold text-ink">{item.name}</p>
+                        <p className="text-[13px] font-semibold text-ink-dim">Due {item.nextDueDate || '—'}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold ${URGENCY_STYLES[urgency]}`}>
+                        {formatDueIn(daysUntilDue)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </Reveal>
+
+          <Reveal index={5} animate={animateCardsIn}>
+            <div className="flex h-full flex-col rounded-2xl bg-sun px-[26px] py-[22px]">
+              <p className="text-[19px] font-extrabold text-ink">Today&apos;s meetings</p>
+              {todaysMeetings.length === 0 ? (
+                <div className="mt-auto pt-8">
+                  <p className="text-[30px] font-extrabold leading-tight text-ink">Free day.</p>
+                  <p className="mt-1 text-sm font-semibold text-sun-deep">No meetings scheduled today.</p>
+                  <Link href="/jarvis-tracker?page=calendar" className="mt-3 inline-block text-sm font-extrabold text-ink hover:underline">
+                    Schedule one →
+                  </Link>
+                </div>
+              ) : (
+                <div className="mt-3 flex flex-col gap-2">
+                  {todaysMeetings.map((ev) => {
+                    const done = ev.completedDates?.includes(todayStr) ?? false;
+                    return (
+                      <button
+                        key={ev.id}
+                        onClick={() => onToggleMeeting(ev.id, todayStr)}
+                        className="flex items-start gap-2.5 rounded-[10px] bg-white/35 px-3 py-2.5 text-left transition-colors hover:bg-white/55"
+                        title={done ? 'Mark as not done' : 'Mark as done'}
+                      >
+                        {done ? (
+                          <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] shrink-0 text-sun-ink" />
+                        ) : (
+                          <Circle className="mt-0.5 h-[18px] w-[18px] shrink-0 text-sun-deep/50" />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className={`block text-[15px] font-bold text-ink ${done ? 'line-through opacity-60' : ''}`}>
+                            {ev.title}
+                          </span>
+                          <span className="block text-[13px] font-semibold text-sun-deep">
+                            {ev.time ? formatDisplayTime(ev.time) : 'All day'}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </Reveal>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** A plain white card from the redesign: 16px radius, no border, no shadow. */
+function Card({
+  title,
+  right,
+  children,
+}: {
+  title: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex h-full flex-col rounded-2xl bg-white px-[26px] py-[22px] max-md:px-4">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 className="text-[19px] font-extrabold text-ink">{title}</h2>
+        {right}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Completion over time, with the 7/14/30-day control from the design. */
+function CompletionChartCard({
+  completed,
+  outstanding,
+  timeline,
+}: {
+  completed: number;
+  outstanding: number;
+  timeline: TimelinePoint[];
+}) {
+  const [range, setRange] = useState<7 | 14 | 30>(14);
+  const points = timeline.slice(-range);
+  const peak = Math.max(1, ...points.map((p) => p.tasks));
+  const inRange = points.reduce((sum, p) => sum + p.tasks, 0);
+  // The tallest day is picked out in yellow; ties go to the most recent.
+  const peakIndex = points.reduce((best, p, i) => (p.tasks >= points[best].tasks ? i : best), 0);
+
+  return (
+    <Card
+      title="Task completion"
+      right={
+        <div className="flex items-center gap-1 rounded-lg bg-invictus-base p-1">
+          {([7, 14, 30] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={`rounded-md px-2.5 py-1 text-xs font-bold transition-colors ${
+                range === r ? 'bg-white text-ink' : 'text-ink-dim hover:text-ink'
+              }`}
+            >
+              {r}D
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <span className="flex items-baseline gap-1.5">
+          <span className="text-[28px] font-extrabold text-brand">{completed}</span>
+          <span className="text-sm font-semibold text-ink-muted">completed</span>
+        </span>
+        <span className="flex items-baseline gap-1.5">
+          <span className="text-[28px] font-extrabold text-ink">{outstanding}</span>
+          <span className="text-sm font-semibold text-ink-muted">outstanding</span>
+        </span>
+        <span className="ml-auto rounded-full bg-sun-soft px-3 py-1 text-[13px] font-bold text-sun-ink">
+          {inRange} completed · last {range} days
+        </span>
+      </div>
+
+      <div className="flex h-[110px] items-end gap-2.5">
+        {points.map((p, i) => (
+          <div
+            key={p.iso}
+            title={`${p.label}: ${p.tasks} completed`}
+            className={`min-w-0 flex-1 rounded-t-md transition-all ${i === peakIndex && p.tasks > 0 ? 'bg-sun' : 'bg-brand'}`}
+            style={{ height: `${Math.max(6, (p.tasks / peak) * 100)}%` }}
+          />
+        ))}
+      </div>
+    </Card>
   );
 }
 
