@@ -95,6 +95,11 @@ export function AppHeader() {
   const cutoff = narrow ? 3 : primary.length;
   const shownPrimary = primary.slice(0, cutoff);
   const overflow = [...primary.slice(cutoff), ...more];
+  // On a hotel team `items` is empty by design (HotelShell carries that
+  // team's navigation), so neither More nor the phone Menu has anything to
+  // show. Rendering either would open an empty panel.
+  const moreHasContent = overflow.length > 0 || (narrow && groups.length > 0);
+  const hasNav = items.length > 0;
 
   // Publish whether the sub-nav is showing, so --chrome-h (and therefore
   // every page's height) accounts for its 50px.
@@ -171,7 +176,7 @@ export function AppHeader() {
                 );
               })}
 
-            {(overflow.length > 0 || narrow) && (
+            {moreHasContent && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className={`${linkBase} flex items-center gap-1 whitespace-nowrap ${linkIdle}`}>
@@ -212,14 +217,16 @@ export function AppHeader() {
               a 240px popup, and rendering it ourselves means it can't be
               clipped or lost behind a portal's positioning. */}
           <div className="ml-auto flex items-center gap-3 md:ml-0 md:gap-3">
-            <button
-              onClick={() => setMobileMenu(true)}
-              className={`${linkBase} flex items-center gap-1 md:hidden ${linkIdle}`}
-              aria-expanded={mobileMenu}
-              aria-haspopup="menu"
-            >
-              Menu <ChevronDown className="h-3.5 w-3.5" />
-            </button>
+            {hasNav && (
+              <button
+                onClick={() => setMobileMenu(true)}
+                className={`${linkBase} flex items-center gap-1 md:hidden ${linkIdle}`}
+                aria-expanded={mobileMenu}
+                aria-haspopup="menu"
+              >
+                Menu <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            )}
 
             <span className="flex items-center gap-2 text-[13px] font-semibold text-header-text max-lg:hidden">
               <span className="h-2 w-2 rounded-full bg-ok" />
@@ -299,7 +306,7 @@ export function AppHeader() {
       </header>
 
       {/* The phone menu. */}
-      {mobileMenu && (
+      {mobileMenu && hasNav && (
         <div className="fixed inset-0 z-[70] flex flex-col bg-header-bg pt-[env(safe-area-inset-top)] md:hidden">
           <div className="flex h-16 shrink-0 items-center justify-between px-4">
             <span className="text-[19px] font-extrabold text-white">Menu</span>
