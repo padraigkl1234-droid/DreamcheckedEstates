@@ -27,13 +27,13 @@ function apply(pref: ThemePref): 'dark' | 'light' {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemePref>('dark');
-  const [resolved, setResolved] = useState<'dark' | 'light'>('dark');
+  const [theme, setThemeState] = useState<ThemePref>('light');
+  const [resolved, setResolved] = useState<'dark' | 'light'>('light');
 
   // Load the saved preference on mount (the inline script in <head> has already
   // applied it to avoid a flash; this just syncs React state).
   useEffect(() => {
-    const stored = (window.localStorage.getItem(STORAGE_KEY) as ThemePref | null) ?? 'dark';
+    const stored = (window.localStorage.getItem(STORAGE_KEY) as ThemePref | null) ?? 'light';
     setThemeState(stored);
     setResolved(apply(stored));
   }, []);

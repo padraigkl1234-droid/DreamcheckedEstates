@@ -280,7 +280,7 @@ export default function EventModePage() {
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-100 sm:text-3xl">
+          <h1 className="flex items-center gap-2 text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">
             <Radio
               className={`h-6 w-6 transition-colors duration-700 ${
                 mode === 'ready' ? 'text-emerald-400' : mode === 'live' ? 'text-blue-400' : 'text-invictus-crimson-bright'

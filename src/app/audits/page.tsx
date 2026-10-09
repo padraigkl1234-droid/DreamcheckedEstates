@@ -234,7 +234,7 @@ export default function AuditsPage() {
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-neutral-100 sm:text-3xl">Audits</h1>
+          <h1 className="flex items-center gap-2 text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">Audits</h1>
           <p className="mt-1 text-sm text-neutral-500">{totalCount} audits · opens in Microsoft Forms</p>
         </div>
 

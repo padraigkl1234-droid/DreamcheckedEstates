@@ -38,7 +38,7 @@ function LoginLanding() {
       <div className="relative border border-neutral-400/25 bg-invictus-surface/70 p-8 shadow-glow-strong backdrop-blur-md">
         <div className="mb-8 flex flex-col items-center text-center">
           <Pinwheel className="mb-4 h-12 w-12 text-neutral-100" />
-          <h1 className="text-3xl font-bold tracking-tight text-neutral-100">Invictus</h1>
+          <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">Invictus</h1>
           <p className="mt-2 text-sm text-neutral-500">{t('gate.tagline')}</p>
         </div>
         <button
@@ -88,7 +88,7 @@ function JoinTeam() {
       <div className="relative border border-neutral-400/25 bg-invictus-surface/70 p-8 shadow-glow-strong backdrop-blur-md">
         <div className="mb-6 flex flex-col items-center text-center">
           <Users className="mb-3 h-10 w-10 text-invictus-crimson-bright drop-shadow-glow-subtle" />
-          <h1 className="font-display text-xl uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)]">
+          <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">
             {t('join.title')}
           </h1>
           <p className="mt-2 text-xs text-neutral-500">{t('join.subtitle')}</p>
@@ -140,7 +140,7 @@ function TeamArchived() {
     <Shell>
       <div className="relative border border-neutral-400/25 bg-invictus-surface/70 p-8 text-center shadow-glow-strong backdrop-blur-md">
         <Users className="mx-auto mb-3 h-10 w-10 text-neutral-500" />
-        <h1 className="font-display text-xl uppercase tracking-[0.2em] text-neutral-100">{t('archived.title')}</h1>
+        <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">{t('archived.title')}</h1>
         <p className="mt-2 text-xs text-neutral-500">{t('archived.body')}</p>
         <button
           onClick={() => logout()}

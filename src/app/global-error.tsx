@@ -18,7 +18,7 @@ export default function GlobalError({
     <html>
       <body>
         <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-primary">
+          <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">
             A critical error occurred
           </h1>
           <p className="mt-4 text-muted-foreground">

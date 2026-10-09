@@ -1526,13 +1526,14 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    // Padding/header spacing shrink below md so cards read cleanly in a
-    // 2-column mobile grid; unchanged at md and up.
-    <div className="relative flex h-full flex-col rounded-2xl border border-neutral-400/20 bg-invictus-surface p-6 max-md:p-4">
-      <div className="mb-4 max-md:mb-3 flex items-center justify-between gap-2 border-b border-neutral-400/15 pb-4 max-md:pb-3">
+    // The redesign's card: flat white, 16px corners, no border and no shadow,
+    // separated from the page by the #F3F4F8 background behind it. Padding
+    // shrinks below md so cards still read in a 2-column mobile grid.
+    <div className="relative flex h-full flex-col rounded-2xl bg-white px-[26px] py-[22px] max-md:px-4 max-md:py-4">
+      <div className="mb-4 flex items-center justify-between gap-2 max-md:mb-3">
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 shrink-0 text-neutral-400" />
-          <h2 className="text-base max-md:text-sm font-bold text-neutral-100">{title}</h2>
+          <Icon className="h-[18px] w-[18px] shrink-0 text-ink-dim" />
+          <h2 className="text-[19px] font-extrabold text-ink max-md:text-base">{title}</h2>
         </div>
         {headerRight}
       </div>

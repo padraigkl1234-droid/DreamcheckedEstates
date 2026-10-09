@@ -20,7 +20,7 @@ export default function Error({
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-center">
       <div className="mb-6 flex flex-col items-center gap-4">
         <AlertCircle className="h-16 w-16 text-destructive" />
-        <h1 className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">
+        <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">
           Something went wrong
         </h1>
         <p className="max-w-md text-muted-foreground">

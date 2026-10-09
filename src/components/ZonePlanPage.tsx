@@ -130,7 +130,7 @@ export function ZonePlanPage({ plan }: { plan: ZonePlan }) {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-100 sm:text-3xl">{plan.zone}</h1>
+          <h1 className="flex items-center gap-2 text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">{plan.zone}</h1>
           <p className="mt-1 text-sm text-neutral-500">
             Fire exits, emergency lighting and other safety equipment, pinned to where they actually are.
           </p>

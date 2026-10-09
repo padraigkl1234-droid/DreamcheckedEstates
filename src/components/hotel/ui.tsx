@@ -89,7 +89,7 @@ export function PageHeader({
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-100 sm:text-3xl">
+        <h1 className="flex items-center gap-2 text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">
           <Icon className="h-6 w-6 shrink-0 text-invictus-crimson-bright" />
           {title}
         </h1>

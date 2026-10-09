@@ -173,7 +173,7 @@ export default function TeamPage() {
       <div className="mb-8 flex items-center gap-3">
         <Users className="h-8 w-8 text-invictus-crimson-bright drop-shadow-glow-subtle" />
         <div>
-          <h1 className="font-display text-2xl uppercase tracking-[0.2em] text-neutral-100 [text-shadow:var(--glow-text-subtle)] sm:text-3xl">
+          <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">
             {team?.name ?? 'Your Team'}
           </h1>
           <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">
