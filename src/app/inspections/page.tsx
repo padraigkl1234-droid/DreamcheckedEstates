@@ -290,21 +290,20 @@ export default function InspectionsPage() {
     });
 
   return chrome(
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-[1080px] px-9 py-[30px] max-md:px-4 max-md:py-5">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-neutral-100 sm:text-3xl">
-            <ClipboardCheck className="h-6 w-6 text-invictus-crimson-bright" />
+          <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[28px]">
             Inspections
           </h1>
-          <p className="mt-1 text-sm text-neutral-500">
+          <p className="mt-1 max-w-2xl text-[15px] font-semibold text-ink-muted">
             Build a set of questions, run it, and it files itself as a report — exportable as a PDF from Reports.
           </p>
         </div>
         {user && (
           <button
             onClick={() => (showBuilder ? (setShowBuilder(false), setEditing(null)) : openBuilder(null))}
-            className="flex items-center gap-2 rounded-md border border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-100 shadow-glow-subtle transition-all hover:bg-invictus-crimson-bright/20"
+            className="flex items-center gap-2 rounded-[10px] bg-brand px-5 py-3 text-sm font-extrabold text-white transition-colors duration-[120ms] hover:bg-brand-hover"
           >
             {showBuilder ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             {showBuilder ? 'Close' : 'New inspection'}
@@ -343,30 +342,41 @@ export default function InspectionsPage() {
               <button onClick={() => toggleGroup(g.name)} className="mb-2 flex w-full items-center gap-2 text-left">
                 <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-neutral-500 transition-transform ${isGroupOpen ? '' : '-rotate-90'}`} />
                 <Tag className="h-3 w-3 shrink-0 text-neutral-600" />
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">{g.name}</span>
-                <span className="rounded-full border border-neutral-400/25 px-1.5 py-0.5 text-[9px] text-neutral-500">{g.items.length}</span>
-                <span className="h-px flex-1 bg-neutral-400/15" />
+                <span className="text-[13px] font-extrabold uppercase tracking-[0.08em] text-ink-muted">{g.name}</span>
+                <span className="rounded-full bg-line-fill px-2 py-0.5 text-[11px] font-bold text-ink-muted">{g.items.length}</span>
               </button>
               {isGroupOpen && (
-                <div className="space-y-2">
+                <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-white">
                   {g.items.map((t) => {
                     const isOpen = expanded === t.id;
                     const last = lastRunByTemplate.get(t.id);
                     const questions = templateQuestions(t);
                     return (
-                      <section key={t.id} className="overflow-hidden rounded-xl border border-neutral-400/20 bg-invictus-surface/60">
-                        <div className="flex flex-wrap items-center gap-2 p-4">
+                      <section key={t.id}>
+                        <div className="flex flex-wrap items-center gap-2 px-[22px] py-[18px]">
                           <button
                             onClick={() => setExpanded(isOpen ? null : t.id)}
                             className="flex min-w-0 flex-1 items-center gap-3 text-left"
                             aria-expanded={isOpen}
                           >
-                            <ChevronDown className={`h-4 w-4 shrink-0 text-neutral-500 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                            {/* The question-count tile from the design. */}
+                            <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-brand-tint leading-none text-brand">
+                              <span className="text-[17px] font-extrabold">{questions.length}</span>
+                              <span className="text-[9px] font-bold tracking-wide">QS</span>
+                            </span>
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-neutral-100">{t.name}</p>
-                              <p className="truncate text-[11px] text-neutral-500">
-                                {questions.length} question{questions.length === 1 ? '' : 's'}
-                                {last ? ` · last run ${last.date} — ${last.outcome === 'fail' ? 'failed' : 'passed'}` : ' · never run'}
+                              <p className="truncate text-base font-extrabold text-ink">{t.name}</p>
+                              <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] font-semibold text-ink-dim">
+                                <span className="truncate">{last ? `Last run ${last.date}` : 'Never run'}</span>
+                                {last && (
+                                  <span
+                                    className={`rounded-md px-1.5 py-0.5 text-[11px] font-extrabold uppercase ${
+                                      last.outcome === 'fail' ? 'bg-danger-tint text-danger-deep' : 'bg-ok-tint text-ok-darker'
+                                    }`}
+                                  >
+                                    {last.outcome === 'fail' ? 'Failed' : 'Passed'}
+                                  </span>
+                                )}
                               </p>
                             </div>
                           </button>
@@ -374,36 +384,37 @@ export default function InspectionsPage() {
                             <>
                               <Link
                                 href={`/assignments?item=${t.id}`}
-                                className="flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-white px-3.5 py-2 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink"
                                 title="Assign this inspection to someone"
                               >
                                 <Users className="h-3.5 w-3.5" /> Assign
                               </Link>
                               <button
                                 onClick={() => setRunning(t)}
-                                className="flex shrink-0 items-center gap-1.5 rounded-md border border-invictus-crimson-bright/50 bg-invictus-crimson-bright/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-invictus-crimson-bright transition-colors hover:bg-invictus-crimson-bright/20"
+                                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-[13px] font-extrabold text-white transition-colors duration-[120ms] hover:bg-brand-hover"
                               >
-                                <Play className="h-3 w-3" /> Run
+                                <Play className="h-3 w-3 fill-current" /> Run
                               </button>
-                              <button
-                                onClick={() => openBuilder(t)}
-                                title={`Edit ${t.name}`}
-                                className="shrink-0 rounded-md border border-neutral-400/20 bg-invictus-base px-2 py-1.5 text-neutral-500 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </button>
-                              <button
-                                onClick={() => removeTemplate(t)}
-                                onMouseLeave={() => setConfirmDeleteId((cur) => (cur === t.id ? null : cur))}
-                                title={confirmDeleteId === t.id ? 'Click again to delete' : `Delete ${t.name}`}
-                                className={`shrink-0 rounded-md border px-2 py-1.5 transition-colors ${
-                                  confirmDeleteId === t.id
-                                    ? 'border-alert/70 bg-alert/20 text-alert'
-                                    : 'border-neutral-400/20 bg-invictus-base text-neutral-500 hover:border-alert/50 hover:text-alert'
-                                }`}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
+                              {/* Joined pair, per the design. */}
+                              <div className="flex shrink-0 items-stretch divide-x divide-line overflow-hidden rounded-lg border border-line bg-white">
+                                <button
+                                  onClick={() => openBuilder(t)}
+                                  title={`Edit ${t.name}`}
+                                  className="flex items-center gap-1.5 px-3 py-2 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink"
+                                >
+                                  <Pencil className="h-3 w-3" /> Edit
+                                </button>
+                                <button
+                                  onClick={() => removeTemplate(t)}
+                                  onMouseLeave={() => setConfirmDeleteId((cur) => (cur === t.id ? null : cur))}
+                                  title={confirmDeleteId === t.id ? 'Click again to delete' : `Delete ${t.name}`}
+                                  className={`flex items-center gap-1.5 px-3 py-2 text-[13px] font-bold transition-colors duration-[120ms] ${
+                                    confirmDeleteId === t.id ? 'bg-danger text-white' : 'text-danger hover:bg-danger-tint'
+                                  }`}
+                                >
+                                  <Trash2 className="h-3 w-3" /> Delete
+                                </button>
+                              </div>
                             </>
                           )}
                         </div>
@@ -436,20 +447,21 @@ export default function InspectionsPage() {
 
       {/* Starter checklists */}
       {user && unusedStarters.length > 0 && (
-        <div className="mt-8">
-          <p className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-500">
-            <Sparkles className="h-3.5 w-3.5" /> Ready-made
+        <div className="mt-6 rounded-2xl bg-sun-panel px-6 py-[22px]">
+          <p className="flex items-center gap-1.5 text-[17px] font-extrabold text-ink">
+            <Sparkles className="h-4 w-4" /> Ready-made
           </p>
+          <p className="mb-3 text-sm font-semibold text-sun-ink">Add a template to your inspections</p>
           <div className="flex flex-wrap gap-2">
             {unusedStarters.map((s) => (
               <button
                 key={s.name}
                 onClick={() => addStarter(s)}
                 title={s.description}
-                className="flex items-center gap-1.5 rounded-md border border-neutral-400/25 bg-invictus-surface/60 px-3 py-2 text-xs text-neutral-300 transition-colors hover:border-invictus-crimson-bright/40 hover:text-invictus-crimson-bright"
+                className="flex items-center gap-1.5 rounded-[10px] bg-white px-4 py-2.5 text-sm font-bold text-ink transition-colors duration-[120ms] hover:bg-white/70"
               >
-                <Plus className="h-3 w-3" /> {s.name}
-                <span className="text-neutral-600">({s.questions.length})</span>
+                <Plus className="h-3.5 w-3.5" /> {s.name}
+                <span className="font-semibold text-ink-placeholder">{s.questions.length}</span>
               </button>
             ))}
           </div>
