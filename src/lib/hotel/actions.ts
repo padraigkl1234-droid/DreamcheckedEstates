@@ -15,7 +15,11 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   increment,
+  limit,
+  query,
+  where,
   writeBatch,
   type DocumentData,
   type WriteBatch,
@@ -135,6 +139,32 @@ export function createRooms(ctx: HotelCtx, rooms: RoomInput[]) {
     });
   }
   addAudit(batch, ctx, 'rooms.add', `Added ${rooms.length === 1 ? `room ${rooms[0].number}` : `${rooms.length} rooms`}`);
+  return batch.commit();
+}
+
+/** Whether anything has ever been recorded against a room: a status change,
+ *  a day's assignment, or a reported fault. A room with any of those is the
+ *  reason Retire exists — deleting it would leave that history pointing at a
+ *  room that no longer exists. One `limit(1)` read per collection, run only
+ *  when someone actually asks to delete. */
+export async function roomHasHistory(ctx: HotelCtx, room: HotelRoom): Promise<boolean> {
+  const checks = [
+    query(collection(db, 'hotelRoomEvents'), where('teamId', '==', ctx.teamId), where('roomId', '==', room.id), limit(1)),
+    query(collection(db, 'hotelAssignments'), where('teamId', '==', ctx.teamId), where('roomId', '==', room.id), limit(1)),
+    query(collection(db, 'hotelFaults'), where('teamId', '==', ctx.teamId), where('roomId', '==', room.id), limit(1)),
+  ];
+  // getDocs rather than the cache: a room created on another device could
+  // have history this one has never seen.
+  const snaps = await Promise.all(checks.map((q) => getDocs(q)));
+  return snaps.some((snap) => !snap.empty);
+}
+
+/** Remove a room outright. Only for one added by mistake — callers must
+ *  check roomHasHistory first; anything that has been used gets retired. */
+export function deleteRoom(ctx: HotelCtx, room: HotelRoom) {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'hotelRooms', room.id));
+  addAudit(batch, ctx, 'rooms.delete', `Deleted room ${room.number} (no recorded history)`);
   return batch.commit();
 }
 

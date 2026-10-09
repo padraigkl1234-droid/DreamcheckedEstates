@@ -15,7 +15,7 @@ import { useHotel } from '@/components/hotel/HotelProvider';
 import { Empty, Label, PageHeader, Pill, RoleGate, SectionTitle, ghostButton, inputClass, primaryButton } from '@/components/hotel/ui';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { CLEAN_TYPES, HOTEL_ROLES, ROLE_LABELS, ROOM_TYPES, statusMeta } from '@/lib/hotel/constants';
-import { createRooms, queued, saveSettings, saveTemplate, setStaffRole, updateRoom, type RoomInput } from '@/lib/hotel/actions';
+import { createRooms, deleteRoom, queued, roomHasHistory, saveSettings, saveTemplate, setStaffRole, updateRoom, type RoomInput } from '@/lib/hotel/actions';
 import { isCommander, profileName, type UserProfile } from '@/lib/teams';
 import type { ChecklistItem, CleanType, HotelRole, HotelRoom } from '@/lib/hotel/types';
 
@@ -27,6 +27,33 @@ function RoomsTab() {
   const [range, setRange] = useState({ floor: 1, from: '', to: '', type: 'Double' });
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<RoomInput & { active?: boolean }>({ number: '', floor: 1, type: '' });
+  // Deleting is only for a room added by mistake. Asking once confirms, and
+  // the history check runs before anything is removed.
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+
+  const removeRoom = async (room: HotelRoom) => {
+    if (!ctx) return;
+    if (confirmDelete !== room.id) {
+      setConfirmDelete(room.id);
+      setMsg(null);
+      return;
+    }
+    setCheckingId(room.id);
+    setConfirmDelete(null);
+    try {
+      if (await roomHasHistory(ctx, room)) {
+        setMsg(`Room ${room.number} has been used — cleans, assignments or faults are recorded against it. Retire it instead so that history still makes sense.`);
+        return;
+      }
+      await deleteRoom(ctx, room);
+      setMsg(`Room ${room.number} deleted.`);
+    } catch (e) {
+      reportError((e as Error).message || 'Could not delete that room.');
+    } finally {
+      setCheckingId(null);
+    }
+  };
   const [msg, setMsg] = useState<string | null>(null);
   if (!ctx) return null;
   const taken = new Set(rooms.map((r) => r.number.toLowerCase()));
@@ -81,7 +108,9 @@ function RoomsTab() {
           <button onClick={addRange} className={`${ghostButton} mt-2 w-full`}>Add rooms</button>
         </section>
       </div>
-      {msg && <p className="text-xs text-amber-300">{msg}</p>}
+      {msg && (
+        <p className="rounded-lg bg-sun-panel px-3 py-2 text-[13px] font-semibold text-sun-ink">{msg}</p>
+      )}
 
       {rooms.length === 0 ? (
         <Empty>No rooms yet.</Empty>
@@ -111,6 +140,17 @@ function RoomsTab() {
                 <button onClick={() => startEdit(r)} className={ghostButton}>Edit</button>
                 <button onClick={() => queued(updateRoom(ctx, r, { active: r.active === false }), reportError)} className={ghostButton}>
                   {r.active === false ? 'Reinstate' : 'Retire'}
+                </button>
+                <button
+                  onClick={() => removeRoom(r)}
+                  onMouseLeave={() => setConfirmDelete((cur) => (cur === r.id ? null : cur))}
+                  disabled={checkingId === r.id}
+                  title={confirmDelete === r.id ? 'Click again to delete' : `Delete room ${r.number} — only possible if it has never been used`}
+                  className={`rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors duration-[120ms] disabled:opacity-50 ${
+                    confirmDelete === r.id ? 'bg-danger text-white' : 'text-danger hover:bg-danger-tint'
+                  }`}
+                >
+                  {checkingId === r.id ? 'Checking…' : confirmDelete === r.id ? 'Confirm' : 'Delete'}
                 </button>
               </li>
             )
