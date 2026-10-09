@@ -159,47 +159,58 @@ export async function roomHasHistory(ctx: HotelCtx, room: HotelRoom): Promise<bo
   return snaps.some((snap) => !snap.empty);
 }
 
-/** Remove a room outright. Only for one added by mistake — callers must
- *  check roomHasHistory first; anything that has been used gets retired. */
-export function deleteRoom(ctx: HotelCtx, room: HotelRoom) {
+/** Remove a room outright, used or not — Delete overrides Retire.
+ *
+ *  Its day assignments go with it, so a deleted room can't turn up on
+ *  anyone's board. Its status history and any faults reported against it
+ *  stay: hotelRoomEvents is append-only by rule and cannot be deleted from
+ *  a client at all, and a fault is a maintenance record in its own right
+ *  which carries the room number, so it still reads after the room is gone.
+ *  Retire remains the right choice for a room that will come back. */
+export async function deleteRoom(ctx: HotelCtx, room: HotelRoom) {
+  const assignments = await getDocs(
+    query(collection(db, 'hotelAssignments'), where('teamId', '==', ctx.teamId), where('roomId', '==', room.id))
+  );
   const batch = writeBatch(db);
   batch.delete(doc(db, 'hotelRooms', room.id));
-  addAudit(batch, ctx, 'rooms.delete', `Deleted room ${room.number} (no recorded history)`);
+  for (const a of assignments.docs) batch.delete(a.ref);
+  addAudit(
+    batch,
+    ctx,
+    'rooms.delete',
+    `Deleted room ${room.number}${assignments.size ? ` and ${assignments.size} assignment(s)` : ''}`
+  );
   return batch.commit();
 }
 
-/** Clear out a whole list of rooms, keeping any that have been used.
- *  Returns what went and what was kept, so the caller can say so rather than
- *  silently doing less than was asked. The history checks run a few at a
- *  time: a hundred rooms is three hundred reads, and firing them all at once
- *  is how you get throttled. */
-export async function deleteRoomsWithoutHistory(
-  ctx: HotelCtx,
-  rooms: HotelRoom[]
-): Promise<{ deleted: HotelRoom[]; kept: HotelRoom[] }> {
-  const deleted: HotelRoom[] = [];
-  const kept: HotelRoom[] = [];
-  const BATCH = 8;
-  for (let i = 0; i < rooms.length; i += BATCH) {
-    const slice = rooms.slice(i, i + BATCH);
-    const used = await Promise.all(slice.map((r) => roomHasHistory(ctx, r)));
-    slice.forEach((r, n) => (used[n] ? kept : deleted).push(r));
-  }
-  // A write batch takes 500 operations, and the audit entry needs one of
-  // them, so the rooms go 400 at a time with room to spare.
-  const CHUNK = 400;
-  for (let i = 0; i < deleted.length; i += CHUNK) {
-    const batch = writeBatch(db);
-    for (const r of deleted.slice(i, i + CHUNK)) batch.delete(doc(db, 'hotelRooms', r.id));
-    addAudit(
-      batch,
-      ctx,
-      'rooms.deleteAll',
-      `Deleted ${deleted.slice(i, i + CHUNK).length} unused room(s)${kept.length ? `; kept ${kept.length} with history` : ''}`
-    );
+/** Clear out a whole list of rooms, used or not, with their assignments.
+ *  Returns how many went so the caller can say so. */
+export async function deleteRooms(ctx: HotelCtx, rooms: HotelRoom[]): Promise<number> {
+  // A write batch takes 500 operations. Rooms and their assignments share
+  // that budget, so this works in modest chunks and commits as it fills.
+  let batch = writeBatch(db);
+  let ops = 0;
+  const flush = async (detail: string) => {
+    if (!ops) return;
+    addAudit(batch, ctx, 'rooms.deleteAll', detail);
     await batch.commit();
+    batch = writeBatch(db);
+    ops = 0;
+  };
+  for (const room of rooms) {
+    const assignments = await getDocs(
+      query(collection(db, 'hotelAssignments'), where('teamId', '==', ctx.teamId), where('roomId', '==', room.id))
+    );
+    if (ops + assignments.size + 2 > 450) await flush(`Deleted rooms (batch of ${ops})`);
+    batch.delete(doc(db, 'hotelRooms', room.id));
+    ops += 1;
+    for (const a of assignments.docs) {
+      batch.delete(a.ref);
+      ops += 1;
+    }
   }
-  return { deleted, kept };
+  await flush(`Deleted ${rooms.length} room(s) and their assignments`);
+  return rooms.length;
 }
 
 export function updateRoom(ctx: HotelCtx, room: HotelRoom, patch: Partial<RoomInput> & { active?: boolean }) {

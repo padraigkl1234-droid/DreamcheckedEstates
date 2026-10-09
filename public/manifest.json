@@ -2,7 +2,7 @@
   "name": "INVICTUS",
   "short_name": "INVICTUS",
   "description": "Estate operations tracker for Dreamland",
-  "start_url": "/jarvis-tracker",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#F3F4F8",

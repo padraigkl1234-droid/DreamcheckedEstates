@@ -15,7 +15,7 @@ import { useHotel } from '@/components/hotel/HotelProvider';
 import { Empty, Label, PageHeader, Pill, RoleGate, SectionTitle, ghostButton, inputClass, primaryButton } from '@/components/hotel/ui';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { CLEAN_TYPES, HOTEL_ROLES, ROLE_LABELS, ROOM_TYPES, statusMeta } from '@/lib/hotel/constants';
-import { createRooms, deleteRoom, deleteRoomsWithoutHistory, queued, roomHasHistory, saveSettings, saveTemplate, setStaffRole, updateRoom, type RoomInput } from '@/lib/hotel/actions';
+import { createRooms, deleteRoom, deleteRooms, queued, saveSettings, saveTemplate, setStaffRole, updateRoom, type RoomInput } from '@/lib/hotel/actions';
 import { isCommander, profileName, type UserProfile } from '@/lib/teams';
 import type { ChecklistItem, CleanType, HotelRole, HotelRoom } from '@/lib/hotel/types';
 
@@ -27,16 +27,15 @@ function RoomsTab() {
   const [range, setRange] = useState({ floor: 1, from: '', to: '', type: 'Double' });
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<RoomInput & { active?: boolean }>({ number: '', floor: 1, type: '' });
-  // Deleting is only for a room added by mistake. Asking once confirms, and
-  // the history check runs before anything is removed.
+  // Delete is final and overrides Retire: it removes the room and its day
+  // assignments whether or not it has been used. Retire is still there for
+  // a room that's coming back. Asking once arms it.
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [checkingId, setCheckingId] = useState<string | null>(null);
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [wiping, setWiping] = useState(false);
 
-  // Clearing the lot — for a hotel set up with the wrong numbering. Rooms
-  // that have been used are kept and named, so this can't quietly take the
-  // history with it.
+  // Clearing the lot — for a hotel set up with the wrong numbering.
   const removeAllRooms = async () => {
     if (!ctx) return;
     if (!confirmWipe) {
@@ -46,22 +45,10 @@ function RoomsTab() {
     }
     setConfirmWipe(false);
     setWiping(true);
-    setMsg(`Checking ${rooms.length} room${rooms.length === 1 ? '' : 's'}…`);
+    setMsg(`Deleting ${rooms.length} room${rooms.length === 1 ? '' : 's'}…`);
     try {
-      const { deleted, kept } = await deleteRoomsWithoutHistory(ctx, rooms);
-      setMsg(
-        [
-          deleted.length ? `Deleted ${deleted.length} room${deleted.length === 1 ? '' : 's'}.` : 'Nothing was deleted.',
-          kept.length
-            ? `Kept ${kept.length} that ${kept.length === 1 ? 'has' : 'have'} been used (${kept
-                .slice(0, 6)
-                .map((r) => r.number)
-                .join(', ')}${kept.length > 6 ? '…' : ''}) — retire ${kept.length === 1 ? 'it' : 'those'} instead.`
-            : '',
-        ]
-          .filter(Boolean)
-          .join(' ')
-      );
+      const n = await deleteRooms(ctx, rooms);
+      setMsg(`Deleted ${n} room${n === 1 ? '' : 's'}.`);
     } catch (e) {
       reportError((e as Error).message || 'Could not clear the rooms.');
       setMsg(null);
@@ -80,10 +67,6 @@ function RoomsTab() {
     setCheckingId(room.id);
     setConfirmDelete(null);
     try {
-      if (await roomHasHistory(ctx, room)) {
-        setMsg(`Room ${room.number} has been used — cleans, assignments or faults are recorded against it. Retire it instead so that history still makes sense.`);
-        return;
-      }
       await deleteRoom(ctx, room);
       setMsg(`Room ${room.number} deleted.`);
     } catch (e) {
@@ -159,7 +142,7 @@ function RoomsTab() {
             onClick={removeAllRooms}
             onMouseLeave={() => setConfirmWipe(false)}
             disabled={wiping}
-            title="Delete every room that has never been used"
+            title="Delete every room for good"
             className={`rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors duration-[120ms] disabled:opacity-50 ${
               confirmWipe ? 'bg-danger text-white' : 'text-danger hover:bg-danger-tint'
             }`}
@@ -202,7 +185,7 @@ function RoomsTab() {
                   onClick={() => removeRoom(r)}
                   onMouseLeave={() => setConfirmDelete((cur) => (cur === r.id ? null : cur))}
                   disabled={checkingId === r.id}
-                  title={confirmDelete === r.id ? 'Click again to delete' : `Delete room ${r.number} — only possible if it has never been used`}
+                  title={confirmDelete === r.id ? 'Click again to delete' : `Delete room ${r.number} for good`}
                   className={`rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors duration-[120ms] disabled:opacity-50 ${
                     confirmDelete === r.id ? 'bg-danger text-white' : 'text-danger hover:bg-danger-tint'
                   }`}
