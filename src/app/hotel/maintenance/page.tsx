@@ -202,7 +202,7 @@ function Queue() {
   const filters: { value: Filter; label: string }[] = [{ value: 'active', label: 'All open' }, ...FAULT_STATUSES.map((s) => ({ value: s.value, label: s.label }))];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-[1080px] px-9 py-[30px] max-md:px-4 max-md:py-5">
       <PageHeader icon={Wrench} title="Faults" subtitle={`${counts.active} open · sorted by priority, then oldest first`} />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -232,7 +232,7 @@ function Queue() {
             const s = faultStatusMeta(f.status);
             return (
               <li key={f.id}>
-                <button onClick={() => setOpen(f.id)} className="flex w-full items-start gap-3 rounded-md border border-neutral-400/20 bg-invictus-surface/50 p-3 text-left hover:border-invictus-crimson-bright/40">
+                <button onClick={() => setOpen(f.id)} className="flex w-full items-start gap-3 rounded-xl bg-white p-4 text-left hover:border-invictus-crimson-bright/40">
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border border-neutral-400/20 bg-invictus-base/60">
                     {f.photos?.[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element

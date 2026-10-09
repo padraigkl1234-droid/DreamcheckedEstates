@@ -1,8 +1,10 @@
 'use client';
 
-// The hotel hub's own navigation: a side rail on desktop/tablet and a bottom
-// tab bar on phones (one-handed reach), showing only what the signed-in
-// person's hotel role uses.
+// The hotel hub's own navigation: a bar under the app header on
+// desktop/tablet — the same place and style as the estates sub-nav, so the
+// two halves of the app share one shell — and a bottom tab bar on phones
+// (one-handed reach). Either way it shows only what the signed-in person's
+// hotel role uses.
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -102,39 +104,41 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`);
 
   return (
-    <div className="flex min-h-[calc(100vh-var(--chrome-h))] flex-col bg-invictus-base font-sans text-neutral-100 md:h-[calc(100vh-var(--chrome-h))] md:flex-row">
-      <aside className="hidden flex-col border-r border-neutral-400/20 bg-invictus-base/70 shadow-glow-subtle backdrop-blur-xl md:flex md:w-56">
-        <div className="flex h-16 items-center gap-2.5 border-b border-neutral-400/20 px-5">
-          <BedDouble className="h-5 w-5 shrink-0 text-neutral-100" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold tracking-tight text-neutral-100">{teamName}</p>
-            {role && <p className="text-[10px] uppercase tracking-widest text-neutral-500">{ROLE_LABELS[role]}</p>}
-          </div>
+    <div className="flex min-h-[calc(100vh-var(--chrome-h))] flex-col bg-invictus-base font-sans text-ink md:h-[calc(100vh-var(--chrome-h))]">
+      {/* The hub's own bar, sitting under the app header in the same place
+          and style as the Actions sub-nav on the estates side — so the whole
+          app reads as one shell rather than two. The side rail is gone. */}
+      {items.length > 0 && (
+        <div className="hidden shrink-0 border-b border-line bg-white md:block">
+          <nav className="flex h-[50px] items-center gap-0 overflow-x-auto px-8">
+            <span className="mr-5 flex shrink-0 items-center gap-2 text-[13px] font-extrabold uppercase tracking-[0.08em] text-ink-dim">
+              <BedDouble className="h-4 w-4" />
+              <span className="max-w-[14rem] truncate">{teamName}</span>
+              {role && <span className="font-bold text-ink-placeholder">· {ROLE_LABELS[role]}</span>}
+            </span>
+            {items.map((item) => {
+              const Icon = item.icon;
+              const on = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex h-[50px] items-center gap-2 whitespace-nowrap border-b-[3px] px-3.5 text-sm font-bold transition-colors duration-[120ms] ${
+                    on ? 'border-brand text-ink' : 'border-transparent text-ink-dim hover:text-ink'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
-        <nav className="flex flex-col gap-1 p-3">
-          {items.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm transition-colors ${
-                  isActive(item.href)
-                    ? 'bg-invictus-crimson-bright/[0.16] text-invictus-crimson-bright'
-                    : 'text-neutral-500 hover:bg-invictus-crimson-bright/[0.06] hover:text-neutral-200'
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
+      )}
 
       <main className="relative flex-1 overflow-y-auto pb-24 md:pb-0">
         {(!online || pendingPhotos > 0) && (
-          <div className="sticky top-16 z-20 flex items-center gap-2 border-b border-amber-400/30 md:top-0 bg-amber-400/10 px-4 py-2 text-xs text-amber-300 backdrop-blur-md">
+          <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-sun bg-sun-panel px-8 py-2.5 text-[13px] font-bold text-sun-ink max-md:px-4">
             <WifiOff className="h-3.5 w-3.5 shrink-0" />
             {!online
               ? "You're offline. Changes are saved on this device and will sync when you're back online."
@@ -144,8 +148,11 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
+      {/* Phones keep the bottom tab bar. The handoff doesn't cover the hub on
+          a phone, and a thumb-reachable bar beats a dropdown for someone
+          working a corridor with a trolley. */}
       {items.length > 0 && (
-        <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-neutral-400/20 bg-invictus-base/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
           {primary.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -153,8 +160,8 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${
-                  active ? 'text-invictus-crimson-bright' : 'text-neutral-500'
+                className={`flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+                  active ? 'text-brand' : 'text-ink-dim'
                 }`}
               >
                 <Icon className="h-5 w-5" />
@@ -165,8 +172,8 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
           {more.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger
-                className={`flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${
-                  more.some((m) => isActive(m.href)) ? 'text-invictus-crimson-bright' : 'text-neutral-500'
+                className={`flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wide ${
+                  more.some((m) => isActive(m.href)) ? 'text-brand' : 'text-ink-dim'
                 }`}
               >
                 <MoreHorizontal className="h-5 w-5" />
@@ -177,7 +184,7 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
                   const Icon = item.icon;
                   return (
                     <DropdownMenuItem key={item.href} asChild>
-                      <Link href={item.href} className="cursor-pointer gap-2 py-3">
+                      <Link href={item.href} className="cursor-pointer gap-2 py-3 font-semibold">
                         <Icon className="h-4 w-4" /> {item.label}
                       </Link>
                     </DropdownMenuItem>

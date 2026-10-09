@@ -19,7 +19,7 @@ import { exportPdf } from '@/lib/hotel/export';
 
 function Stat({ label, value, tone = '' }: { label: string; value: React.ReactNode; tone?: string }) {
   return (
-    <div className={`rounded-md border border-neutral-400/20 bg-invictus-surface/50 p-3 ${tone}`}>
+    <div className={`rounded-xl bg-white p-4 ${tone}`}>
       <p className="font-mono text-2xl font-bold leading-none text-neutral-100">{value}</p>
       <p className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">{label}</p>
     </div>
@@ -46,7 +46,7 @@ function Summary() {
     });
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-[1080px] px-9 py-[30px] max-md:px-4 max-md:py-5">
       <PageHeader
         icon={FileText}
         title="End of day"

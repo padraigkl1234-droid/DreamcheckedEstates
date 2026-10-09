@@ -93,7 +93,7 @@ export function PageHeader({
           <Icon className="h-6 w-6 shrink-0 text-invictus-crimson-bright" />
           {title}
         </h1>
-        {subtitle && <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>}
+        {subtitle && <p className="mt-1 text-[15px] font-semibold text-ink-muted">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>

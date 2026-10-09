@@ -100,7 +100,7 @@ function Board() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-[1180px] px-9 py-[30px] max-md:px-4 max-md:py-5">
       <PageHeader
         icon={LayoutGrid}
         title="Today"

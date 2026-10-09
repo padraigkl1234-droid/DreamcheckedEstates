@@ -476,7 +476,7 @@ function Compliance() {
   const { data: logs } = useComplianceLogs(teamId);
   const [tab, setTab] = useState<'checks' | 'log'>('checks');
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-[1080px] px-9 py-[30px] max-md:px-4 max-md:py-5">
       <PageHeader icon={ShieldCheck} title="Compliance" subtitle="Recurring safety checks and their log" />
       <div className="mb-5 flex gap-1 rounded-md border border-neutral-400/20 bg-invictus-base/40 p-1">
         {(['checks', 'log'] as const).map((t) => (

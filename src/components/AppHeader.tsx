@@ -67,7 +67,10 @@ export function AppHeader() {
   const page = searchParams.get('page');
 
   const isAdmin = isMaster || profile?.rank === 'commander';
-  const items = getVisibleNavItems(isAdmin, team?.features, isMaster);
+  // A hotel team's navigation lives in the hub's own bar (HotelShell), so the
+  // header carries only the brand and the account menu for them — one shell,
+  // not two competing sets of links.
+  const items = isHotelTeam(team) ? [] : getVisibleNavItems(isAdmin, team?.features, isMaster);
   const byKey = (keys: PageKey[]) => keys.map((k) => items.find((i) => i.key === k)).filter((i): i is NavItem => !!i);
 
   // Which nav entry the current URL is on.

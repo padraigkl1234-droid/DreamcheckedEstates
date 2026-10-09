@@ -30,7 +30,7 @@ function Workload({
   const cap = settings.shiftCapacityMinutes;
   const unassigned = assignments.filter((a) => !a.assigneeUid);
   return (
-    <section className="rounded-md border border-neutral-400/20 bg-invictus-surface/50 p-3">
+    <section className="rounded-xl bg-white p-4">
       <SectionTitle icon={Users}>Workload</SectionTitle>
       <ul className="space-y-2.5">
         {people.map((p) => {
@@ -146,7 +146,7 @@ function Assign() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-[1180px] px-9 py-[30px] max-md:px-4 max-md:py-5">
       <PageHeader
         icon={UserCheck}
         title="Assign"
@@ -162,7 +162,7 @@ function Assign() {
       <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
         <div className="order-2 lg:order-1">
           {/* Bulk bar */}
-          <div className="sticky top-0 z-10 mb-4 rounded-md border border-neutral-400/20 bg-invictus-surface/95 p-3 backdrop-blur-md">
+          <div className="sticky top-0 z-10 mb-4 rounded-xl bg-white p-4 backdrop-blur-md">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-neutral-400">
                 <span className="font-mono text-neutral-100">{selected.size}</span> selected
