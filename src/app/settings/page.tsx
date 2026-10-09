@@ -246,7 +246,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
+    <div className="relative min-h-[calc(100vh-var(--chrome-h))] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
       <div className="relative z-10 mx-auto max-w-2xl px-4 py-8 sm:py-10">
         <Link href="/jarvis-tracker" className="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-300">

@@ -6565,7 +6565,7 @@ function InvictusTracker() {
   };
 
   return (
-    <div className="relative h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
+    <div className="relative h-[calc(100vh-var(--chrome-h))] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
       {/* Soft corner glows. Drawn as radial gradients rather than a blurred
           circle: a 64px blur filter is a real per-frame cost on a phone, and
           these sit under the scrolling content. Same look, no filter pass. */}

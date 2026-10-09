@@ -226,7 +226,7 @@ export default function EventModePage() {
   };
 
   const chrome = (body: React.ReactNode) => (
-    <div className="flex h-[calc(100vh-4rem)] flex-col md:flex-row">
+    <div className="flex h-[calc(100vh-var(--chrome-h))] flex-col md:flex-row">
       <AppMobileNav features={team?.features} isMaster={isMaster} />
       <AppSidebar features={team?.features} isMaster={isMaster} />
       <main className="relative flex-1 overflow-hidden font-sans text-neutral-100">

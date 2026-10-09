@@ -157,7 +157,7 @@ export default function ChecklistsPage() {
 
   if (!profileLoading && !pageEnabled) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] flex-col md:flex-row">
+      <div className="flex h-[calc(100vh-var(--chrome-h))] flex-col md:flex-row">
         <AppMobileNav features={team?.features} isMaster={isMaster} />
         <AppSidebar features={team?.features} isMaster={isMaster} />
         <div className="flex flex-1 items-center justify-center bg-invictus-base px-4 text-center font-sans">
@@ -168,7 +168,7 @@ export default function ChecklistsPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col md:flex-row">
+    <div className="flex h-[calc(100vh-var(--chrome-h))] flex-col md:flex-row">
       <AppMobileNav features={team?.features} isMaster={isMaster} />
       <AppSidebar features={team?.features} isMaster={isMaster} />
       <main className="relative flex-1 overflow-y-auto bg-invictus-base font-sans text-neutral-100">

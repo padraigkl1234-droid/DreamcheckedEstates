@@ -1,5 +1,5 @@
 import type {Metadata, Viewport} from 'next';
-import { Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
+import { Manrope, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -36,14 +36,14 @@ import { AppGate } from "@/components/AppGate";
 import { SoundProvider } from "@/components/SoundProvider";
 import { PointerCaptureFix } from "@/components/PointerCaptureFix";
 import { RadixBodyLockFix } from "@/components/RadixBodyLockFix";
-import { Navbar } from "@/components/Navbar";
+import { AppHeader } from '@/components/AppHeader';
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { PushListener } from "@/components/PushListener";
 
-// One typeface everywhere: Hanken Grotesk — clean, minimal, calm.
-const hanken = Hanken_Grotesk({
+// One typeface everywhere: Manrope, in the four weights the design uses.
+const manrope = Manrope({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+  weight: ['500', '600', '700', '800'],
   variable: '--font-hanken',
   display: 'swap',
 });
@@ -61,17 +61,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${hanken.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${manrope.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         {/* Apply the saved theme before paint to avoid a flash of the wrong theme. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('invictus-theme')||'dark';var d=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;var e=document.documentElement;e.classList.toggle('dark',d==='dark');e.setAttribute('data-theme',d);}catch(_){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark');}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('invictus-theme')||'light';var d=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;var e=document.documentElement;e.classList.toggle('dark',d==='dark');e.setAttribute('data-theme',d);}catch(_){document.documentElement.setAttribute('data-theme','light');}})();`,
           }}
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
         <ServiceWorkerRegistration />
@@ -85,8 +84,8 @@ export default function RootLayout({
             <SoundProvider>
               <PushListener />
               <AppGate>
-                <Navbar />
-                <div className="pt-16">
+                <AppHeader />
+                <div className="pt-[var(--chrome-h)]">
                   {children}
                 </div>
               </AppGate>

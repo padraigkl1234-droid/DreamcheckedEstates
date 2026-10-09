@@ -102,7 +102,7 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`);
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col bg-invictus-base font-sans text-neutral-100 md:h-[calc(100vh-4rem)] md:flex-row">
+    <div className="flex min-h-[calc(100vh-var(--chrome-h))] flex-col bg-invictus-base font-sans text-neutral-100 md:h-[calc(100vh-var(--chrome-h))] md:flex-row">
       <aside className="hidden flex-col border-r border-neutral-400/20 bg-invictus-base/70 shadow-glow-subtle backdrop-blur-xl md:flex md:w-56">
         <div className="flex h-16 items-center gap-2.5 border-b border-neutral-400/20 px-5">
           <BedDouble className="h-5 w-5 shrink-0 text-neutral-100" />

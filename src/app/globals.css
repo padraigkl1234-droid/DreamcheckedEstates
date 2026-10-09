@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Height of the fixed chrome: the 64px header, plus the 50px sub-nav bar
+   when a group's child page is open. Pages size themselves against this
+   rather than a hard-coded 4rem, so the sub-nav never crops the page. */
+:root { --chrome-h: 4rem; }
+:root[data-subnav='1'] { --chrome-h: 7.125rem; }
+
 @layer base {
   :root {
     /* Surface tokens (space-separated RGB channels so Tailwind's /alpha
@@ -18,41 +24,43 @@
     --font-sans-active: var(--font-hanken);
     --font-body-active: var(--font-hanken);
   }
-  /* Light = warm off-white surfaces with a dark-graphite accent. */
+  /* The redesign's light theme, and the app's default: page #F3F4F8, white
+     cards, blue accent. The invictus.* names are kept so the hundreds of
+     existing class references pick the new palette up without being edited. */
   :root[data-theme='light'] {
-    --invictus-base: 250 249 247;   /* #FAF9F7 */
-    --invictus-surface: 255 255 255;/* #FFFFFF */
-    --invictus-raised: 243 241 236; /* #F3F1EC field */
-    --invictus-crimson: 57 53 47;        /* #39352F graphite accent */
-    --invictus-crimson-bright: 57 53 47; /* #39352F */
+    --invictus-base: 243 244 248;    /* #F3F4F8 page */
+    --invictus-surface: 255 255 255; /* #FFFFFF card */
+    --invictus-raised: 243 244 248;  /* #F3F4F8 muted fill / fields */
+    --invictus-crimson: 26 67 219;         /* #1A43DB primary, hover */
+    --invictus-crimson-bright: 31 79 255;  /* #1F4FFF primary */
   }
 
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --background: 228 24% 96%;   /* #F3F4F8 */
+    --foreground: 224 61% 14%;   /* #0E1A3A */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 224 61% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 36 10% 20%;
+    --popover-foreground: 224 61% 14%;
+    --primary: 226 100% 56%;     /* #1F4FFF */
     --primary-foreground: 0 0% 100%;
-    --secondary: 40 20% 96%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 40 15% 90%;
-    --input: 40 15% 90%;
-    --ring: 36 10% 20%;
+    --secondary: 228 24% 96%;
+    --secondary-foreground: 224 61% 14%;
+    --muted: 225 24% 92%;        /* #E4E7EF */
+    --muted-foreground: 228 15% 49%; /* #6B7290 */
+    --accent: 225 100% 95%;      /* #E8EEFF */
+    --accent-foreground: 226 100% 56%;
+    --destructive: 359 76% 56%;  /* #E5383B */
+    --destructive-foreground: 0 0% 100%;
+    --border: 226 25% 89%;       /* #DDE1EC */
+    --input: 226 25% 89%;
+    --ring: 226 100% 56%;
     --chart-1: 36 10% 20%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --radius: 1rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -143,25 +151,28 @@
    a muted terracotta accent — rather than a themed skin. Higher specificity
    than Tailwind's own utilities, so these win without touching each component. */
 
-/* Neutral text shades -> warm charcoal (darkest) through warm gray (lightest). */
-:root[data-theme='light'] .text-neutral-50 { color: #1c1a17; }
-:root[data-theme='light'] .text-neutral-100 { color: #262320; }
-:root[data-theme='light'] .text-neutral-200 { color: #34302b; }
-:root[data-theme='light'] .text-neutral-300 { color: #4a443c; }
-:root[data-theme='light'] .text-neutral-400 { color: #655e53; }
-:root[data-theme='light'] .text-neutral-500 { color: #85796a; }
-:root[data-theme='light'] .text-neutral-600 { color: #a99e8f; }
-:root[data-theme='light'] .text-neutral-700 { color: #cec5b8; }
+/* The components are written dark-first in neutral greys. Mapping those greys
+   onto the redesign's ink scale is what carries every existing page into the
+   new palette without rewriting its markup: 100 is the navy ink used for
+   headings, 400/500 the secondary and muted text, 600 the placeholder grey. */
+:root[data-theme='light'] .text-neutral-50 { color: #0E1A3A; }
+:root[data-theme='light'] .text-neutral-100 { color: #0E1A3A; }
+:root[data-theme='light'] .text-neutral-200 { color: #1B2546; }
+:root[data-theme='light'] .text-neutral-300 { color: #2C3452; }
+:root[data-theme='light'] .text-neutral-400 { color: #4A5270; }
+:root[data-theme='light'] .text-neutral-500 { color: #6B7290; }
+:root[data-theme='light'] .text-neutral-600 { color: #8A90A8; }
+:root[data-theme='light'] .text-neutral-700 { color: #C3C9DC; }
 /* Yellow/amber and green text are near-invisible on a light page — darken them. */
 :root[data-theme='light'] .text-amber-200,
 :root[data-theme='light'] .text-amber-300,
 :root[data-theme='light'] .text-amber-400,
 :root[data-theme='light'] [class*='text-amber-300/'],
-:root[data-theme='light'] [class*='text-amber-400/'] { color: #b45309; }
-:root[data-theme='light'] .text-yellow-500 { color: #a16207; }
+:root[data-theme='light'] [class*='text-amber-400/'] { color: #5C4300; }
+:root[data-theme='light'] .text-yellow-500 { color: #5C4300; }
 :root[data-theme='light'] .text-emerald-200,
 :root[data-theme='light'] .text-emerald-300,
-:root[data-theme='light'] .text-emerald-400 { color: #047857; }
+:root[data-theme='light'] .text-emerald-400 { color: #0E7A4A; }
 /* Soften the dark-mode scanline/grain overlays entirely on a flat light page. */
 :root[data-theme='light'] .animate-scanlines { opacity: 0 !important; }
 
@@ -174,11 +185,13 @@
 }
 
 /* Light theme: quiet, neutral depth shadows (no colour, no glow). */
+/* The design carries no shadows at all — separation comes from white cards
+   on the #F3F4F8 page. */
 :root[data-theme='light'] .shadow-glow-subtle,
 :root[data-theme='light'] .shadow-glow-strong,
 :root[data-theme='light'] .shadow-glow-caution,
 :root[data-theme='light'] .shadow-glow-alert {
-  box-shadow: 0 1px 2px rgba(28, 26, 23, 0.05), 0 1px 3px rgba(28, 26, 23, 0.05);
+  box-shadow: none;
 }
 :root[data-theme='light'] .drop-shadow-glow-subtle,
 :root[data-theme='light'] .drop-shadow-glow-strong,
@@ -186,11 +199,23 @@
   filter: none;
 }
 
-/* Quiet, thin borders — visible structure without heavy ink lines. */
+/* Borders: the design's single #DDE1EC line, with the lighter weights used
+   for dividers inside a card (#ECEEF4). */
 :root[data-theme='light'] [class*='border-neutral-400/'] {
-  border-color: rgba(28, 26, 23, 0.12);
+  border-color: #DDE1EC;
 }
 :root[data-theme='light'] .border-neutral-400\/15,
-:root[data-theme='light'] .border-neutral-400\/20 {
-  border-color: rgba(28, 26, 23, 0.08);
+:root[data-theme='light'] .border-neutral-400\/20,
+:root[data-theme='light'] .border-neutral-400\/25 {
+  border-color: #ECEEF4;
+}
+/* Cards and panels: 16px corners, flat white. */
+:root[data-theme='light'] .bg-invictus-surface\/40,
+:root[data-theme='light'] .bg-invictus-surface\/60,
+:root[data-theme='light'] .bg-invictus-surface\/30 {
+  background-color: #FFFFFF;
+}
+:root[data-theme='light'] .bg-invictus-base\/40,
+:root[data-theme='light'] .bg-invictus-base\/60 {
+  background-color: #F3F4F8;
 }

@@ -205,7 +205,7 @@ export default function AutomationsPage() {
 
   if (!isMaster) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-3 bg-invictus-base text-neutral-500">
+      <div className="flex min-h-[calc(100vh-var(--chrome-h))] flex-col items-center justify-center gap-3 bg-invictus-base text-neutral-500">
         <p className="text-xs uppercase tracking-widest">Master admin only.</p>
         <Link href="/jarvis-tracker" className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-300">
           <ArrowLeft className="h-3.5 w-3.5" /> Back to dashboard
@@ -215,7 +215,7 @@ export default function AutomationsPage() {
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
+    <div className="relative min-h-[calc(100vh-var(--chrome-h))] w-full overflow-hidden bg-invictus-base font-sans text-neutral-100">
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-neutral-500/10 blur-3xl" />
       <div className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:py-10">
         <Link href="/master" className="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-300">

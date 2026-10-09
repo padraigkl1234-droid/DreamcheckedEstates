@@ -50,10 +50,10 @@ export default {
       // shadow-glow-* class reads calm without per-site edits.
       boxShadow: {
         'glow-none': 'none',
-        'glow-subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.18)',
-        'glow-strong': '0 1px 2px 0 rgba(0, 0, 0, 0.18)',
-        'glow-caution': '0 1px 2px 0 rgba(0, 0, 0, 0.18)',
-        'glow-alert': '0 1px 2px 0 rgba(0, 0, 0, 0.18)',
+        'glow-subtle': 'none',
+        'glow-strong': 'none',
+        'glow-caution': 'none',
+        'glow-alert': 'none',
       },
       dropShadow: {
         'glow-none': 'none',
@@ -62,6 +62,53 @@ export default {
         'glow-caution': 'none',
       },
       colors: {
+        // --- Redesign palette (see design_handoff_invictus_redesign) --------
+        // Navy header and ink, blue for primary actions and key numbers,
+        // yellow for highlights. Named so new markup can reach for them
+        // directly; the older invictus.* tokens below are remapped onto the
+        // same system so existing components follow without being rewritten.
+        ink: {
+          DEFAULT: '#0E1A3A',
+          soft: '#2C3452',
+          muted: '#4A5270',
+          dim: '#6B7290',
+          placeholder: '#8A90A8',
+        },
+        brand: {
+          DEFAULT: '#1F4FFF',
+          hover: '#1A43DB',
+          tint: '#E8EEFF',
+        },
+        sun: {
+          DEFAULT: '#FFC83D',
+          soft: '#FFE7A3',
+          panel: '#FFF3CC',
+          ink: '#5C4300',
+          deep: '#4A3800',
+        },
+        line: {
+          DEFAULT: '#DDE1EC',
+          row: '#ECEEF4',
+          fill: '#E4E7EF',
+          check: '#C3C9DC',
+        },
+        danger: {
+          DEFAULT: '#E5383B',
+          deep: '#C1272D',
+          tint: '#FDE3E4',
+        },
+        ok: {
+          DEFAULT: '#2BD18A',
+          deep: '#119A5E',
+          darker: '#0E7A4A',
+          tint: '#E3F8EE',
+        },
+        header: {
+          bg: '#0E1A3A',
+          text: '#B6C0E2',
+          dim: '#8C98C2',
+          divider: '#2A3866',
+        },
         invictus: {
           base: 'rgb(var(--invictus-base) / <alpha-value>)',
           surface: 'rgb(var(--invictus-surface) / <alpha-value>)',
@@ -72,8 +119,8 @@ export default {
           'crimson-bright': 'rgb(var(--invictus-crimson-bright) / <alpha-value>)',
         },
         alert: {
-          DEFAULT: '#FF3B4E',
-          dim: '#7A0F1A',
+          DEFAULT: '#E5383B',
+          dim: '#C1272D',
         },
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',

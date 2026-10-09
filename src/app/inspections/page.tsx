@@ -241,7 +241,7 @@ export default function InspectionsPage() {
   };
 
   const chrome = (body: React.ReactNode) => (
-    <div className="flex h-[calc(100vh-4rem)] flex-col md:flex-row">
+    <div className="flex h-[calc(100vh-var(--chrome-h))] flex-col md:flex-row">
       <AppMobileNav features={team?.features} isMaster={isMaster} />
       <AppSidebar features={team?.features} isMaster={isMaster} />
       <main className="relative flex-1 overflow-y-auto bg-invictus-base font-sans text-neutral-100">{body}</main>
