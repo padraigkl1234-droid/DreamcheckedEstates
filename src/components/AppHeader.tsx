@@ -15,7 +15,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { ChevronDown, LogOut, Moon, Settings as SettingsIcon, Sun, Volume2, VolumeX } from 'lucide-react';
+import { ChevronDown, LogOut, Moon, Settings as SettingsIcon, Sun, Volume2, VolumeX, X } from 'lucide-react';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import { InstallPwaButton } from '@/components/InstallPwaButton';
 import { TeamSwitcher } from '@/components/TeamSwitcher';
@@ -110,9 +110,24 @@ export function AppHeader() {
   // Keep the nav scrolled to whatever is active on a narrow screen.
   const railRef = useRef<HTMLDivElement>(null);
 
+  const [mobileMenu, setMobileMenu] = useState(false);
+  // Close it on navigation, and let Escape out of it.
+  useEffect(() => setMobileMenu(false), [pathname, page]);
+  useEffect(() => {
+    if (!mobileMenu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMenu(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileMenu]);
+
   return (
     <>
-      <header className="fixed left-0 right-0 top-0 z-40 h-16 bg-header-bg">
+      {/* The navy extends up through the phone's status-bar inset, so an
+          installed app doesn't show a strip of page above the header.
+          env() is 0 everywhere else, so nothing changes in a browser. */}
+      <header className="fixed left-0 right-0 top-0 z-40 bg-header-bg pt-[env(safe-area-inset-top)]">
         <div className="flex h-16 items-center gap-7 px-8 max-md:gap-3 max-md:px-4">
           {/* Brand */}
           <Link href="/jarvis-tracker" className="flex shrink-0 items-center gap-2.5" title="INVICTUS">
@@ -192,49 +207,19 @@ export function AppHeader() {
             )}
           </nav>
 
-          {/* Everything on a phone lives behind one menu. */}
+          {/* Everything on a phone lives behind one menu. It's a full-screen
+              sheet rather than a dropdown: fifteen-odd items don't belong in
+              a 240px popup, and rendering it ourselves means it can't be
+              clipped or lost behind a portal's positioning. */}
           <div className="ml-auto flex items-center gap-3 md:ml-0 md:gap-3">
-            <div className="md:hidden">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className={`${linkBase} flex items-center gap-1 ${linkIdle}`}>
-                    Menu <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-60">
-                  {primary.map((item) => (
-                    <DropdownMenuItem key={item.key} asChild>
-                      <Link href={navHref(item)} className="cursor-pointer gap-2 font-semibold">
-                        <item.icon className="h-4 w-4" /> {item.label}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                  {groups.map((group) => (
-                    <React.Fragment key={group.key}>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                        {t(group.labelKey)}
-                      </DropdownMenuLabel>
-                      {group.items.map((item) => (
-                        <DropdownMenuItem key={item.key} asChild>
-                          <Link href={navHref(item)} className="cursor-pointer gap-2 font-semibold">
-                            <item.icon className="h-4 w-4" /> {item.label}
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
-                    </React.Fragment>
-                  ))}
-                  {more.length > 0 && <DropdownMenuSeparator />}
-                  {more.map((item) => (
-                    <DropdownMenuItem key={item.key} asChild>
-                      <Link href={navHref(item)} className="cursor-pointer gap-2 font-semibold">
-                        <item.icon className="h-4 w-4" /> {item.label}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            <button
+              onClick={() => setMobileMenu(true)}
+              className={`${linkBase} flex items-center gap-1 md:hidden ${linkIdle}`}
+              aria-expanded={mobileMenu}
+              aria-haspopup="menu"
+            >
+              Menu <ChevronDown className="h-3.5 w-3.5" />
+            </button>
 
             <span className="flex items-center gap-2 text-[13px] font-semibold text-header-text max-lg:hidden">
               <span className="h-2 w-2 rounded-full bg-ok" />
@@ -312,6 +297,75 @@ export function AppHeader() {
           </div>
         </div>
       </header>
+
+      {/* The phone menu. */}
+      {mobileMenu && (
+        <div className="fixed inset-0 z-[70] flex flex-col bg-header-bg pt-[env(safe-area-inset-top)] md:hidden">
+          <div className="flex h-16 shrink-0 items-center justify-between px-4">
+            <span className="text-[19px] font-extrabold text-white">Menu</span>
+            <button
+              onClick={() => setMobileMenu(false)}
+              className="rounded-lg p-2 text-header-text transition-colors hover:bg-white/10 hover:text-white"
+              aria-label="Close menu"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <nav className="flex-1 overflow-y-auto px-4 pb-10">
+            {primary.map((item) => (
+              <Link
+                key={item.key}
+                href={navHref(item)}
+                onClick={() => setMobileMenu(false)}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3.5 text-base font-bold transition-colors ${
+                  isCurrent(item) ? 'bg-brand text-white' : 'text-header-text hover:bg-white/[0.06] hover:text-white'
+                }`}
+              >
+                <item.icon className="h-[18px] w-[18px] shrink-0" />
+                {item.label}
+              </Link>
+            ))}
+            {groups.map((group) => (
+              <div key={group.key} className="mt-4">
+                <p className="px-4 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-header-dim">
+                  {t(group.labelKey)}
+                </p>
+                {group.items.map((item) => (
+                  <Link
+                    key={item.key}
+                    href={navHref(item)}
+                    onClick={() => setMobileMenu(false)}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3.5 text-base font-bold transition-colors ${
+                      isCurrent(item) ? 'bg-brand text-white' : 'text-header-text hover:bg-white/[0.06] hover:text-white'
+                    }`}
+                  >
+                    <item.icon className="h-[18px] w-[18px] shrink-0" />
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            ))}
+            {more.length > 0 && (
+              <div className="mt-4">
+                <p className="px-4 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-header-dim">More</p>
+                {more.map((item) => (
+                  <Link
+                    key={item.key}
+                    href={navHref(item)}
+                    onClick={() => setMobileMenu(false)}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3.5 text-base font-bold transition-colors ${
+                      isCurrent(item) ? 'bg-brand text-white' : 'text-header-text hover:bg-white/[0.06] hover:text-white'
+                    }`}
+                  >
+                    <item.icon className="h-[18px] w-[18px] shrink-0" />
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </nav>
+        </div>
+      )}
 
       {/* Sub-navigation for the open group. */}
       {openGroup && (

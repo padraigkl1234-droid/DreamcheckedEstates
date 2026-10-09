@@ -24,7 +24,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#ffffff',
+  // The navy of the header: this is what paints the status-bar area in an
+  // installed app, and white left a strip above the header.
+  themeColor: '#0E1A3A',
+  // Without cover, the layout viewport stops short of the status bar and
+  // env(safe-area-inset-*) is always 0, so the header can't extend under it.
+  viewportFit: 'cover',
 };
 
 import { AuthProvider } from "@/components/AuthProvider";

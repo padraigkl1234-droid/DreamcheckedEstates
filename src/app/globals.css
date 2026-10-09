@@ -5,8 +5,8 @@
 /* Height of the fixed chrome: the 64px header, plus the 50px sub-nav bar
    when a group's child page is open. Pages size themselves against this
    rather than a hard-coded 4rem, so the sub-nav never crops the page. */
-:root { --chrome-h: 4rem; }
-:root[data-subnav='1'] { --chrome-h: 7.125rem; }
+:root { --chrome-h: calc(4rem + env(safe-area-inset-top)); }
+:root[data-subnav='1'] { --chrome-h: calc(7.125rem + env(safe-area-inset-top)); }
 
 @layer base {
   :root {
