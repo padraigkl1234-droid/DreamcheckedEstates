@@ -6000,8 +6000,8 @@ function ComplianceTracker({
         {/* Shared file picker for attaching reports to items */}
         <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChosen} />
         {uploadError && <p className="mb-3 text-xs text-alert">{uploadError}</p>}
-        <div className="mb-2 hidden gap-3 px-3 text-[10px] uppercase tracking-widest text-neutral-600 md:grid md:grid-cols-[32px_1.3fr_0.75fr_0.75fr_1.1fr_240px_40px]">
-          <span>Status</span>
+        <div className="mb-2 hidden gap-3 px-[22px] text-[11px] font-bold uppercase tracking-[0.08em] text-ink-dim md:grid md:grid-cols-[32px_1.3fr_0.75fr_0.75fr_1.1fr_240px_40px]">
+          <span className="sr-only">Status</span>
           <span>Item</span>
           <span>Last Completed</span>
           <span>Next Due</span>
@@ -6030,7 +6030,7 @@ function ComplianceTracker({
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    className="relative grid grid-cols-1 items-start gap-3 rounded-md border border-neutral-400/20 bg-invictus-base/40 shadow-glow-subtle p-3 md:grid-cols-[32px_1.3fr_0.75fr_0.75fr_1.1fr_240px_40px]"
+                    className="relative grid grid-cols-1 items-center gap-3 rounded-xl bg-white px-[22px] py-[18px] md:grid-cols-[32px_1.3fr_0.75fr_0.75fr_1.1fr_240px_40px]"
                   >
                     <MicroCorners />
                     <button
@@ -6051,27 +6051,29 @@ function ComplianceTracker({
                       )}
                     </button>
 
-                    <p className={`text-sm ${item.completed ? 'text-emerald-200' : 'text-neutral-100'}`}>{item.name}</p>
+                    <p className={`text-base font-extrabold leading-snug ${item.completed ? 'text-ok-darker' : 'text-ink'}`}>
+                      {item.name}
+                    </p>
 
                     <input
                       type="date"
                       value={item.date}
                       onChange={(e) => onChangeDate(item.id, e.target.value)}
-                      className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                      className="rounded-lg border border-line bg-invictus-base px-3 py-2.5 text-sm font-semibold text-ink focus:border-brand focus:bg-white focus:outline-none"
                     />
 
                     <input
                       type="date"
                       value={item.nextDueDate}
                       onChange={(e) => onChangeNextDueDate(item.id, e.target.value)}
-                      className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                      className="rounded-lg border border-line bg-invictus-base px-3 py-2.5 text-sm font-semibold text-ink focus:border-brand focus:bg-white focus:outline-none"
                     />
 
                     <input
                       value={item.comments}
                       onChange={(e) => onChangeComments(item.id, e.target.value)}
-                      placeholder="Comments..."
-                      className="rounded-md border border-neutral-400/30 bg-invictus-base/60 focus:shadow-glow-strong px-2 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50"
+                      placeholder="Add a comment…"
+                      className="w-full rounded-lg border-2 border-line bg-invictus-base px-3 py-2.5 text-sm font-semibold text-ink placeholder:font-normal placeholder:text-ink-placeholder focus:border-brand focus:bg-white focus:outline-none"
                     />
 
                     <div className="flex max-w-[240px] flex-wrap items-center gap-1.5">
