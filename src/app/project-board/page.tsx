@@ -36,6 +36,7 @@ import {
   MessageSquare,
   Pencil,
   Pin,
+  Minus,
   Plus,
   Search,
   Send,
@@ -130,6 +131,81 @@ export default function ProjectBoardPage() {
   // fractions, so they hold their arrangement as that space changes.
   const canvasRef = useRef<HTMLDivElement>(null);
   const [area, setArea] = useState({ w: 0, h: 0 });
+
+  // The board is a canvas you can move around and scale, rather than a fixed
+  // fit. `area` stays the logical size — note positions are fractions of it,
+  // so zooming changes nothing about where a note lives, only how big the
+  // board is drawn and which part of it you're looking at.
+  const MIN_ZOOM = 0.4;
+  const MAX_ZOOM = 2.5;
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const panRef = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
+  const [panning, setPanning] = useState(false);
+
+  // Keep the board in view: once it's bigger than the frame you can drag
+  // within its bounds, and when it's smaller it stays put at the origin.
+  const clampPan = useCallback(
+    (next: { x: number; y: number }, z: number) => {
+      const w = area.w * z;
+      const h = area.h * z;
+      const minX = Math.min(0, area.w - w);
+      const minY = Math.min(0, area.h - h);
+      return {
+        x: Math.max(minX, Math.min(0, next.x)),
+        y: Math.max(minY, Math.min(0, next.y)),
+      };
+    },
+    [area.w, area.h]
+  );
+
+  // Zoom about a point, so the spot under the cursor stays under the cursor.
+  const zoomAt = useCallback(
+    (factor: number, originX?: number, originY?: number) => {
+      setZoom((z) => {
+        const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z * factor));
+        if (next === z) return z;
+        const ox = originX ?? area.w / 2;
+        const oy = originY ?? area.h / 2;
+        setPan((p) => clampPan({ x: ox - ((ox - p.x) / z) * next, y: oy - ((oy - p.y) / z) * next }, next));
+        return next;
+      });
+    },
+    [area.w, area.h, clampPan]
+  );
+
+  const resetView = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    // Trackpad pinch arrives as a wheel event with ctrlKey set.
+    if (!e.ctrlKey && !e.metaKey && Math.abs(e.deltaY) < 2) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    e.preventDefault();
+    zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top);
+  };
+
+  // Dragging the board itself pans it; a note swallows the event first, so
+  // this only fires on empty space.
+  const onPanDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('[data-note]')) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    panRef.current = { px: e.clientX, py: e.clientY, x: pan.x, y: pan.y };
+    setPanning(true);
+  };
+  const onPanMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const o = panRef.current;
+    if (!o) return;
+    setPan(clampPan({ x: o.x + (e.clientX - o.px), y: o.y + (e.clientY - o.py) }, zoom));
+  };
+  const onPanUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    panRef.current = null;
+    setPanning(false);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+  };
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
@@ -688,6 +764,7 @@ export default function ProjectBoardPage() {
                   key={post.id}
                   post={post}
                   area={area}
+                  zoom={zoom}
                   commentCount={(commentsByPost.get(post.id) ?? []).length}
                   branchCount={childrenOf(posts, post.id).length}
                   voted={hasVoted(post, user.uid)}
@@ -711,6 +788,7 @@ export default function ProjectBoardPage() {
                 key={post.id}
                 post={post}
                 area={area}
+                zoom={1}
                 commentCount={(commentsByPost.get(post.id) ?? []).length}
                 branchCount={childrenOf(posts, post.id).length}
                 voted={hasVoted(post, user.uid)}

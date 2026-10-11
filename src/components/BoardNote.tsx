@@ -23,6 +23,7 @@ import {
 export function BoardNote({
   post,
   area,
+  zoom,
   commentCount,
   branchCount,
   voted,
@@ -36,6 +37,9 @@ export function BoardNote({
   post: BoardPost;
   /** The board's current size in pixels. Ignored when not draggable. */
   area: { w: number; h: number };
+  /** How far the board is scaled. A pointer moves in screen pixels, so a
+   *  drag has to be divided by this to land where the cursor is. */
+  zoom: number;
   commentCount: number;
   branchCount: number;
   voted: boolean;
@@ -106,10 +110,12 @@ export function BoardNote({
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const o = dragRef.current;
     if (!o) return;
-    const dx = e.clientX - o.px;
-    const dy = e.clientY - o.py;
+    // Screen pixels to board pixels: at 50% zoom the pointer travels twice
+    // as far as the note should.
+    const dx = (e.clientX - o.px) / zoom;
+    const dy = (e.clientY - o.py) / zoom;
     // Ignore the shake in a click: below this it's a tap to open, not a drag.
-    if (!o.moved && Math.hypot(dx, dy) < 4) return;
+    if (!o.moved && Math.hypot(dx * zoom, dy * zoom) < 4) return;
     if (!o.moved) {
       o.moved = true;
       setDragging(true);
@@ -149,7 +155,7 @@ export function BoardNote({
     const o = resizeRef.current;
     if (!o) return;
     e.stopPropagation();
-    setResize(clampSize(o.w + (e.clientX - o.px), o.h + (e.clientY - o.py), area));
+    setResize(clampSize(o.w + (e.clientX - o.px) / zoom, o.h + (e.clientY - o.py) / zoom, area));
   };
   const handleResizeUp = (e: React.PointerEvent<HTMLButtonElement>) => {
     const o = resizeRef.current;
@@ -183,6 +189,7 @@ export function BoardNote({
           onOpen();
         }
       }}
+      data-note=""
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
