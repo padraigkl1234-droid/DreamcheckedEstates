@@ -730,16 +730,33 @@ export default function ProjectBoardPage() {
       {isWide ? (
         // The board proper: one screenful, no scrolling. Notes sit wherever
         // they were dropped and the arrangement is shared.
-        <div className="min-h-0 flex-1 p-4">
+        <div className="relative min-h-0 flex-1 p-4">
+          {/* The frame stays put; the board inside it is scaled and offset,
+              so zooming and panning just change which part you can see. */}
           <div
             ref={canvasRef}
-            className="relative h-full w-full overflow-hidden rounded-lg border border-neutral-400/15 bg-invictus-surface/30"
-            style={{
-              backgroundImage:
-                'radial-gradient(circle, rgb(var(--invictus-crimson-bright) / 0.07) 1px, transparent 1px)',
-              backgroundSize: '28px 28px',
-            }}
+            onWheel={onWheel}
+            onPointerDown={onPanDown}
+            onPointerMove={onPanMove}
+            onPointerUp={onPanUp}
+            onPointerCancel={onPanUp}
+            style={{ touchAction: 'none' }}
+            className={`relative h-full w-full overflow-hidden rounded-lg border border-neutral-400/15 bg-invictus-surface/30 ${
+              panning ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
           >
+            <div
+              className="absolute left-0 top-0 origin-top-left"
+              style={{
+                width: area.w || '100%',
+                height: area.h || '100%',
+                transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+                // The dot grid scales with the board so it reads as one surface.
+                backgroundImage:
+                  'radial-gradient(circle, rgb(var(--invictus-crimson-bright) / 0.07) 1px, transparent 1px)',
+                backgroundSize: '28px 28px',
+              }}
+            >
             {/* Branch lines, behind the notes. Drawn from the filtered set so
                 a colour filter never leaves a line hanging off to nowhere. */}
             {area.w > 0 && (
@@ -776,6 +793,34 @@ export default function ProjectBoardPage() {
                   onResized={(w, h) => resizePost(post, w, h)}
                 />
               ))}
+            </div>
+
+            {/* Zoom controls, pinned to the frame rather than the board. */}
+            <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-line bg-white p-1">
+              <button
+                onClick={() => zoomAt(1 / 1.2)}
+                disabled={zoom <= MIN_ZOOM + 0.001}
+                title="Zoom out"
+                className="rounded-md px-2.5 py-1.5 text-ink-muted transition-colors hover:bg-line-row hover:text-ink disabled:opacity-30"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <button
+                onClick={resetView}
+                title="Fit the board"
+                className="min-w-[3.5rem] rounded-md px-2 py-1.5 text-[11px] font-bold tabular-nums text-ink-muted transition-colors hover:bg-line-row hover:text-ink"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                onClick={() => zoomAt(1.2)}
+                disabled={zoom >= MAX_ZOOM - 0.001}
+                title="Zoom in"
+                className="rounded-md px-2.5 py-1.5 text-ink-muted transition-colors hover:bg-line-row hover:text-ink disabled:opacity-30"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       ) : (
