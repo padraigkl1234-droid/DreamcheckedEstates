@@ -229,6 +229,14 @@ function AssignmentsPageInner() {
     setActionError(null);
     try {
       await deleteDoc(doc(db, 'assignments', a.id));
+      // An accepted assignment copied its dates into the assignee's own
+      // calendar, which only they can write to — so say so rather than
+      // leaving them to find a job nobody is tracking any more.
+      if (a.status === 'accepted') {
+        setActionError(
+          `Removed. ${a.assigneeName} already has this on their calendar — they'll need to take it off themselves.`
+        );
+      }
     } catch (err) {
       console.error('Failed to retract assignment:', err);
       setActionError("Couldn't retract that — try again.");
@@ -424,29 +432,35 @@ function AssignmentsPageInner() {
                   </p>
                 </div>
                 <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest ${meta.accent}`}>{meta.label}</span>
-                {a.status === 'pending' &&
-                  (confirming ? (
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <button
-                        onClick={() => retract(a)}
-                        disabled={busy}
-                        className="rounded-md border border-alert/50 bg-alert/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-alert disabled:opacity-50"
-                      >
-                        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm'}
-                      </button>
-                      <button onClick={() => setConfirmRetractId(null)} className="text-[10px] text-neutral-500 hover:text-neutral-300">
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+                {/* Anything you sent can be taken back, whatever its state —
+                    a pending offer is retracted, an accepted or declined one
+                    is deleted. */}
+                {confirming ? (
+                  <div className="flex shrink-0 items-center gap-1.5">
                     <button
-                      onClick={() => setConfirmRetractId(a.id)}
-                      title="Retract this assignment"
-                      className="shrink-0 rounded-md border border-neutral-400/30 bg-invictus-base/60 p-1.5 text-neutral-400 transition-colors hover:border-alert/40 hover:text-alert"
+                      onClick={() => retract(a)}
+                      disabled={busy}
+                      className="rounded-lg bg-danger px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-widest text-white disabled:opacity-50"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm'}
                     </button>
-                  ))}
+                    <button onClick={() => setConfirmRetractId(null)} className="text-[11px] font-bold text-ink-dim hover:text-ink">
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmRetractId(a.id)}
+                    title={
+                      a.status === 'pending'
+                        ? 'Retract this assignment'
+                        : 'Delete this assignment — any dates already on their calendar stay there'
+                    }
+                    className="shrink-0 rounded-lg bg-danger-tint p-2 text-danger transition-colors duration-[120ms] hover:bg-danger hover:text-white"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             );
           })}

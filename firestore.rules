@@ -283,7 +283,11 @@ service cloud.firestore {
           request.resource.data.status in ['accepted', 'declined'] &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt']))
       );
-      allow delete: if request.auth != null && (isMasterAdmin() || (isAssigner() && resource.data.status == 'pending'));
+      // Whoever sent it can take it back at any point: plans change after an
+      // assignment is accepted as readily as before. The dates it already
+      // wrote into the assignee's own calendar stay — nobody but they can
+      // write to that — and the UI says so.
+      allow delete: if request.auth != null && (isMasterAdmin() || isAssigner());
     }
 
     // Scheduled automations (e.g. the weekly email report). Master-only —
