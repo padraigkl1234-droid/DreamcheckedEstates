@@ -1,4 +1,5 @@
 import type {Metadata, Viewport} from 'next';
+import { Suspense } from 'react';
 import { Manrope, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -89,7 +90,13 @@ export default function RootLayout({
             <SoundProvider>
               <PushListener />
               <AppGate>
-                <AppHeader />
+                {/* AppHeader reads the query string to know which tracker
+                    tab is active, so it needs its own Suspense boundary —
+                    without one it drags every page out of static rendering
+                    and the production build fails at the prerender step. */}
+                <Suspense fallback={<div className="h-16 bg-header-bg" />}>
+                  <AppHeader />
+                </Suspense>
                 <div className="pt-[var(--chrome-h)]">
                   {children}
                 </div>

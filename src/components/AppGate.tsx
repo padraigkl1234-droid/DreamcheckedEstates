@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { LogIn, LogOut, Users, Loader2, ArrowRight } from 'lucide-react';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import { useAuth } from '@/components/AuthProvider';
@@ -159,7 +159,6 @@ export function AppGate({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const { profile, team, loading: profileLoading, teamLoading, isMaster } = useProfile();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
 
   // Hotel teams live entirely under /hotel; every other team never goes
@@ -176,7 +175,15 @@ export function AppGate({ children }: { children: React.ReactNode }) {
   // app still launches straight at the tracker (its old start_url is cached
   // in the manifest people already have), and every deliberate visit from
   // the menu carries ?page=, so a bare tracker URL means "just opened".
-  const atRoot = pathname === '/' || (pathname === '/jarvis-tracker' && !searchParams.get('page'));
+  // Read straight off the URL rather than with useSearchParams: that hook
+  // makes every page behind this gate bail out of static rendering unless
+  // it's wrapped in Suspense, which is what broke the production build. This
+  // is only ever consulted when `ready` is true, and `ready` requires a
+  // signed-in user, so it cannot run while prerendering.
+  const atRoot =
+    pathname === '/' ||
+    (pathname === '/jarvis-tracker' &&
+      (typeof window === 'undefined' || !new URLSearchParams(window.location.search).has('page')));
   const redirectTo = !ready
     ? null
     : isMaster
