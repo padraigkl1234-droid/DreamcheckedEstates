@@ -15,13 +15,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { BedDouble, ChevronDown, LogOut, Moon, Settings as SettingsIcon, Sun, Volume2, VolumeX, X } from 'lucide-react';
+import { BedDouble, ChevronDown, LogOut, Settings as SettingsIcon, Volume2, VolumeX, X } from 'lucide-react';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import { InstallPwaButton } from '@/components/InstallPwaButton';
 import { TeamSwitcher } from '@/components/TeamSwitcher';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
-import { useTheme } from '@/components/ThemeProvider';
 import { useSound } from '@/components/SoundProvider';
 import { useT } from '@/components/LanguageProvider';
 import {
@@ -59,7 +58,6 @@ const linkActive = 'bg-brand px-3.5 text-white';
 export function AppHeader() {
   const { user, logout } = useAuth();
   const { profile, team, isMaster } = useProfile();
-  const { resolved, setTheme } = useTheme();
   const { muted, toggleMute } = useSound();
   const t = useT();
   const pathname = usePathname() ?? '';
@@ -298,17 +296,6 @@ export function AppHeader() {
                     </DropdownMenuItem>
                   )}
                   <TeamSwitcher />
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setTheme(resolved === 'dark' ? 'light' : 'dark');
-                    }}
-                    className="cursor-pointer gap-2"
-                  >
-                    {resolved === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                    {resolved === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => logout()} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
                     <LogOut className="h-4 w-4" /> {t('nav.signOut')}

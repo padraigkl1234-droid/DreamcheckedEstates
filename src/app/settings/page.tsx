@@ -2,14 +2,13 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Settings as SettingsIcon, User as UserFallback, Loader2, Check, LogOut, Moon, Sun, Monitor, Volume2, VolumeX, Vibrate, Bell, BellRing, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
+import { Settings as SettingsIcon, User as UserFallback, Loader2, Check, LogOut, Volume2, VolumeX, Vibrate, Bell, BellRing, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { downscaleImage, IMAGE_CACHE_CONTROL } from '@/lib/imageResize';
 import { useAuth } from '@/components/AuthProvider';
 import { useProfile } from '@/components/ProfileProvider';
-import { useTheme, type ThemePref } from '@/components/ThemeProvider';
 import { useSound } from '@/components/SoundProvider';
 import { usePreferences } from '@/components/PreferencesProvider';
 import { useLang } from '@/components/LanguageProvider';
@@ -20,12 +19,6 @@ import { enablePush, disablePush, notificationPermission, needsIosHomeScreen } f
 
 const inputClass =
   'w-full rounded-md border border-neutral-400/30 bg-invictus-base/60 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-invictus-crimson-bright focus:outline-none focus:ring-1 focus:ring-invictus-crimson-bright/50';
-
-const THEME_OPTIONS: { value: ThemePref; label: string; icon: typeof Moon }[] = [
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'system', label: 'System', icon: Monitor },
-];
 
 function ToggleRow({
   label,
@@ -64,7 +57,6 @@ function ToggleRow({
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { profile, team } = useProfile();
-  const { theme, setTheme } = useTheme();
   const { muted, toggleMute } = useSound();
   const { prefs, setPref, haptic, online } = usePreferences();
   const { lang, setLang, t } = useLang();
@@ -334,30 +326,6 @@ export default function SettingsPage() {
               options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))}
             />
             <p className="pt-1 text-[10px] text-neutral-600">{t('settings.languageHint')}</p>
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] uppercase tracking-widest text-neutral-500">{t('settings.theme')}</label>
-            <div className="grid grid-cols-3 gap-2">
-              {THEME_OPTIONS.map((opt) => {
-                const Icon = opt.icon;
-                const active = theme === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => setTheme(opt.value)}
-                    className={`flex flex-col items-center gap-1.5 rounded-md border py-3 text-[10px] font-semibold uppercase tracking-widest transition-all ${
-                      active
-                        ? 'border-invictus-crimson-bright/60 bg-invictus-crimson-bright/10 text-neutral-100 shadow-glow-subtle'
-                        : 'border-neutral-400/30 bg-invictus-base/60 text-neutral-500 hover:border-invictus-crimson-bright/40 hover:text-neutral-300'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {t(`settings.${opt.value}`)}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="pt-1 text-[10px] text-neutral-600">{t('settings.themeHint')}</p>
           </div>
         </div>
 

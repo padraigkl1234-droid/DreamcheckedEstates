@@ -34,7 +34,6 @@ export const viewport: Viewport = {
 
 import { AuthProvider } from "@/components/AuthProvider";
 import { ProfileProvider } from "@/components/ProfileProvider";
-import { ThemeProvider } from "@/components/ThemeProvider";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import { PreferencesProvider } from "@/components/PreferencesProvider";
 import { AppGate } from "@/components/AppGate";
@@ -65,15 +64,17 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // One theme. data-theme is set here rather than by a script before paint,
+  // because there's no longer a saved preference to read and so nothing to
+  // flash. The attribute stays because the stylesheet's overrides hang off it.
   return (
-    <html lang="en" className={`${manrope.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      data-theme="light"
+      className={`${manrope.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
-        {/* Apply the saved theme before paint to avoid a flash of the wrong theme. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('invictus-theme')||'light';var d=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;var e=document.documentElement;e.classList.toggle('dark',d==='dark');e.setAttribute('data-theme',d);}catch(_){document.documentElement.setAttribute('data-theme','light');}})();`,
-          }}
-        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
@@ -81,7 +82,6 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <PointerCaptureFix />
         <RadixBodyLockFix />
-        <ThemeProvider>
         <LanguageProvider>
         <PreferencesProvider>
         <AuthProvider>
@@ -99,7 +99,6 @@ export default function RootLayout({
         </AuthProvider>
         </PreferencesProvider>
         </LanguageProvider>
-        </ThemeProvider>
         <Toaster />
       </body>
     </html>

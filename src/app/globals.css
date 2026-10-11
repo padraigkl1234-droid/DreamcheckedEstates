@@ -70,44 +70,9 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 40 13% 77%;
   }
-  .dark {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 5%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 5%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 40 13% 77%;
-    --primary-foreground: 40 12% 9%;
-    --secondary: 40 6% 16%;
-    --secondary-foreground: 40 10% 95%;
-    --muted: 40 6% 16%;
-    --muted-foreground: 40 5% 62%;
-    --accent: 40 7% 20%;
-    --accent-foreground: 40 10% 95%;
-    --destructive: 9 66% 58%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 40 8% 17%;
-    --input: 40 8% 17%;
-    --ring: 40 13% 77%;
-    --chart-1: 40 13% 77%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 40 13% 77%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 40 13% 77%;
-  }
 }
 
-:root,
-.dark {
+:root {
   /* Minimal re-skin: no text glow anywhere. Vars kept (referenced widely). */
   --glow-text-none: none;
   --glow-text-subtle: none;
