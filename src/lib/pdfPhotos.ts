@@ -10,26 +10,73 @@ export type PdfPhoto = { dataUrl: string; format: 'JPEG' | 'PNG'; w: number; h: 
 /** Just enough of jsPDF to measure an image, so this file needn't import it. */
 type ImageSizer = { getImageProperties: (dataUrl: string) => { width: number; height: number } };
 
+function readAsDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Turn downloaded bytes into something jsPDF will place.
+ *
+ * jsPDF only decodes JPEG and PNG, but what comes back is not always one of
+ * those: a HEIC straight off an iPhone survives upload untouched whenever the
+ * browser can't re-encode it, and Storage serves application/octet-stream for
+ * anything uploaded without a content type. Those were being dropped on the
+ * floor. Anything the browser itself can decode is now re-encoded to JPEG
+ * through a canvas instead.
+ */
+async function toPlaceableImage(blob: Blob): Promise<{ dataUrl: string; format: 'JPEG' | 'PNG' } | null> {
+  if (blob.type === 'image/jpeg' || blob.type === 'image/png') {
+    return { dataUrl: await readAsDataUrl(blob), format: blob.type === 'image/png' ? 'PNG' : 'JPEG' };
+  }
+  if (typeof document === 'undefined' || typeof createImageBitmap !== 'function') return null;
+  let bitmap: ImageBitmap | null = null;
+  try {
+    bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0);
+    return { dataUrl: canvas.toDataURL('image/jpeg', 0.85), format: 'JPEG' };
+  } catch {
+    return null;
+  } finally {
+    bitmap?.close();
+  }
+}
+
 /** Fetch one image as a data URL. Returns null on anything jsPDF can't place. */
 export async function fetchPhotoForPdf(
   url: string
 ): Promise<{ dataUrl: string; format: 'JPEG' | 'PNG' } | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const format = blob.type === 'image/png' ? 'PNG' : blob.type === 'image/jpeg' ? 'JPEG' : null;
-    if (!format) return null;
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-    return { dataUrl, format };
-  } catch {
-    return null;
+  // These photos are shown as <img> on the page before anyone asks for a PDF,
+  // and they're stored immutable for a year. A no-cors <img> response sitting
+  // in the HTTP cache can't satisfy a cors-mode fetch of the same URL, so the
+  // first attempt can fail on exactly the photos you were just looking at.
+  // The retry goes past the cache to the network.
+  for (const init of [undefined, { cache: 'reload' as RequestCache }]) {
+    try {
+      const res = await fetch(url, init);
+      if (!res.ok) {
+        console.warn(`[pdf] photo fetch returned ${res.status}`, url);
+        continue;
+      }
+      const blob = await res.blob();
+      const placeable = await toPlaceableImage(blob);
+      if (placeable) return placeable;
+      console.warn(`[pdf] photo could not be decoded (type "${blob.type}")`, url);
+      return null; // it downloaded fine; retrying won't change the format
+    } catch (err) {
+      console.warn('[pdf] photo fetch failed', url, err);
+    }
   }
+  return null;
 }
 
 /**
