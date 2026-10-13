@@ -353,10 +353,13 @@ export default function InspectionsPage() {
                     const questions = templateQuestions(t);
                     return (
                       <section key={t.id}>
-                        <div className="flex flex-wrap items-center gap-2 px-[22px] py-[18px]">
+                        {/* Below sm the actions can't fit beside the title without
+                            crushing it to nothing, so the row becomes two stacked
+                            rows: name on top, buttons underneath. */}
+                        <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:px-[22px] sm:py-[18px]">
                           <button
                             onClick={() => setExpanded(isOpen ? null : t.id)}
-                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                            className="flex w-full min-w-0 items-center gap-3 text-left sm:w-auto sm:flex-1"
                             aria-expanded={isOpen}
                           >
                             {/* The question-count tile from the design. */}
@@ -381,17 +384,17 @@ export default function InspectionsPage() {
                             </div>
                           </button>
                           {user && (
-                            <>
+                            <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
                               <Link
                                 href={`/assignments?item=${t.id}`}
-                                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-white px-3.5 py-2 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink"
+                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-white px-3.5 py-2 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink sm:flex-none sm:justify-start"
                                 title="Assign this inspection to someone"
                               >
                                 <Users className="h-3.5 w-3.5" /> Assign
                               </Link>
                               <button
                                 onClick={() => setRunning(t)}
-                                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-[13px] font-extrabold text-white transition-colors duration-[120ms] hover:bg-brand-hover"
+                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-[13px] font-extrabold text-white transition-colors duration-[120ms] hover:bg-brand-hover sm:flex-none sm:justify-start"
                               >
                                 <Play className="h-3 w-3 fill-current" /> Run
                               </button>
@@ -400,22 +403,28 @@ export default function InspectionsPage() {
                                 <button
                                   onClick={() => openBuilder(t)}
                                   title={`Edit ${t.name}`}
+                                  aria-label={`Edit ${t.name}`}
                                   className="flex items-center gap-1.5 px-3 py-2 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink"
                                 >
-                                  <Pencil className="h-3 w-3" /> Edit
+                                  <Pencil className="h-3 w-3" />
+                                  {/* The words are the first thing to go when
+                                      space is tight — the icons still read. */}
+                                  <span className="hidden sm:inline">Edit</span>
                                 </button>
                                 <button
                                   onClick={() => removeTemplate(t)}
                                   onMouseLeave={() => setConfirmDeleteId((cur) => (cur === t.id ? null : cur))}
                                   title={confirmDeleteId === t.id ? 'Click again to delete' : `Delete ${t.name}`}
+                                  aria-label={`Delete ${t.name}`}
                                   className={`flex items-center gap-1.5 px-3 py-2 text-[13px] font-bold transition-colors duration-[120ms] ${
                                     confirmDeleteId === t.id ? 'bg-danger text-white' : 'text-danger hover:bg-danger-tint'
                                   }`}
                                 >
-                                  <Trash2 className="h-3 w-3" /> Delete
+                                  <Trash2 className="h-3 w-3" />
+                                  <span className="hidden sm:inline">Delete</span>
                                 </button>
                               </div>
-                            </>
+                            </div>
                           )}
                         </div>
                         {isOpen && (
