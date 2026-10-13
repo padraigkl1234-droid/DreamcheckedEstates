@@ -58,6 +58,7 @@ import { useT } from '@/components/LanguageProvider';
 import { usePreferences } from '@/components/PreferencesProvider';
 import { MASTER_ADMIN_EMAIL } from '@/lib/admin';
 import { drawDreamlandWordmark, drawInvictusCorner, drawInvictusFooter } from '@/lib/brandMark';
+import { loadPhotosForPdf } from '@/lib/pdfPhotos';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { ReportsView, type ReportDraft } from '@/components/ReportsView';
 import { Pinwheel } from '@/components/icons/Pinwheel';
@@ -5113,29 +5114,6 @@ function dueDateVerdict(task: Task): string | null {
     : `${n} day${n === 1 ? '' : 's'} late`;
 }
 
-// Pull a task photo back down as a data URL so it can be embedded. Returns
-// null on anything jsPDF can't place — a failed fetch (the bucket's CORS
-// rules, an offline phone) or a format it doesn't decode. A missing photo
-// must never cost you the whole report.
-async function fetchPhotoForPdf(url: string): Promise<{ dataUrl: string; format: 'JPEG' | 'PNG' } | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const format = blob.type === 'image/png' ? 'PNG' : blob.type === 'image/jpeg' ? 'JPEG' : null;
-    if (!format) return null;
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-    return { dataUrl, format };
-  } catch {
-    return null;
-  }
-}
-
 // The full record of one archived task as a PDF: what it was, where, who had
 // it, every timing, the whole update log, the materials and their cost, and
 // the photos. The archive list itself only shows a name and a date, so this
@@ -5158,21 +5136,10 @@ async function exportArchivedTaskToPdf(task: Task) {
 
   // Fetch the photos up front, before a single mark is on the page: whatever
   // comes back gets embedded and whatever doesn't is counted and noted.
-  const photos: { dataUrl: string; format: 'JPEG' | 'PNG'; w: number; h: number }[] = [];
-  let photosMissing = 0;
-  for (const img of task.images ?? []) {
-    const got = await fetchPhotoForPdf(img.url);
-    if (!got) {
-      photosMissing++;
-      continue;
-    }
-    try {
-      const props = doc.getImageProperties(got.dataUrl);
-      photos.push({ ...got, w: props.width, h: props.height });
-    } catch {
-      photosMissing++;
-    }
-  }
+  const { photos, missing: photosMissing } = await loadPhotosForPdf(
+    doc,
+    (task.images ?? []).map((img) => img.url)
+  );
 
   const stamp = (at: number | undefined) => (at ? formatUpdateStamp(at) : '—');
 

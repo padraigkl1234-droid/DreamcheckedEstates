@@ -36,6 +36,7 @@ import {
   ArrowUpWideNarrow,
 } from 'lucide-react';
 import { INSPECTION_OUTCOME_STYLES, answerText, groupBySection, recordAnswers, type InspectionAnswer } from '@/lib/inspections';
+import { drawPhotoGrid, loadPhotosForPdf } from '@/lib/pdfPhotos';
 import { drawDreamlandWordmark, drawInvictusCorner, drawInvictusFooter } from '@/lib/brandMark';
 import { db, storage } from '@/lib/firebase';
 import { downscaleImage, IMAGE_CACHE_CONTROL } from '@/lib/imageResize';
@@ -345,6 +346,10 @@ export function ReportsView({
     // — that list is the whole point of the document. Questions grouped into
     // an area (e.g. "HBTS", "Ballroom") get a shaded header row of their own.
     const answers = r.inspection ? recordAnswers(r.inspection) : [];
+    // Photos are collected while the table is built so each one keeps the
+    // number of the question it was taken for — "3 photos" in a cell is no
+    // use to a reader without the photos themselves further down.
+    const photoGroups: { caption: string; urls: string[] }[] = [];
     if (answers.length) {
       const autoTable = (await import('jspdf-autotable')).default;
       y += 14;
@@ -366,6 +371,12 @@ export function ReportsView({
           counter += 1;
           body.push([String(counter), a.label, answerText(a), a.note ?? '']);
           rowAnswers.push(a);
+          if (a.photos?.length) {
+            photoGroups.push({
+              caption: `${counter}. ${sec.name ? `[${sec.name}] ` : ''}${a.label}`,
+              urls: a.photos.map((p) => p.url),
+            });
+          }
         }
       }
 
@@ -385,18 +396,110 @@ export function ReportsView({
           }
         },
         margin: { left: 40, right: 40, bottom: 56 },
-        didDrawPage: () => drawInvictusFooter(pdf, 40, pageW - 40, pageH - 30),
       });
       y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
     }
 
-    if (r.attachments?.length) {
-      y += 24;
-      pdf.setFontSize(10);
-      pdf.setTextColor(90, 90, 90);
-      pdf.text(`${r.attachments.length} attachment(s) — view in app.`, 40, y);
+    // ---- Photos ----
+    // The table can only say "2 photos"; on a walk-round the photos are the
+    // evidence the report exists for, so they belong in the document.
+    const left = 40;
+    const contentW = pageW - 80;
+    const bottomLimit = pageH - 60;
+
+    /** Where something `needed` tall may go, breaking the page if it won't fit. */
+    const roomFor = (needed: number, at: number) => {
+      if (at + needed <= bottomLimit) return at;
+      pdf.addPage();
+      return 56;
+    };
+
+    const heading = (text: string) => {
+      y = roomFor(40, y);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor(30, 30, 30);
+      pdf.text(text, left, y);
+      pdf.setFont('helvetica', 'normal');
+      y += 18;
+    };
+
+    const caption = (text: string, firstRowH: number) => {
+      pdf.setFontSize(9);
+      pdf.setTextColor(60, 60, 60);
+      const ls = pdf.splitTextToSize(text, contentW);
+      // Keep the caption with at least the start of its photos rather than
+      // stranding it at the foot of a page.
+      y = roomFor(ls.length * 12 + Math.min(firstRowH, 120), y);
+      pdf.text(ls, left, y);
+      y += ls.length * 12 + 6;
+    };
+
+    let missingPhotos = 0;
+
+    if (photoGroups.length) {
+      const total = photoGroups.reduce((n, g) => n + g.urls.length, 0);
+      y += 26;
+      heading(`Checklist photos (${total})`);
+      for (const g of photoGroups) {
+        const { photos, missing } = await loadPhotosForPdf(pdf, g.urls);
+        missingPhotos += missing;
+        if (!photos.length) continue;
+        caption(g.caption, 170);
+        y = drawPhotoGrid(pdf, photos, {
+          left,
+          contentW,
+          startY: y,
+          perRow: 2,
+          maxH: 170,
+          gap: 12,
+          ensureRoom: roomFor,
+        });
+        y += 6;
+      }
     }
-    drawInvictusFooter(pdf, 40, pageW - 40, pageH - 30);
+
+    if (r.attachments?.length) {
+      const { photos, missing } = await loadPhotosForPdf(
+        pdf,
+        r.attachments.map((a) => a.url)
+      );
+      missingPhotos += missing;
+      y += 20;
+      heading(`Attachments (${r.attachments.length})`);
+      if (photos.length) {
+        y = drawPhotoGrid(pdf, photos, {
+          left,
+          contentW,
+          startY: y,
+          perRow: 2,
+          maxH: 200,
+          gap: 12,
+          ensureRoom: roomFor,
+        });
+      }
+    }
+
+    if (missingPhotos) {
+      pdf.setFontSize(9);
+      pdf.setTextColor(120, 120, 120);
+      const ls = pdf.splitTextToSize(
+        `${missingPhotos} photo${missingPhotos === 1 ? '' : 's'} could not be downloaded for this export and ${
+          missingPhotos === 1 ? 'is' : 'are'
+        } missing here. ${missingPhotos === 1 ? 'It is' : 'They are'} still attached to the report in the app.`,
+        contentW
+      );
+      y = roomFor(ls.length * 12 + 10, y + 10);
+      pdf.text(ls, left, y);
+    }
+
+    // One footer per page, drawn at the end — by now every page exists,
+    // including the ones the photos pushed onto.
+    const pages = pdf.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+      pdf.setPage(p);
+      drawInvictusFooter(pdf, left, pageW - 40, pageH - 30);
+    }
     pdf.save(`invictus-report-${r.date}-${r.title.replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}.pdf`);
   };
 
