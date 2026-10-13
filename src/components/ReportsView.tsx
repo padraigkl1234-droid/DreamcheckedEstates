@@ -621,7 +621,10 @@ export function ReportsView({
       {/* Detail modal */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => setSelected(null)}>
-          <div className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto border border-invictus-crimson-bright/40 bg-invictus-base/95 p-6 shadow-glow-strong" onClick={(e) => e.stopPropagation()}>
+          {/* max-w-lg left an inspection record — question, answer, note and a
+              row of photos — about 470px to work with, which is what made it
+              read as a narrow column. */}
+          <div className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-invictus-crimson-bright/40 bg-invictus-base/95 p-6 max-md:p-4" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setSelected(null)} className="absolute right-3 top-3 text-neutral-500 transition-colors hover:text-neutral-200" title="Close">
               <X className="h-4 w-4" />
             </button>
@@ -660,23 +663,46 @@ export function ReportsView({
                           {sec.name}
                         </p>
                       )}
-                      <ul className="space-y-1.5">
-                        {sec.items.map((a, i) => (
-                          <li key={i} className="flex items-start gap-2 text-[13px]">
-                            <span
-                              className={`mt-0.5 shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest ${
-                                a.outcome
-                                  ? INSPECTION_OUTCOME_STYLES[a.outcome]
-                                  : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-400'
-                              }`}
-                            >
-                              {answerText(a)}
-                            </span>
-                            <span className="min-w-0">
-                              <span className={a.outcome === 'fail' ? 'text-alert' : 'text-neutral-300'}>{a.label}</span>
-                              {a.note && <span className="block text-[11px] text-neutral-500">{a.note}</span>}
+                      <ul className="space-y-2.5">
+                        {sec.items.map((a, i) => {
+                          const text = answerText(a);
+                          // A verdict is a couple of words and belongs in the
+                          // little badge. A typed answer is a sentence — in a
+                          // badge it refuses to shrink, eats the whole row and
+                          // leaves the question itself a one-word-per-line
+                          // column. Those read as prose instead.
+                          const asBadge = a.type === 'passFail' || a.type === 'photo' || text.length <= 24;
+                          return (
+                            <li key={i} className="text-[13px]">
+                              <p
+                                className={`break-words font-semibold ${
+                                  a.outcome === 'fail' ? 'text-alert' : 'text-neutral-300'
+                                }`}
+                              >
+                                {a.label}
+                              </p>
+                              {asBadge ? (
+                                <span
+                                  className={`mt-1 inline-block rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest ${
+                                    a.outcome
+                                      ? INSPECTION_OUTCOME_STYLES[a.outcome]
+                                      : 'border-neutral-400/25 bg-invictus-base/60 text-neutral-400'
+                                  }`}
+                                >
+                                  {text}
+                                </span>
+                              ) : (
+                                <p
+                                  className={`mt-1 whitespace-pre-wrap break-words ${
+                                    a.outcome === 'fail' ? 'text-alert' : 'text-neutral-400'
+                                  }`}
+                                >
+                                  {text}
+                                </p>
+                              )}
+                              {a.note && <p className="mt-0.5 break-words text-[11px] text-neutral-500">{a.note}</p>}
                               {!!a.photos?.length && (
-                                <span className="mt-1 flex flex-wrap gap-1">
+                                <span className="mt-1.5 flex flex-wrap gap-1">
                                   {a.photos.map((p) => (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <a key={p.path} href={p.url} target="_blank" rel="noreferrer">
@@ -685,9 +711,9 @@ export function ReportsView({
                                   ))}
                                 </span>
                               )}
-                            </span>
-                          </li>
-                        ))}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   ))}
