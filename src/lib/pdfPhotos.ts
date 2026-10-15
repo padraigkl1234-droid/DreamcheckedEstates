@@ -55,25 +55,36 @@ async function toPlaceableImage(blob: Blob): Promise<{ dataUrl: string; format: 
 export async function fetchPhotoForPdf(
   url: string
 ): Promise<{ dataUrl: string; format: 'JPEG' | 'PNG' } | null> {
-  // These photos are shown as <img> on the page before anyone asks for a PDF,
-  // and they're stored immutable for a year. A no-cors <img> response sitting
-  // in the HTTP cache can't satisfy a cors-mode fetch of the same URL, so the
-  // first attempt can fail on exactly the photos you were just looking at.
-  // The retry goes past the cache to the network.
-  for (const init of [undefined, { cache: 'reload' as RequestCache }]) {
+  // Three ways to get at the bytes, cheapest first.
+  //
+  // "direct" is a plain cross-origin fetch, which is subject to CORS even
+  // though the same photo displays fine in an <img>. "reload" repeats it past
+  // the HTTP cache, because these photos are shown on the page first and
+  // stored immutable for a year, and a cached no-cors response cannot satisfy
+  // a cors-mode fetch of the same URL. "proxy" reads it through our own
+  // origin, where CORS doesn't apply at all — slower, and the one that works
+  // whatever the bucket says.
+  const attempts: [string, () => Promise<Response>][] = [
+    ['direct', () => fetch(url)],
+    ['reload', () => fetch(url, { cache: 'reload' })],
+    ['proxy', () => fetch(`/api/report-photo?url=${encodeURIComponent(url)}`)],
+  ];
+
+  for (const [how, go] of attempts) {
     try {
-      const res = await fetch(url, init);
+      const res = await go();
       if (!res.ok) {
-        console.warn(`[pdf] photo fetch returned ${res.status}`, url);
+        console.warn(`[pdf] photo ${how} returned ${res.status}`, url);
         continue;
       }
       const blob = await res.blob();
       const placeable = await toPlaceableImage(blob);
       if (placeable) return placeable;
+      // It downloaded; another route would fetch the same undecodable bytes.
       console.warn(`[pdf] photo could not be decoded (type "${blob.type}")`, url);
-      return null; // it downloaded fine; retrying won't change the format
+      return null;
     } catch (err) {
-      console.warn('[pdf] photo fetch failed', url, err);
+      console.warn(`[pdf] photo ${how} failed`, url, err);
     }
   }
   return null;
@@ -101,7 +112,11 @@ export async function loadPhotosForPdf(
     try {
       const props = sizer.getImageProperties(g.dataUrl);
       photos.push({ ...g, w: props.width, h: props.height });
-    } catch {
+    } catch (err) {
+      // Logged, not swallowed: a photo that downloads and then can't be
+      // measured looks identical in the finished PDF to one that never
+      // arrived, and the two have nothing to do with each other.
+      console.warn('[pdf] photo downloaded but could not be measured', err);
       missing++;
     }
   }
