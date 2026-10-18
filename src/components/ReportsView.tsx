@@ -350,6 +350,12 @@ export function ReportsView({
     // number of the question it was taken for — "3 photos" in a cell is no
     // use to a reader without the photos themselves further down.
     const photoGroups: { caption: string; urls: string[] }[] = [];
+    // Filing an inspection copies every answer photo into the report's own
+    // attachments as well, so printing both sections showed the same photos
+    // twice. Whatever has already appeared under its question is remembered
+    // here and skipped below — by identity rather than by dropping the
+    // section outright, so a plain report's own uploads still print.
+    const alreadyShown = new Set<string>();
     if (answers.length) {
       const autoTable = (await import('jspdf-autotable')).default;
       y += 14;
@@ -376,6 +382,11 @@ export function ReportsView({
               caption: `${counter}. ${sec.name ? `[${sec.name}] ` : ''}${a.label}`,
               urls: a.photos.map((p) => p.url),
             });
+            // Both, because older photos may carry one and not the other.
+            for (const p of a.photos) {
+              if (p.path) alreadyShown.add(p.path);
+              if (p.url) alreadyShown.add(p.url);
+            }
           }
         }
       }
@@ -459,14 +470,18 @@ export function ReportsView({
       }
     }
 
-    if (r.attachments?.length) {
+    // Only the attachments that aren't already up there under a question.
+    const extraAttachments = (r.attachments ?? []).filter(
+      (a) => !alreadyShown.has(a.path) && !alreadyShown.has(a.url)
+    );
+    if (extraAttachments.length) {
       const { photos, missing } = await loadPhotosForPdf(
         pdf,
-        r.attachments.map((a) => a.url)
+        extraAttachments.map((a) => a.url)
       );
       missingPhotos += missing;
       y += 20;
-      heading(`Attachments (${r.attachments.length})`);
+      heading(`Attachments (${extraAttachments.length})`);
       if (photos.length) {
         y = drawPhotoGrid(pdf, photos, {
           left,
