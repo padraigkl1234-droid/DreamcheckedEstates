@@ -61,6 +61,7 @@ import { drawDreamlandWordmark, drawInvictusCorner, drawInvictusFooter } from '@
 import { loadPhotosForPdf } from '@/lib/pdfPhotos';
 import { InvictusSelect } from '@/components/InvictusSelect';
 import { ReportsView, type ReportDraft } from '@/components/ReportsView';
+import { PersonalTodoCard } from '@/components/PersonalTodoCard';
 import { Pinwheel } from '@/components/icons/Pinwheel';
 import { AppSidebar, AppMobileNav, NAV_ITEMS, type PageKey } from '@/components/AppSidebar';
 import {
@@ -1198,7 +1199,10 @@ function Dashboard({
   // this component later in the same session (switching tabs and back) won't replay it.
   useEffect(() => {
     if (!animateCardsIn) return;
-    const cardCount = 6;
+    // Reveal indices 0–6: greeting, KPI row, chart, compliance, recent tasks,
+    // meetings, to-do list. Short by one and the parent calls the reveal done
+    // while the last card is still animating in.
+    const cardCount = 7;
     const totalMs = (cardCount - 1) * CARD_REVEAL_STEP_MS + CARD_REVEAL_DURATION_MS;
     const timeout = setTimeout(() => onCardsRevealed?.(), totalMs);
     return () => clearTimeout(timeout);
@@ -1341,6 +1345,10 @@ function Dashboard({
                 </div>
               )}
             </Card>
+          </Reveal>
+
+          <Reveal index={6} animate={animateCardsIn}>
+            <PersonalTodoCard />
           </Reveal>
         </div>
 
