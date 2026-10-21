@@ -27,7 +27,11 @@ import {
 const CLOSED = {
   fill: 'rgb(255 59 78 / 0.34)',
   stroke: 'rgb(255 99 115 / 0.95)',
-  text: 'rgb(255 236 238)',
+  // Near-black maroon, not the near-white this used to be. White lettering
+  // worked when the map sat on a dark background; on today's white map it was
+  // pale text on a pale red wash, and the zone names under a closure box were
+  // the first thing to disappear. Dark reads through the red and the hatch.
+  text: 'rgb(74 6 18)',
   hatch: 'rgb(255 99 115 / 0.55)',
 };
 const OPEN = {
@@ -159,6 +163,20 @@ export function SiteStatusMap({
     ([, a], [, b]) => (a.tone === 'building' ? 1 : 0) - (b.tone === 'building' ? 1 : 0)
   );
 
+  // Worked out once, then drawn in two passes: the red goes UNDER the zone
+  // labels and the box's own caption goes over them. Painting the whole box
+  // last put a translucent red wash over every name it covered, which is
+  // exactly the set of names a closure box most needs you to be able to read.
+  const drawnBoxes = rects.map(({ id, rect, text }) => {
+    const pad = 6;
+    const fs = clamp(Math.min(rect.w / 9, rect.h / 3.2), 7, 18);
+    const maxLines = Math.max(1, Math.floor((rect.h - pad * 2) / (fs * 1.2)));
+    const lines = wrapLabel(text, rect.w - pad * 2, fs, maxLines);
+    const cx = rect.x + rect.w / 2;
+    const top = rect.y + rect.h / 2 - ((lines.length - 1) * fs * 1.2) / 2 + fs * 0.35;
+    return { id, rect, lines, cx, top, fs };
+  });
+
   return (
     <svg
       ref={svgRef}
@@ -235,7 +253,15 @@ export function SiteStatusMap({
       <line x1={19} y1={132} x2={834} y2={114} stroke="rgba(180,180,190,0.22)" strokeWidth={3} />
       <line x1={834} y1={127} x2={1155} y2={520} stroke="rgba(180,180,190,0.22)" strokeWidth={3} />
 
-      {/* Zone labels. A closed zone's label is drawn brighter and bolder, and
+      {/* The red of a dragged box, under the labels. */}
+      {drawnBoxes.map(({ id, rect }) => (
+        <g key={`drawn-fill-${id}`}>
+          <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={3} fill={CLOSED.fill} stroke={CLOSED.stroke} strokeWidth={2.4} />
+          <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={3} fill="url(#closed-hatch)" stroke="none" />
+        </g>
+      ))}
+
+      {/* Zone labels. A closed zone's label is drawn darker and bolder, and
           every open one is dimmed, so the eye goes straight to the closures. */}
       <g fontFamily="inherit" textAnchor="middle" style={{ textTransform: 'uppercase' }}>
         {SITE_ZONES.map((z, i) => {
@@ -268,38 +294,32 @@ export function SiteStatusMap({
         })}
       </g>
 
-      {/* Boxes dragged straight onto the map, drawn last so they sit over the
-          zones and their labels rather than under them. */}
-      {rects.map(({ id, rect, text }) => {
-        const pad = 6;
-        const fs = clamp(Math.min(rect.w / 9, rect.h / 3.2), 7, 18);
-        const maxLines = Math.max(1, Math.floor((rect.h - pad * 2) / (fs * 1.2)));
-        const lines = wrapLabel(text, rect.w - pad * 2, fs, maxLines);
-        const cx = rect.x + rect.w / 2;
-        const top = rect.y + rect.h / 2 - ((lines.length - 1) * fs * 1.2) / 2 + fs * 0.35;
-        return (
-          <g key={`drawn-${id}`}>
-            <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={3} fill={CLOSED.fill} stroke={CLOSED.stroke} strokeWidth={2.4} />
-            <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={3} fill="url(#closed-hatch)" stroke="none" />
-            <text
-              x={cx}
-              y={top}
-              fontFamily="inherit"
-              textAnchor="middle"
-              fontSize={fs}
-              fontWeight={800}
-              fill={CLOSED.text}
-              style={{ textTransform: 'uppercase' }}
-            >
-              {lines.map((line, li) => (
-                <tspan key={li} x={cx} dy={li === 0 ? 0 : fs * 1.2}>
-                  {line}
-                </tspan>
-              ))}
-            </text>
-          </g>
-        );
-      })}
+      {/* The caption a box was given, over the top of everything. */}
+      {drawnBoxes.map(({ id, lines, cx, top, fs }) => (
+        <text
+          key={`drawn-text-${id}`}
+          x={cx}
+          y={top}
+          fontFamily="inherit"
+          textAnchor="middle"
+          fontSize={fs}
+          fontWeight={800}
+          fill={CLOSED.text}
+          style={{ textTransform: 'uppercase' }}
+          // The caption lands on top of whatever zone names it covers, so it
+          // carries a light halo to keep the two readable apart.
+          stroke="rgb(255 243 244 / 0.85)"
+          strokeWidth={fs * 0.28}
+          paintOrder="stroke"
+          strokeLinejoin="round"
+        >
+          {lines.map((line, li) => (
+            <tspan key={li} x={cx} dy={li === 0 ? 0 : fs * 1.2}>
+              {line}
+            </tspan>
+          ))}
+        </text>
+      ))}
 
       {/* The box currently being dragged out. */}
       {draft && draft.w > 0 && draft.h > 0 && (
