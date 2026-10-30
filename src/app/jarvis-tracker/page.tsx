@@ -4148,12 +4148,21 @@ function TaskManager({
             <p className={`text-base font-extrabold leading-snug ${task.status === 'Completed' ? 'text-ink-dim line-through' : 'text-ink'}`}>
               {task.name}
             </p>
-            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[13px] font-semibold text-ink-dim">
+            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] font-semibold text-ink-dim">
               <span>Due {task.dueDate || '—'}</span>
-              {task.category && <span>· {task.category}</span>}
               {task.area && (
                 <span className="flex items-center gap-0.5">
                   · <MapPin className="h-3 w-3" /> {task.area}
+                </span>
+              )}
+              {/* The group chip lives here rather than in the action cluster.
+                  A category is free text — "CAPEX 27 CONFIRMED" is a very
+                  different width from "Winter Jobs" — so leaving it in the
+                  cluster made every fixed column downstream of it ragged.
+                  Here it can be any length without moving anything. */}
+              {task.category && (
+                <span className="flex items-center gap-1 rounded-md bg-line-fill px-2 py-0.5 text-xs font-bold text-ink-muted">
+                  <Tag className="h-3 w-3 shrink-0" /> {task.category}
                 </span>
               )}
             </p>
@@ -4199,18 +4208,26 @@ function TaskManager({
             )}
           </div>
           </div>
+          {/* Every column below is pinned to a fixed width from 2xl up — the
+              width it was measured to need at its longest wording ("Overdue
+              365d", "Materials (99)"). The cluster is right-aligned, so
+              without that each row's left edge landed somewhere different
+              and nothing read down the page as a column. The widths only
+              apply at 2xl, where the cluster sits beside the title; below
+              that it wraps onto its own line and fluid is what you want. */}
           <div className="flex flex-wrap items-center gap-2 pl-8 2xl:shrink-0 2xl:justify-end 2xl:pl-0">
-            {overdue && (
-              <span className="rounded-full bg-danger px-2.5 py-1 text-xs font-extrabold text-white">
+            {overdue ? (
+              <span className="rounded-full bg-danger px-2.5 py-1 text-center text-xs font-extrabold text-white 2xl:w-[108px]">
                 {formatDueIn(daysFromToday(task.dueDate, todayStr))}
               </span>
+            ) : (
+              // Holds the column open so an in-date row lines up with an
+              // overdue one instead of sliding right by a badge's width.
+              <span aria-hidden className="hidden 2xl:block 2xl:w-[108px]" />
             )}
-            {task.category && (
-              <span className="flex items-center gap-1 rounded-lg border border-line bg-white px-3 py-[7px] text-xs font-bold text-ink-muted">
-                <Tag className="h-3 w-3" /> {task.category}
-              </span>
-            )}
-            <span className={`rounded-lg border px-3 py-[7px] text-xs font-extrabold ${PRIORITY_STYLES[task.priority]}`}>
+            <span
+              className={`rounded-lg border px-3 py-[7px] text-center text-xs font-extrabold ${PRIORITY_STYLES[task.priority]} 2xl:w-[76px]`}
+            >
               {task.priority}
             </span>
             <InvictusSelect
@@ -4220,7 +4237,7 @@ function TaskManager({
                 onUpdateStatus(task.id, v as TaskStatus);
               }}
               compact
-              className="w-auto bg-invictus-raised"
+              className="w-auto bg-invictus-raised 2xl:w-[132px]"
               options={[
                 { value: 'Not Started', label: 'Not Started' },
                 { value: 'In Progress', label: 'In Progress' },
@@ -4233,7 +4250,7 @@ function TaskManager({
               <button
                 onClick={() => pickImages(task.id)}
                 disabled={uploadingImageFor === task.id}
-                className="flex items-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink disabled:opacity-50 2xl:w-[90px]"
                 title="Add photos"
               >
                 {uploadingImageFor === task.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
@@ -4241,7 +4258,7 @@ function TaskManager({
               </button>
               <button
                 onClick={() => openMaterials(task.id)}
-                className={`flex items-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold transition-colors duration-[120ms] ${
+                className={`flex items-center justify-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold transition-colors duration-[120ms] 2xl:w-[134px] ${
                   materialsOpenFor === task.id || (task.materials?.length ?? 0) > 0
                     ? 'bg-brand-tint text-brand'
                     : 'text-ink-muted hover:bg-line-row hover:text-ink'
@@ -4253,7 +4270,7 @@ function TaskManager({
               </button>
               <button
                 onClick={() => openTimeline(task.id)}
-                className={`flex items-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold transition-colors duration-[120ms] ${
+                className={`flex items-center justify-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold transition-colors duration-[120ms] 2xl:w-[128px] ${
                   timelineOpenFor === task.id || (task.updates?.length ?? 0) > 0
                     ? 'bg-brand-tint text-brand'
                     : 'text-ink-muted hover:bg-line-row hover:text-ink'
@@ -4265,7 +4282,7 @@ function TaskManager({
               </button>
               <button
                 onClick={() => startEdit(task)}
-                className="flex items-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink"
+                className="flex items-center justify-center gap-1.5 px-[11px] py-1.5 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink 2xl:w-[70px]"
                 title="Edit task"
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -4274,13 +4291,13 @@ function TaskManager({
             </div>
             <button
               onClick={() => onFileReport(task)}
-              className="flex items-center gap-1.5 rounded-lg bg-ink px-3 py-[7px] text-[13px] font-extrabold text-white transition-opacity duration-[120ms] hover:opacity-90"
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-ink px-3 py-[7px] text-[13px] font-extrabold text-white transition-opacity duration-[120ms] hover:opacity-90 2xl:w-[90px]"
               title="File a report for this task"
             >
               <FileText className="h-3.5 w-3.5" />
               Report
             </button>
-            {task.status === 'Completed' && (
+            {task.status === 'Completed' ? (
               <button
                 onClick={() => onArchive(task.id)}
                 className="rounded-lg border border-line bg-white p-2 text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink"
@@ -4288,6 +4305,12 @@ function TaskManager({
               >
                 <Archive className="h-3.5 w-3.5" />
               </button>
+            ) : (
+              // Archive only exists on a completed task, so the column is
+              // held open on the others. 32px, not 34: the real button is
+              // p-2 around a 14px icon PLUS a 1px border each side, and
+              // being two out made a completed row sit 2px off every other.
+              <span aria-hidden className="hidden 2xl:block 2xl:w-[32px]" />
             )}
             <button
               onClick={() => onDelete(task.id)}
