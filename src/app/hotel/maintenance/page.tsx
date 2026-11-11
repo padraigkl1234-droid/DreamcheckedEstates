@@ -232,7 +232,7 @@ function Queue() {
             const s = faultStatusMeta(f.status);
             return (
               <li key={f.id}>
-                <button onClick={() => setOpen(f.id)} className="flex w-full items-start gap-3 rounded-xl bg-white p-4 text-left hover:border-invictus-crimson-bright/40">
+                <button onClick={() => setOpen(f.id)} className="flex w-full items-start gap-3 rounded-xl bg-card p-4 text-left hover:border-invictus-crimson-bright/40">
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border border-neutral-400/20 bg-invictus-base/60">
                     {f.photos?.[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element

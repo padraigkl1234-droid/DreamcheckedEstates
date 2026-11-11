@@ -796,7 +796,7 @@ export default function ProjectBoardPage() {
             </div>
 
             {/* Zoom controls, pinned to the frame rather than the board. */}
-            <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-line bg-white p-1">
+            <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border border-line bg-card p-1">
               <button
                 onClick={() => zoomAt(1 / 1.2)}
                 disabled={zoom <= MIN_ZOOM + 0.001}

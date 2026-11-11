@@ -30,7 +30,7 @@ function Workload({
   const cap = settings.shiftCapacityMinutes;
   const unassigned = assignments.filter((a) => !a.assigneeUid);
   return (
-    <section className="rounded-xl bg-white p-4">
+    <section className="rounded-xl bg-card p-4">
       <SectionTitle icon={Users}>Workload</SectionTitle>
       <ul className="space-y-2.5">
         {people.map((p) => {
@@ -162,7 +162,7 @@ function Assign() {
       <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
         <div className="order-2 lg:order-1">
           {/* Bulk bar */}
-          <div className="sticky top-0 z-10 mb-4 rounded-xl bg-white p-4 backdrop-blur-md">
+          <div className="sticky top-0 z-10 mb-4 rounded-xl bg-card p-4 backdrop-blur-md">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-neutral-400">
                 <span className="font-mono text-neutral-100">{selected.size}</span> selected

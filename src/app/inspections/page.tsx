@@ -346,7 +346,7 @@ export default function InspectionsPage() {
                 <span className="rounded-full bg-line-fill px-2 py-0.5 text-[11px] font-bold text-ink-muted">{g.items.length}</span>
               </button>
               {isGroupOpen && (
-                <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-white">
+                <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-card">
                   {g.items.map((t) => {
                     const isOpen = expanded === t.id;
                     const last = lastRunByTemplate.get(t.id);
@@ -387,7 +387,7 @@ export default function InspectionsPage() {
                             <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
                               <Link
                                 href={`/assignments?item=${t.id}`}
-                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-white px-3.5 py-2 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink sm:flex-none sm:justify-start"
+                                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-card px-3.5 py-2 text-[13px] font-bold text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink sm:flex-none sm:justify-start"
                                 title="Assign this inspection to someone"
                               >
                                 <Users className="h-3.5 w-3.5" /> Assign
@@ -399,7 +399,7 @@ export default function InspectionsPage() {
                                 <Play className="h-3 w-3 fill-current" /> Run
                               </button>
                               {/* Joined pair, per the design. */}
-                              <div className="flex shrink-0 items-stretch divide-x divide-line overflow-hidden rounded-lg border border-line bg-white">
+                              <div className="flex shrink-0 items-stretch divide-x divide-line overflow-hidden rounded-lg border border-line bg-card">
                                 <button
                                   onClick={() => openBuilder(t)}
                                   title={`Edit ${t.name}`}
@@ -467,7 +467,7 @@ export default function InspectionsPage() {
                 key={s.name}
                 onClick={() => addStarter(s)}
                 title={s.description}
-                className="flex items-center gap-1.5 rounded-[10px] bg-white px-4 py-2.5 text-sm font-bold text-ink transition-colors duration-[120ms] hover:bg-white/70"
+                className="flex items-center gap-1.5 rounded-[10px] bg-card px-4 py-2.5 text-sm font-bold text-ink transition-colors duration-[120ms] hover:bg-white/70"
               >
                 <Plus className="h-3.5 w-3.5" /> {s.name}
                 <span className="font-semibold text-ink-placeholder">{s.questions.length}</span>

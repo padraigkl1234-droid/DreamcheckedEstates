@@ -100,7 +100,7 @@ export function PersonalTodoCard() {
   if (!user) return null;
 
   return (
-    <div className="flex h-full flex-col rounded-2xl bg-white px-[26px] py-[22px] max-md:px-4">
+    <div className="flex h-full flex-col rounded-2xl bg-card px-[26px] py-[22px] max-md:px-4">
       <div className="mb-2 flex items-center justify-between gap-3">
         <h2 className="text-[19px] font-extrabold text-ink">My to-do list</h2>
         <div className="flex shrink-0 items-center gap-2">
@@ -135,7 +135,7 @@ export function PersonalTodoCard() {
           maxLength={MAX_TODO_LENGTH}
           placeholder="Something to remember…"
           aria-label="Add a to-do"
-          className="min-w-0 flex-1 rounded-[10px] border border-line bg-white px-3.5 py-2.5 text-[15px] font-semibold text-ink outline-none transition-colors placeholder:font-medium placeholder:text-ink-placeholder focus:border-brand"
+          className="min-w-0 flex-1 rounded-[10px] border border-line bg-card px-3.5 py-2.5 text-[15px] font-semibold text-ink outline-none transition-colors placeholder:font-medium placeholder:text-ink-placeholder focus:border-brand"
         />
         <button
           onClick={submitDraft}
@@ -188,7 +188,7 @@ export function PersonalTodoCard() {
                   }}
                   maxLength={MAX_TODO_LENGTH}
                   aria-label="Edit this to-do"
-                  className="min-w-0 flex-1 rounded-md border border-brand bg-white px-2 py-1 text-[15px] font-bold text-ink outline-none"
+                  className="min-w-0 flex-1 rounded-md border border-brand bg-card px-2 py-1 text-[15px] font-bold text-ink outline-none"
                 />
               ) : (
                 <button

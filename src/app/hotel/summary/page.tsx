@@ -19,7 +19,7 @@ import { exportPdf } from '@/lib/hotel/export';
 
 function Stat({ label, value, tone = '' }: { label: string; value: React.ReactNode; tone?: string }) {
   return (
-    <div className={`rounded-xl bg-white p-4 ${tone}`}>
+    <div className={`rounded-xl bg-card p-4 ${tone}`}>
       <p className="font-mono text-2xl font-bold leading-none text-neutral-100">{value}</p>
       <p className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-500">{label}</p>
     </div>

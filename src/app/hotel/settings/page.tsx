@@ -109,7 +109,7 @@ function RoomsTab() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="rounded-xl bg-white p-4">
+        <section className="rounded-xl bg-card p-4">
           <SectionTitle icon={Plus}>Add a room</SectionTitle>
           <div className="grid grid-cols-3 gap-2">
             <input value={single.number} onChange={(e) => setSingle({ ...single, number: e.target.value })} placeholder="Number" className={inputClass} />
@@ -118,7 +118,7 @@ function RoomsTab() {
           </div>
           <button onClick={addOne} className={`${ghostButton} mt-2 w-full`}>Add room</button>
         </section>
-        <section className="rounded-xl bg-white p-4">
+        <section className="rounded-xl bg-card p-4">
           <SectionTitle icon={Plus}>Add a run of rooms</SectionTitle>
           <div className="grid grid-cols-4 gap-2">
             <input value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} placeholder="From" className={inputClass} inputMode="numeric" />
@@ -224,7 +224,7 @@ function StaffTab() {
   return (
     <div className="space-y-5">
       {team?.referralCode && (
-        <section className="flex flex-wrap items-center gap-3 rounded-xl bg-white p-4">
+        <section className="flex flex-wrap items-center gap-3 rounded-xl bg-card p-4">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Team code</p>
             <p className="text-xs text-neutral-500">New staff sign in with Google and enter this code. They start as a housekeeper; change their role below.</p>

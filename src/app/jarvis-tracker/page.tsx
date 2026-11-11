@@ -1002,7 +1002,7 @@ function KpiCard({
   caption: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white px-6 py-[22px]">
+    <div className="rounded-2xl bg-card px-6 py-[22px]">
       <p className="text-[13px] font-bold text-ink-dim">{label}</p>
       <p className={`mt-1 text-[52px] font-extrabold leading-none tracking-[-0.04em] max-md:text-[38px] ${valueClassName}`}>{value}</p>
       <p className="mt-1 text-[13px] font-semibold text-ink-dim">{caption}</p>
@@ -1279,7 +1279,7 @@ function Dashboard({
           <div className="flex shrink-0 items-center gap-2.5">
             <Link
               href="/jarvis-tracker?page=calendar"
-              className="rounded-[10px] border border-line bg-white px-[18px] py-3 text-sm font-bold text-ink transition-colors duration-[120ms] hover:bg-line-row"
+              className="rounded-[10px] border border-line bg-card px-[18px] py-3 text-sm font-bold text-ink transition-colors duration-[120ms] hover:bg-line-row"
             >
               Open calendar
             </Link>
@@ -1297,7 +1297,7 @@ function Dashboard({
       <Reveal index={1} animate={animateCardsIn}>
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           <div className="rounded-2xl bg-brand px-6 py-[22px] text-white">
-            <p className="text-[13px] font-bold text-[#C9D6FF]">Completion</p>
+            <p className="text-[13px] font-bold text-white/70">Completion</p>
             <p className="mt-1 text-[52px] font-extrabold leading-none tracking-[-0.04em] max-md:text-[38px]">{completionPct}%</p>
             <div className="mt-4 h-2 w-full rounded overflow-hidden bg-white/25">
               <div className="h-full rounded bg-sun transition-all" style={{ width: `${completionPct}%` }} />
@@ -1445,7 +1445,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl bg-white px-[26px] py-[22px] max-md:px-4">
+    <div className="flex h-full flex-col rounded-2xl bg-card px-[26px] py-[22px] max-md:px-4">
       <div className="mb-2 flex items-center justify-between gap-3">
         <h2 className="text-[19px] font-extrabold text-ink">{title}</h2>
         {right}
@@ -1482,7 +1482,7 @@ function CompletionChartCard({
               key={r}
               onClick={() => setRange(r)}
               className={`rounded-md px-2.5 py-1 text-xs font-bold transition-colors ${
-                range === r ? 'bg-white text-ink' : 'text-ink-dim hover:text-ink'
+                range === r ? 'bg-card text-ink' : 'text-ink-dim hover:text-ink'
               }`}
             >
               {r}D
@@ -1538,7 +1538,7 @@ function Panel({
     // The redesign's card: flat white, 16px corners, no border and no shadow,
     // separated from the page by the #F3F4F8 background behind it. Padding
     // shrinks below md so cards still read in a 2-column mobile grid.
-    <div className="relative flex h-full flex-col rounded-2xl bg-white px-[26px] py-[22px] max-md:px-4 max-md:py-4">
+    <div className="relative flex h-full flex-col rounded-2xl bg-card px-[26px] py-[22px] max-md:px-4 max-md:py-4">
       <div className="mb-4 flex items-center justify-between gap-2 max-md:mb-3">
         <div className="flex items-center gap-2">
           <Icon className="h-[18px] w-[18px] shrink-0 text-ink-dim" />
@@ -4246,7 +4246,7 @@ function TaskManager({
             />
             {/* One joined control, per the design: a single outer border
                 with dividers between the four actions. */}
-            <div className="flex items-stretch overflow-hidden rounded-lg border border-line bg-white divide-x divide-line">
+            <div className="flex items-stretch overflow-hidden rounded-lg border border-line bg-card divide-x divide-line">
               <button
                 onClick={() => pickImages(task.id)}
                 disabled={uploadingImageFor === task.id}
@@ -4300,7 +4300,7 @@ function TaskManager({
             {task.status === 'Completed' ? (
               <button
                 onClick={() => onArchive(task.id)}
-                className="rounded-lg border border-line bg-white p-2 text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink"
+                className="rounded-lg border border-line bg-card p-2 text-ink-muted transition-colors duration-[120ms] hover:bg-line-row hover:text-ink"
                 title="Archive task"
               >
                 <Archive className="h-3.5 w-3.5" />
@@ -4703,7 +4703,7 @@ function TaskManager({
               : `${tasks.length} active task${tasks.length === 1 ? '' : 's'} across the estate`}
           </p>
         </div>
-        <div className="flex shrink-0 gap-1 rounded-[10px] border border-line bg-white p-1">
+        <div className="flex shrink-0 gap-1 rounded-[10px] border border-line bg-card p-1">
           <button
             onClick={() => setViewMode('list')}
             className={`flex items-center gap-1.5 rounded-[7px] px-4 py-2 text-sm font-bold transition-colors duration-[120ms] ${
@@ -4724,7 +4724,7 @@ function TaskManager({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2.5 rounded-[14px] border-2 border-brand bg-white py-2.5 pl-5 pr-2.5">
+      <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2.5 rounded-[14px] border-2 border-brand bg-card py-2.5 pl-5 pr-2.5">
         <Plus className="h-5 w-5 shrink-0 text-brand" strokeWidth={3} />
         <input
           value={name}
@@ -4898,10 +4898,10 @@ function TaskManager({
               className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition-colors duration-[120ms] ${
                 active
                   ? 'bg-ink text-white'
-                  : `bg-white hover:bg-line-row ${tab.key === 'overdue' ? 'text-danger' : 'text-ink-muted'}`
+                  : `bg-card hover:bg-line-row ${tab.key === 'overdue' ? 'text-danger' : 'text-ink-muted'}`
               }`}
             >
-              {tab.key === 'overdue' && <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${active ? 'bg-white' : 'bg-danger'}`} />}
+              {tab.key === 'overdue' && <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${active ? 'bg-card' : 'bg-danger'}`} />}
               {tab.label}
               <span className={active ? 'text-white/70' : 'text-ink-placeholder'}>{tab.count}</span>
             </button>
@@ -4917,7 +4917,7 @@ function TaskManager({
           <button
             onClick={() => setGroupFilter(null)}
             className={`rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors duration-[120ms] ${
-              !groupFilter ? 'bg-brand-tint text-brand' : 'bg-white text-ink-muted hover:bg-line-row'
+              !groupFilter ? 'bg-brand-tint text-brand' : 'bg-card text-ink-muted hover:bg-line-row'
             }`}
           >
             All
@@ -4927,7 +4927,7 @@ function TaskManager({
               key={c}
               onClick={() => setGroupFilter((prev) => (prev === c ? null : c))}
               className={`rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors duration-[120ms] ${
-                groupFilter === c ? 'bg-brand-tint text-brand' : 'bg-white text-ink-muted hover:bg-line-row'
+                groupFilter === c ? 'bg-brand-tint text-brand' : 'bg-card text-ink-muted hover:bg-line-row'
               }`}
             >
               {c}
@@ -5044,7 +5044,7 @@ function TaskManager({
       )}
 
       {tasks.length === 0 && (
-        <div className="rounded-2xl bg-white p-10 text-center">
+        <div className="rounded-2xl bg-card p-10 text-center">
           <p className="text-[15px] font-semibold text-ink-dim">No tasks in queue.</p>
         </div>
       )}
@@ -5057,7 +5057,7 @@ function TaskManager({
                 Overdue
                 <span className="rounded-full bg-danger-tint px-2 py-0.5 text-[11px] text-danger-deep">{overdueTasks.length}</span>
               </p>
-              <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-white">
+              <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-card">
                 {overdueTasks.map(renderTaskRow)}
               </div>
             </div>
@@ -5068,14 +5068,14 @@ function TaskManager({
                 {group.status}
                 <span className="rounded-full bg-line-fill px-2 py-0.5 text-[11px] text-ink-muted">{group.items.length}</span>
               </p>
-              <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-white">
+              <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-card">
                 {group.items.map(renderTaskRow)}
               </div>
             </div>
           ))}
         </>
       ) : (
-        <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-white">
+        <div className="divide-y divide-line-row overflow-hidden rounded-2xl bg-card">
           {(filter === 'overdue' ? overdueTasks : filteredFlatTasks).length === 0 ? (
             <p className="py-8 text-center text-xs text-neutral-600">No tasks in this view.</p>
           ) : (
@@ -6028,7 +6028,7 @@ function ComplianceTracker({
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    className="relative grid grid-cols-1 items-center gap-3 rounded-xl bg-white px-[22px] py-[18px] md:grid-cols-[32px_1.3fr_0.75fr_0.75fr_1.1fr_240px_40px]"
+                    className="relative grid grid-cols-1 items-center gap-3 rounded-xl bg-card px-[22px] py-[18px] md:grid-cols-[32px_1.3fr_0.75fr_0.75fr_1.1fr_240px_40px]"
                   >
                     <MicroCorners />
                     <button
@@ -6057,21 +6057,21 @@ function ComplianceTracker({
                       type="date"
                       value={item.date}
                       onChange={(e) => onChangeDate(item.id, e.target.value)}
-                      className="rounded-lg border border-line bg-invictus-base px-3 py-2.5 text-sm font-semibold text-ink focus:border-brand focus:bg-white focus:outline-none"
+                      className="rounded-lg border border-line bg-invictus-base px-3 py-2.5 text-sm font-semibold text-ink focus:border-brand focus:bg-card focus:outline-none"
                     />
 
                     <input
                       type="date"
                       value={item.nextDueDate}
                       onChange={(e) => onChangeNextDueDate(item.id, e.target.value)}
-                      className="rounded-lg border border-line bg-invictus-base px-3 py-2.5 text-sm font-semibold text-ink focus:border-brand focus:bg-white focus:outline-none"
+                      className="rounded-lg border border-line bg-invictus-base px-3 py-2.5 text-sm font-semibold text-ink focus:border-brand focus:bg-card focus:outline-none"
                     />
 
                     <input
                       value={item.comments}
                       onChange={(e) => onChangeComments(item.id, e.target.value)}
                       placeholder="Add a comment…"
-                      className="w-full rounded-lg border-2 border-line bg-invictus-base px-3 py-2.5 text-sm font-semibold text-ink placeholder:font-normal placeholder:text-ink-placeholder focus:border-brand focus:bg-white focus:outline-none"
+                      className="w-full rounded-lg border-2 border-line bg-invictus-base px-3 py-2.5 text-sm font-semibold text-ink placeholder:font-normal placeholder:text-ink-placeholder focus:border-brand focus:bg-card focus:outline-none"
                     />
 
                     <div className="flex max-w-[240px] flex-wrap items-center gap-1.5">

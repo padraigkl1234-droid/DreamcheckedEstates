@@ -109,7 +109,7 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
           and style as the Actions sub-nav on the estates side — so the whole
           app reads as one shell rather than two. The side rail is gone. */}
       {items.length > 0 && (
-        <div className="hidden shrink-0 border-b border-line bg-white md:block">
+        <div className="hidden shrink-0 border-b border-line bg-card md:block">
           <nav className="flex h-[50px] items-center gap-0 overflow-x-auto px-8">
             <span className="mr-5 flex shrink-0 items-center gap-2 text-[13px] font-extrabold uppercase tracking-[0.08em] text-ink-dim">
               <BedDouble className="h-4 w-4" />
@@ -152,7 +152,7 @@ export function HotelShell({ children }: { children: React.ReactNode }) {
           a phone, and a thumb-reachable bar beats a dropdown for someone
           working a corridor with a trolley. */}
       {items.length > 0 && (
-        <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] md:hidden">
           {primary.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);

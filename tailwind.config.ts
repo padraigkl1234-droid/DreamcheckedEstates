@@ -62,52 +62,55 @@ export default {
         'glow-caution': 'none',
       },
       colors: {
-        // --- Redesign palette (see design_handoff_invictus_redesign) --------
-        // Navy header and ink, blue for primary actions and key numbers,
-        // yellow for highlights. Named so new markup can reach for them
-        // directly; the older invictus.* tokens below are remapped onto the
-        // same system so existing components follow without being rewritten.
+        // --- Palette ---------------------------------------------------------
+        // Warm cream paper with near-black ink. There is one accent and it is
+        // the ink itself: primary buttons, the active nav mark and key numbers
+        // are all black, the way they would be on a printed page. Mustard is
+        // kept as the single highlight colour. The names (brand, sun, line…)
+        // are unchanged from the navy-and-blue scheme this replaces, so every
+        // component follows without being rewritten.
         ink: {
-          DEFAULT: '#0E1A3A',
-          soft: '#2C3452',
-          muted: '#4A5270',
-          dim: '#6B7290',
-          placeholder: '#8A90A8',
+          DEFAULT: '#1C1A17',
+          soft: '#33302B',
+          muted: '#55514A',
+          dim: '#6F6A61',
+          placeholder: '#938D82',
         },
         brand: {
-          DEFAULT: '#1F4FFF',
-          hover: '#1A43DB',
-          tint: '#E8EEFF',
+          DEFAULT: '#1C1A17',
+          hover: '#000000',
+          tint: '#EAE5D8',
         },
         sun: {
-          DEFAULT: '#FFC83D',
-          soft: '#FFE7A3',
-          panel: '#FFF3CC',
+          DEFAULT: '#F2C44E',
+          soft: '#F6DE9C',
+          panel: '#F8EDCB',
           ink: '#5C4300',
           deep: '#4A3800',
         },
         line: {
-          DEFAULT: '#DDE1EC',
-          row: '#ECEEF4',
-          fill: '#E4E7EF',
-          check: '#C3C9DC',
+          DEFAULT: '#DFD9CB',
+          row: '#EBE6DA',
+          fill: '#E7E2D5',
+          check: '#C8C1B0',
         },
         danger: {
-          DEFAULT: '#E5383B',
-          deep: '#C1272D',
-          tint: '#FDE3E4',
+          DEFAULT: '#CF2F2B',
+          deep: '#A92420',
+          tint: '#F9E1DC',
         },
         ok: {
-          DEFAULT: '#2BD18A',
-          deep: '#119A5E',
-          darker: '#0E7A4A',
-          tint: '#E3F8EE',
+          DEFAULT: '#2BB67A',
+          deep: '#11855A',
+          darker: '#0E6B47',
+          tint: '#E1F2E7',
         },
+        // The phone's top bar and menu sheet, and the desktop rail.
         header: {
-          bg: '#0E1A3A',
-          text: '#B6C0E2',
-          dim: '#8C98C2',
-          divider: '#2A3866',
+          bg: '#FCFAF5',
+          text: '#55514A',
+          dim: '#938D82',
+          divider: '#DFD9CB',
         },
         invictus: {
           base: 'rgb(var(--invictus-base) / <alpha-value>)',
@@ -119,8 +122,8 @@ export default {
           'crimson-bright': 'rgb(var(--invictus-crimson-bright) / <alpha-value>)',
         },
         alert: {
-          DEFAULT: '#E5383B',
-          dim: '#C1272D',
+          DEFAULT: '#CF2F2B',
+          dim: '#A92420',
         },
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',

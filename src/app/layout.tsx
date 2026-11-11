@@ -10,7 +10,9 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    // 'default' gives dark status-bar text. The translucent style draws it
+    // white, which was right over a navy bar and would vanish on cream.
+    statusBarStyle: 'default',
     title: 'INVICTUS',
   },
   icons: {
@@ -25,9 +27,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  // The navy of the header: this is what paints the status-bar area in an
-  // installed app, and white left a strip above the header.
-  themeColor: '#0E1A3A',
+  // The paper of the phone's top bar: this is what paints the status-bar
+  // area in an installed app, so it has to match or a strip shows above it.
+  themeColor: '#FCFAF5',
   // Without cover, the layout viewport stops short of the status bar and
   // env(safe-area-inset-*) is always 0, so the header can't extend under it.
   viewportFit: 'cover',
@@ -93,11 +95,17 @@ export default function RootLayout({
                 {/* AppHeader reads the query string to know which tracker
                     tab is active, so it needs its own Suspense boundary —
                     without one it drags every page out of static rendering
-                    and the production build fails at the prerender step. */}
-                <Suspense fallback={<div className="h-16 bg-header-bg" />}>
+                    and the production build fails at the prerender step.
+                    The fallback is laid out where the real chrome will be,
+                    so nothing jumps when it arrives. */}
+                <Suspense
+                  fallback={
+                    <div className="fixed left-0 top-0 z-40 h-[calc(4rem+env(safe-area-inset-top))] w-full border-b border-line bg-header-bg md:h-full md:w-[var(--rail-w)] md:border-b-0 md:border-r" />
+                  }
+                >
                   <AppHeader />
                 </Suspense>
-                <div className="pt-[var(--chrome-h)]">
+                <div className="pl-[var(--rail-w)] pt-[var(--chrome-h)]">
                   {children}
                 </div>
               </AppGate>

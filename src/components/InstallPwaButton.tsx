@@ -40,7 +40,9 @@ function isStandalone(): boolean {
   );
 }
 
-export function InstallPwaButton() {
+/** `compact` is the icon-only form the desktop rail uses, where there is no
+ *  room for the words. */
+export function InstallPwaButton({ compact = false }: { compact?: boolean } = {}) {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -74,9 +76,11 @@ export function InstallPwaButton() {
   return (
     <>
       <Button
-        variant="outline"
+        variant={compact ? 'ghost' : 'outline'}
         size="sm"
-        className="gap-2"
+        className={compact ? 'h-9 w-9 rounded-lg p-0 text-header-text hover:bg-ink/[0.06] hover:text-ink' : 'gap-2'}
+        title={compact ? 'Install INVICTUS as an app' : undefined}
+        aria-label="Install INVICTUS as an app"
         onClick={async () => {
           if (installEvent) {
             await installEvent.prompt();
@@ -87,7 +91,7 @@ export function InstallPwaButton() {
         }}
       >
         <Download className="h-4 w-4" />
-        Install App
+        {!compact && 'Install App'}
       </Button>
 
       <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
