@@ -71,8 +71,10 @@ const focusRing =
 // ---- Rail pieces -----------------------------------------------------------
 
 const railBtn = `relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors duration-[120ms] ease-out ${focusRing}`;
-const railIdle = 'text-ink-dim hover:bg-ink/[0.06] hover:text-ink';
-const railOn = 'bg-brand-tint text-ink';
+const railIdle = 'text-ink-dim hover:bg-ink/[0.05] hover:text-ink';
+// The current page is shown by the mark and by its icon going to full ink,
+// not by a block of colour behind it.
+const railOn = 'text-ink';
 
 /** The mark at the rail's edge beside whichever icon is the current page. */
 function ActiveMark() {
@@ -95,7 +97,7 @@ function RailLink({ href, label, icon: Icon, on }: { href: string; label: string
     <RailTip label={label}>
       <Link href={href} aria-label={label} aria-current={on ? 'page' : undefined} className={`${railBtn} ${on ? railOn : railIdle}`}>
         {on && <ActiveMark />}
-        <Icon className="h-5 w-5" strokeWidth={on ? 2.4 : 2} />
+        <Icon className="h-5 w-5" strokeWidth={on ? 2 : 1.5} />
       </Link>
     </RailTip>
   );
@@ -118,7 +120,7 @@ function RailMenu({
         <DropdownMenuTrigger asChild>
           <button aria-label={label} className={`${railBtn} data-[state=open]:bg-ink/[0.06] data-[state=open]:text-ink ${on ? railOn : railIdle}`}>
             {on && <ActiveMark />}
-            <Icon className="h-5 w-5" strokeWidth={on ? 2.4 : 2} />
+            <Icon className="h-5 w-5" strokeWidth={on ? 2 : 1.5} />
           </button>
         </DropdownMenuTrigger>
       </RailTip>

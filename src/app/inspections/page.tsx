@@ -293,7 +293,7 @@ export default function InspectionsPage() {
     <div className="mx-auto max-w-[1080px] px-9 py-[30px] max-md:px-4 max-md:py-5">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[28px]">
+          <h1 className="text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[24px]">
             Inspections
           </h1>
           <p className="mt-1 max-w-2xl text-[15px] font-semibold text-ink-muted">

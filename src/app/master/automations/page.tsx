@@ -224,7 +224,7 @@ export default function AutomationsPage() {
         <div className="mb-8 flex items-center gap-3">
           <Zap className="h-8 w-8 text-invictus-crimson-bright drop-shadow-glow-subtle" />
           <div>
-            <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">
+            <h1 className="text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">
               Automations
             </h1>
             <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">

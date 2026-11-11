@@ -195,3 +195,16 @@
 :root[data-theme='light'] .bg-invictus-base\/60 {
   background-color: #F4F1E8;
 }
+
+/* --- Quiet labels ---------------------------------------------------------- */
+/* Hundreds of small labels were set in wide-spaced capitals. The look now is
+   sentence case at normal spacing, so both are switched off here in one place
+   rather than at every label. Map lettering is drawn in SVG with its own
+   inline style and is not affected. */
+:root[data-theme='light'] .uppercase {
+  text-transform: none;
+  letter-spacing: normal;
+}
+/* Large headings were tightened hard for a heavy face; a lighter one wants
+   only a little. */
+:root[data-theme='light'] h1 { letter-spacing: -0.02em; }

@@ -1,6 +1,6 @@
 import type {Metadata, Viewport} from 'next';
 import { Suspense } from 'react';
-import { Manrope, JetBrains_Mono } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -47,10 +47,11 @@ import { AppHeader } from '@/components/AppHeader';
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { PushListener } from "@/components/PushListener";
 
-// One typeface everywhere: Manrope, in the four weights the design uses.
-const manrope = Manrope({
+// One typeface everywhere: Inter. It is a variable font, so every weight the
+// app asks for comes from the one file. (The CSS variable keeps its old name;
+// a great deal of the stylesheet hangs off it.)
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['500', '600', '700', '800'],
   variable: '--font-hanken',
   display: 'swap',
 });
@@ -74,7 +75,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-theme="light"
-      className={`${manrope.variable} ${jetbrainsMono.variable}`}
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
       <head>

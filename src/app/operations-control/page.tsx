@@ -22,7 +22,7 @@ export default function OperationsControlPage() {
             <div className="mb-8 flex flex-col items-center gap-2 text-center">
               <div className="flex items-center gap-3">
                 < Gauge className="h-10 w-10 text-primary sm:h-12 sm:w-12" />
-                <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">
+                <h1 className="text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[26px]">
                   Operations Control
                 </h1>
               </div>

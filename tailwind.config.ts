@@ -45,6 +45,18 @@ export default {
           'monospace',
         ],
       },
+      // The whole app was set in bold and extra-bold. The look now is a quiet
+      // one: regular text, medium for emphasis, semibold for headings and
+      // nothing heavier. Remapping the scale here turns every existing
+      // font-bold / font-extrabold down at once, rather than editing the
+      // several hundred places that ask for them.
+      fontWeight: {
+        medium: '400',
+        semibold: '500',
+        bold: '500',
+        extrabold: '600',
+        black: '600',
+      },
       // Minimal re-skin: no neon glow. "glow-subtle" is now an extremely soft
       // depth shadow; louder variants collapse to that so every existing
       // shadow-glow-* class reads calm without per-site edits.
@@ -81,12 +93,14 @@ export default {
           hover: '#000000',
           tint: '#EAE5D8',
         },
+        // The highlight, turned right down from mustard to a sand that sits
+        // inside the cream rather than on top of it.
         sun: {
-          DEFAULT: '#F2C44E',
-          soft: '#F6DE9C',
-          panel: '#F8EDCB',
-          ink: '#5C4300',
-          deep: '#4A3800',
+          DEFAULT: '#DCCB9A',
+          soft: '#EDE4C8',
+          panel: '#F2ECD9',
+          ink: '#4A4230',
+          deep: '#5F5846',
         },
         line: {
           DEFAULT: '#DFD9CB',

@@ -1004,7 +1004,7 @@ function KpiCard({
   return (
     <div className="rounded-2xl bg-card px-6 py-[22px]">
       <p className="text-[13px] font-bold text-ink-dim">{label}</p>
-      <p className={`mt-1 text-[52px] font-extrabold leading-none tracking-[-0.04em] max-md:text-[38px] ${valueClassName}`}>{value}</p>
+      <p className={`mt-1 text-[40px] font-extrabold leading-none tracking-[-0.04em] max-md:text-[30px] ${valueClassName}`}>{value}</p>
       <p className="mt-1 text-[13px] font-semibold text-ink-dim">{caption}</p>
     </div>
   );
@@ -1257,7 +1257,7 @@ function Dashboard({
             <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-ink-dim">
               {now ? now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : '\u00a0'}
             </p>
-            <h1 className="mt-1 text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[28px]">
+            <h1 className="mt-1 text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[24px]">
               {partOfDay ? `Good ${partOfDay}${firstName ? `, ${firstName}` : ''}` : 'Dashboard'}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2.5">
@@ -1296,11 +1296,11 @@ function Dashboard({
       {/* KPI row */}
       <Reveal index={1} animate={animateCardsIn}>
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-          <div className="rounded-2xl bg-brand px-6 py-[22px] text-white">
-            <p className="text-[13px] font-bold text-white/70">Completion</p>
-            <p className="mt-1 text-[52px] font-extrabold leading-none tracking-[-0.04em] max-md:text-[38px]">{completionPct}%</p>
-            <div className="mt-4 h-2 w-full rounded overflow-hidden bg-white/25">
-              <div className="h-full rounded bg-sun transition-all" style={{ width: `${completionPct}%` }} />
+          <div className="rounded-2xl bg-card px-6 py-[22px] text-ink">
+            <p className="text-[13px] font-bold text-ink-dim">Completion</p>
+            <p className="mt-1 text-[40px] font-extrabold leading-none tracking-[-0.04em] max-md:text-[30px]">{completionPct}%</p>
+            <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-line-fill">
+              <div className="h-full rounded-full bg-ink transition-all" style={{ width: `${completionPct}%` }} />
             </div>
           </div>
           <KpiCard label="Completed" value={String(completedItems)} caption="tasks completed" />
@@ -1387,12 +1387,12 @@ function Dashboard({
           </Reveal>
 
           <Reveal index={5} animate={animateCardsIn}>
-            <div className="flex h-full flex-col rounded-2xl bg-sun px-[26px] py-[22px]">
+            <div className="flex h-full flex-col rounded-2xl bg-card px-[26px] py-[22px] max-md:px-4">
               <p className="text-[19px] font-extrabold text-ink">Today&apos;s meetings</p>
               {todaysMeetings.length === 0 ? (
                 <div className="mt-auto pt-8">
                   <p className="text-[30px] font-extrabold leading-tight text-ink">Free day.</p>
-                  <p className="mt-1 text-sm font-semibold text-sun-deep">No meetings scheduled today.</p>
+                  <p className="mt-1 text-sm font-semibold text-ink-dim">No meetings scheduled today.</p>
                   <Link href="/jarvis-tracker?page=calendar" className="mt-3 inline-block text-sm font-extrabold text-ink hover:underline">
                     Schedule one →
                   </Link>
@@ -1405,19 +1405,19 @@ function Dashboard({
                       <button
                         key={ev.id}
                         onClick={() => onToggleMeeting(ev.id, todayStr)}
-                        className="flex items-start gap-2.5 rounded-[10px] bg-white/35 px-3 py-2.5 text-left transition-colors hover:bg-white/55"
+                        className="flex items-start gap-2.5 rounded-[10px] bg-ink/[0.04] px-3 py-2.5 text-left transition-colors hover:bg-ink/[0.07]"
                         title={done ? 'Mark as not done' : 'Mark as done'}
                       >
                         {done ? (
-                          <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] shrink-0 text-sun-ink" />
+                          <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] shrink-0 text-ink" />
                         ) : (
-                          <Circle className="mt-0.5 h-[18px] w-[18px] shrink-0 text-sun-deep/50" />
+                          <Circle className="mt-0.5 h-[18px] w-[18px] shrink-0 text-ink-placeholder" />
                         )}
                         <span className="min-w-0 flex-1">
                           <span className={`block text-[15px] font-bold text-ink ${done ? 'line-through opacity-60' : ''}`}>
                             {ev.title}
                           </span>
-                          <span className="block text-[13px] font-semibold text-sun-deep">
+                          <span className="block text-[13px] font-semibold text-ink-dim">
                             {ev.time ? formatDisplayTime(ev.time) : 'All day'}
                           </span>
                         </span>
@@ -1510,7 +1510,7 @@ function CompletionChartCard({
           <div
             key={p.iso}
             title={`${p.label}: ${p.tasks} completed`}
-            className={`min-w-0 flex-1 rounded-t-md transition-all ${i === peakIndex && p.tasks > 0 ? 'bg-sun' : 'bg-brand'}`}
+            className={`min-w-0 flex-1 rounded-t-md transition-all ${i === peakIndex && p.tasks > 0 ? 'bg-ink' : 'bg-line-check'}`}
             style={{ height: `${Math.max(6, (p.tasks / peak) * 100)}%` }}
           />
         ))}
@@ -4696,7 +4696,7 @@ function TaskManager({
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[38px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[28px]">Task Manager</h1>
+          <h1 className="text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink max-md:text-[24px]">Task Manager</h1>
           <p className="mt-1 text-[15px] font-semibold text-ink-muted">
             {groupFilter
               ? `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} in ${groupFilter}`
